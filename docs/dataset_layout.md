@@ -62,3 +62,11 @@ Run `scripts/debug_dataset.py` with a config and dataset root. The script saves 
 - VisA binary mask overlay when available
 - DeepPCB boxes and class labels
 - DeepPCB template image when available
+
+For loader smoke tests before downloading the full datasets, generate tiny synthetic fixtures:
+
+```bash
+PYTHONPATH=src python -c "from pathlib import Path; from utils.synthetic_data import create_synthetic_debug_datasets; create_synthetic_debug_datasets(Path('/tmp/pcb_debug_fixture'))"
+```
+
+Then point `scripts/debug_dataset.py` at `/tmp/pcb_debug_fixture/VisA` or `/tmp/pcb_debug_fixture/DeepPCB/PCBData`.

@@ -62,6 +62,23 @@ Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, a
 
 ## Debug Loaders
 
+Synthetic smoke test without real datasets:
+
+```bash
+PYTHONPATH=src python -c "from pathlib import Path; from utils.synthetic_data import create_synthetic_debug_datasets; create_synthetic_debug_datasets(Path('/tmp/pcb_debug_fixture'))"
+python scripts/debug_dataset.py \
+  --config configs/datasets/visa_pcb.yaml \
+  --root /tmp/pcb_debug_fixture/VisA \
+  --split test \
+  --category pcb1 \
+  --limit 2
+python scripts/debug_dataset.py \
+  --config configs/datasets/deeppcb.yaml \
+  --root /tmp/pcb_debug_fixture/DeepPCB/PCBData \
+  --split test \
+  --limit 1
+```
+
 VisA:
 
 ```bash

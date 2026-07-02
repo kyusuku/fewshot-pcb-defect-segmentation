@@ -9,7 +9,6 @@ description = "Few-shot PCB defect segmentation with DINOv2 anomaly proposals an
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [
-  "matplotlib>=3.8",
   "numpy>=1.26",
   "pillow>=10.0",
   "pyyaml>=6.0",

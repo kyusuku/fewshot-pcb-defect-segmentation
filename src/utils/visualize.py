@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from datasets.types import BoxAnnotation, DatasetRecord
 from utils.image import load_binary_mask, load_rgb_image, zeros_mask
@@ -47,28 +45,19 @@ def _visualize_visa(
         else zeros_mask(image.size)
     )
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-    axes[0].imshow(image)
-    axes[0].set_title("image")
-    axes[0].axis("off")
-
-    axes[1].imshow(mask, cmap="gray", vmin=0, vmax=1)
-    axes[1].set_title("gt mask")
-    axes[1].axis("off")
-
-    axes[2].imshow(image)
-    if mask.max() > 0:
-        overlay = np.ma.masked_where(mask == 0, mask)
-        axes[2].imshow(overlay, cmap="autumn", alpha=0.45, vmin=0, vmax=1)
-    axes[2].set_title(f"{record.category} | label={record.label}")
-    axes[2].axis("off")
-
-    fig.suptitle(record.sample_id)
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=160)
+    mask_image = Image.fromarray((mask * 255).astype(np.uint8), mode="L").convert("RGB")
+    overlay = _mask_overlay(image, mask)
+    canvas = _make_panel_grid(
+        [
+            ("image", image),
+            ("gt mask", mask_image),
+            (f"{record.category} | label={record.label}", overlay),
+        ],
+        title=record.sample_id,
+    )
+    canvas.save(output_path)
     if show:
-        plt.show()
-    plt.close(fig)
+        image.show()
 
 
 def _visualize_deeppcb(
@@ -88,30 +77,49 @@ def _visualize_deeppcb(
         draw.text((xyxy[0] + 2, xyxy[1] + 2), label, fill=(255, 40, 40))
 
     template = load_rgb_image(record.template_path) if record.template_path else None
-    num_cols = 3 if template is not None else 2
-    fig, axes = plt.subplots(1, num_cols, figsize=(4 * num_cols, 4))
-    axes_list: list[Any] = list(axes) if isinstance(axes, np.ndarray) else [axes]
-
-    axes_list[0].imshow(image)
-    axes_list[0].set_title("test image")
-    axes_list[0].axis("off")
-
-    axes_list[1].imshow(image_with_boxes)
-    axes_list[1].set_title(f"{len(boxes)} boxes")
-    axes_list[1].axis("off")
-
+    panels = [("test image", image), (f"{len(boxes)} boxes", image_with_boxes)]
     if template is not None:
-        axes_list[2].imshow(template)
-        axes_list[2].set_title("template")
-        axes_list[2].axis("off")
-
-    fig.suptitle(record.sample_id)
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=160)
+        panels.append(("template", template))
+    canvas = _make_panel_grid(panels, title=record.sample_id)
+    canvas.save(output_path)
     if show:
-        plt.show()
-    plt.close(fig)
+        image_with_boxes.show()
 
 
 def safe_filename(value: str) -> str:
     return "".join(char if char.isalnum() or char in {"-", "_"} else "_" for char in value)
+
+
+def _mask_overlay(image: Image.Image, mask: np.ndarray) -> Image.Image:
+    base = image.convert("RGBA")
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    alpha = (mask > 0).astype(np.uint8) * 120
+    red = np.zeros((image.size[1], image.size[0], 4), dtype=np.uint8)
+    red[..., 0] = 255
+    red[..., 1] = 64
+    red[..., 3] = alpha
+    overlay = Image.fromarray(red, mode="RGBA")
+    return Image.alpha_composite(base, overlay).convert("RGB")
+
+
+def _make_panel_grid(panels: list[tuple[str, Image.Image]], title: str) -> Image.Image:
+    padding = 12
+    title_height = 28
+    label_height = 22
+    panel_width = max(image.width for _, image in panels)
+    panel_height = max(image.height for _, image in panels)
+    width = padding + len(panels) * (panel_width + padding)
+    height = padding + title_height + panel_height + label_height + padding
+    canvas = Image.new("RGB", (width, height), (245, 245, 242))
+    draw = ImageDraw.Draw(canvas)
+    font = ImageFont.load_default()
+    draw.text((padding, padding), title, fill=(30, 30, 30), font=font)
+
+    y = padding + title_height
+    for index, (label, image) in enumerate(panels):
+        x = padding + index * (panel_width + padding)
+        canvas.paste(image.convert("RGB"), (x, y))
+        draw.rectangle((x, y, x + image.width - 1, y + image.height - 1), outline=(40, 40, 40))
+        draw.text((x, y + panel_height + 5), label, fill=(30, 30, 30), font=font)
+
+    return canvas
