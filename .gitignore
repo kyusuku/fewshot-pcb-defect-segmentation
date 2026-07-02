@@ -18,6 +18,7 @@ venv/
 /wandb/
 /logs/
 /artifacts/
+/external/
 
 *.egg-info/
 .pytest_cache/

@@ -38,9 +38,11 @@ def create_synthetic_debug_datasets(root: str | Path) -> SyntheticDebugDatasets:
 def _create_synthetic_visa(root: Path) -> None:
     image_dir = root / "pcb1" / "test" / "anomaly"
     normal_dir = root / "pcb1" / "test" / "normal"
+    train_dir = root / "pcb1" / "train" / "normal"
     mask_dir = root / "pcb1" / "ground_truth" / "anomaly"
     image_dir.mkdir(parents=True, exist_ok=True)
     normal_dir.mkdir(parents=True, exist_ok=True)
+    train_dir.mkdir(parents=True, exist_ok=True)
     mask_dir.mkdir(parents=True, exist_ok=True)
 
     anomaly = _pcb_like_image(size=64, defect=True)
@@ -50,6 +52,9 @@ def _create_synthetic_visa(root: Path) -> None:
 
     anomaly.save(image_dir / "pcb1_anomaly_000.png")
     normal.save(normal_dir / "pcb1_normal_000.png")
+    for index in range(3):
+        train_normal = _pcb_like_image(size=64, defect=False)
+        train_normal.save(train_dir / f"pcb1_train_normal_{index:03d}.png")
     mask.save(mask_dir / "pcb1_anomaly_000.png")
 
 
