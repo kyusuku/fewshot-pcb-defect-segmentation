@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcb-defect-seg"
+version = "0.1.0"
+description = "Few-shot PCB defect segmentation with DINOv2 anomaly proposals and SAM2 mask refinement."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pillow>=10.0",
+  "pyyaml>=6.0",
+  "torch>=2.3",
+  "torchvision>=0.18",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["datasets*", "utils*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

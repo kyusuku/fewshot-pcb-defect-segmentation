@@ -1,0 +1,11 @@
+dataset:
+  name: deeppcb
+  root: data/DeepPCB/PCBData
+  split: test
+  split_file: null
+  return_tensors: true
+  return_pseudo_mask: true
+
+debug:
+  output_dir: outputs/debug_dataset/deeppcb
+  limit: 4

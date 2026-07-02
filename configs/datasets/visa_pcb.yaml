@@ -1,0 +1,13 @@
+dataset:
+  name: visa_pcb
+  root: data/VisA
+  manifest_csv: null
+  categories: [pcb1, pcb2, pcb3, pcb4]
+  split: test
+  normal_only: false
+  return_tensors: true
+  mask_threshold: 0
+
+debug:
+  output_dir: outputs/debug_dataset/visa_pcb
+  limit: 4

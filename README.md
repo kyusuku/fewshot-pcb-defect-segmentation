@@ -1,0 +1,103 @@
+# Few-Shot PCB Defect Segmentation
+
+Research codebase for **Few-Shot PCB Defect Segmentation via Multi-Scale DINOv2 Anomaly Proposals and SAM2 Mask Refinement**.
+
+Repository name: `fewshot-pcb-defect-segmentation`
+
+This project implements a few-shot PCB defect detection and segmentation pipeline. The intended method learns normal PCB appearance from a small number of normal images, detects anomalous regions with DINOv2 patch features, improves small-defect localization with multi-scale crops, and refines candidate regions into masks with SAM2.
+
+Current status: initial repository structure plus dataset loaders and debug visualizations.
+
+## Benchmarks
+
+- **VisA PCB subsets**: `pcb1`, `pcb2`, `pcb3`, `pcb4`, with image labels and pixel masks.
+- **DeepPCB**: aligned template/test PCB pairs with box annotations.
+
+VisA is the main segmentation benchmark. DeepPCB is secondary and should not be treated as pixel-level segmentation ground truth because it provides boxes, not masks.
+
+## Planned Pipeline
+
+1. Sample k normal VisA images per PCB category.
+2. Extract DINOv2 patch features.
+3. Build a normal feature memory bank.
+4. Score test patches by nearest normal-feature distance.
+5. Convert patch scores to anomaly heatmaps.
+6. Add multi-scale crop inference and fuse heatmaps.
+7. Convert anomaly maps to SAM2 prompts.
+8. Refine and filter SAM2 masks.
+9. Evaluate VisA with AUROC, AUPRO, F1, IoU, and qualitative visualizations.
+10. Evaluate DeepPCB with boxes or coarse pseudo-masks only where appropriate.
+
+## Setup
+
+Use a PyTorch-compatible Python version. The system Python in this folder may be too new for PyTorch, so prefer Python 3.10-3.12.
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
+```
+
+## Expected Data
+
+Keep raw datasets outside git. The default configs use placeholder local paths:
+
+```text
+data/
+  VisA/
+    ...
+  DeepPCB/
+    PCBData/
+      group00041/
+        00041000_test.jpg
+        00041000_temp.jpg
+        00041000.txt
+```
+
+See [docs/dataset_layout.md](docs/dataset_layout.md) for supported path conventions and config details.
+
+Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, and API keys are ignored by `.gitignore`.
+
+## Debug Loaders
+
+VisA:
+
+```bash
+python scripts/debug_dataset.py \
+  --config configs/datasets/visa_pcb.yaml \
+  --root /absolute/path/to/VisA \
+  --split test \
+  --limit 4
+```
+
+DeepPCB:
+
+```bash
+python scripts/debug_dataset.py \
+  --config configs/datasets/deeppcb.yaml \
+  --root /absolute/path/to/DeepPCB/PCBData \
+  --split test \
+  --limit 4
+```
+
+Outputs are written to `outputs/debug_dataset/` by default.
+
+## Repository Layout
+
+```text
+configs/          YAML configs
+scripts/          runnable debug/train/eval scripts
+src/datasets/     VisA and DeepPCB dataset loaders
+src/features/     DINOv2 feature extraction
+src/anomaly/      memory bank and anomaly heatmaps
+src/sam_refine/   SAM2 prompt and mask refinement
+src/evaluation/   metrics and qualitative outputs
+src/utils/        shared helpers
+notebooks/        exploration only
+```
+
+## License
+
+This project is released under the Apache License 2.0. See [LICENSE](LICENSE).

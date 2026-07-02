@@ -1,0 +1,71 @@
+project:
+  name: fewshot-pcb-defect-segmentation
+  title: Few-Shot PCB Defect Segmentation via Multi-Scale DINOv2 Anomaly Proposals and SAM2 Mask Refinement
+  seed: 4880
+
+paths:
+  data_root: data
+  visa_root: data/VisA
+  deeppcb_root: data/DeepPCB/PCBData
+  outputs_dir: outputs
+  checkpoints_dir: checkpoints
+  weights_dir: weights
+
+datasets:
+  visa_pcb:
+    name: visa_pcb
+    root: data/VisA
+    manifest_csv: null
+    categories: [pcb1, pcb2, pcb3, pcb4]
+    split: test
+    normal_only: false
+    return_tensors: true
+    mask_threshold: 0
+
+  deeppcb:
+    name: deeppcb
+    root: data/DeepPCB/PCBData
+    split: test
+    split_file: null
+    return_tensors: true
+    return_pseudo_mask: true
+
+few_shot:
+  k: 5
+  seed: 4880
+
+preprocessing:
+  preserve_aspect_ratio: true
+  pad_to_square: true
+  image_interpolation: bilinear
+  mask_interpolation: nearest
+
+features:
+  backbone: dinov2_vits14
+  device: auto
+  batch_size: 1
+
+anomaly:
+  nearest_neighbors: 1
+  normalize_features: true
+  heatmap_smoothing_sigma: 0.0
+
+multi_scale:
+  enabled: false
+  crop_sizes: [518]
+  overlap: 0.25
+  fusion: max
+
+sam2:
+  enabled: false
+  checkpoint_path: weights/sam2_checkpoint.pt
+  model_config: null
+  prompt_type: box
+
+evaluation:
+  metrics: [image_auroc, pixel_auroc, aupro, f1, iou]
+
+debug:
+  dataset: visa_pcb
+  limit: 4
+  output_dir: outputs/debug_dataset

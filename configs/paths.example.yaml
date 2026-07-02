@@ -1,0 +1,14 @@
+# Copy this file to configs/paths.local.yaml or pass --root to scripts.
+# Raw datasets should stay outside git.
+
+data:
+  visa_root: data/VisA
+  # Optional official one-class split CSV. Leave null to scan the directory tree.
+  visa_manifest_csv: null
+
+  # DeepPCB root usually points at the PCBData directory.
+  deeppcb_root: data/DeepPCB/PCBData
+  deeppcb_train_list: null
+  deeppcb_test_list: null
+
+outputs_dir: outputs
