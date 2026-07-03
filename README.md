@@ -6,7 +6,8 @@ Repository name: `fewshot-pcb-defect-segmentation`
 
 This project implements a few-shot PCB defect detection and segmentation pipeline. The intended method learns normal PCB appearance from a small number of normal images, detects anomalous regions with DINOv2 patch features, improves small-defect localization with multi-scale crops, and refines candidate regions into masks with SAM2.
 
-Current status: initial repository structure plus dataset loaders and debug visualizations.
+Current status: dataset loaders, official split manifests, and a first DINOv2-only
+anomaly heatmap baseline script.
 
 ## Benchmarks
 
@@ -104,6 +105,27 @@ python scripts/debug_dataset.py \
 ```
 
 Outputs are written to `outputs/debug_dataset/` by default.
+
+## DINOv2 Baseline
+
+Use the color-patch backend for a fast smoke test without downloading weights:
+
+```bash
+PYTHONPATH=src python scripts/run_dinov2_baseline.py \
+  --manifest data/manifests/visa_pcb_folds.csv \
+  --fold-id 0 \
+  --category pcb1 \
+  --k 2 \
+  --limit 2 \
+  --feature-backbone color_patch \
+  --image-size 56 \
+  --patch-size 14 \
+  --output-dir outputs/dinov2_color_patch_smoke
+```
+
+For the real DINOv2 baseline, use a PyTorch-compatible Python environment and
+run with `--feature-backbone dinov2_vits14`. The first run downloads model
+weights through PyTorch Hub.
 
 ## Repository Layout
 
