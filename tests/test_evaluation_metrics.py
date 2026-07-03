@@ -94,6 +94,31 @@ class EvaluationMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["best_pixel_f1"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
 
+    def test_evaluate_heatmap_rows_can_sample_pixels_deterministically(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            heatmap_path = tmp_path / "heatmap.npy"
+            mask_path = tmp_path / "mask.png"
+            np.save(heatmap_path, np.linspace(0, 1, num=100, dtype=np.float32).reshape(10, 10))
+            mask = np.zeros((10, 10), dtype=np.uint8)
+            mask[5:, :] = 255
+            Image.fromarray(mask, mode="L").save(mask_path)
+
+            rows = [
+                {
+                    "sample_id": "sample",
+                    "label": "1",
+                    "image_score": "1.0",
+                    "heatmap_path": str(heatmap_path),
+                    "mask_path": str(mask_path),
+                }
+            ]
+            metrics_a = evaluate_heatmap_rows(rows, max_pixels=10, seed=7)
+            metrics_b = evaluate_heatmap_rows(rows, max_pixels=10, seed=7)
+
+        self.assertEqual(metrics_a["num_pixels_evaluated"], 10.0)
+        self.assertEqual(metrics_a["pixel_auroc"], metrics_b["pixel_auroc"])
+
     def test_summarize_image_scores_handles_single_class_auc_as_nan(self) -> None:
         metrics = summarize_image_scores(
             [
@@ -160,6 +185,8 @@ class EvaluateHeatmapsScriptTest(unittest.TestCase):
                     str(scores_path),
                     "--output-json",
                     str(output_path),
+                    "--max-pixels",
+                    "1000",
                 ],
                 check=False,
                 cwd=repo_root,

@@ -25,6 +25,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scores-csv", type=Path, required=True)
     parser.add_argument("--output-json", type=Path, required=True)
+    parser.add_argument(
+        "--max-pixels",
+        type=int,
+        default=1_000_000,
+        help="Deterministically sample at most this many pixels for pixel metrics. Use 0 for all.",
+    )
+    parser.add_argument("--seed", type=int, default=4880)
     return parser.parse_args()
 
 
@@ -32,7 +39,8 @@ def main() -> None:
     args = parse_args()
     rows = read_score_rows(args.scores_csv)
     rows = resolve_score_row_paths(rows, base_dir=args.scores_csv.parent)
-    metrics = evaluate_heatmap_rows(rows)
+    max_pixels = None if args.max_pixels == 0 else args.max_pixels
+    metrics = evaluate_heatmap_rows(rows, max_pixels=max_pixels, seed=args.seed)
     jsonable = metrics_to_jsonable(metrics)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(json.dumps(jsonable, indent=2, sort_keys=True) + "\n")

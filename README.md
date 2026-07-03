@@ -143,7 +143,10 @@ PYTHONPATH=src python scripts/evaluate_heatmaps.py \
 ```
 
 The evaluator reports image AUROC, pixel AUROC, best pixel F1, and best pixel
-IoU when both normal and anomalous samples with masks are available.
+IoU when both normal and anomalous samples with masks are available. Pixel
+metrics use a deterministic sample of up to 1,000,000 pixels by default for
+fast full-fold iteration; pass `--max-pixels 0` for exact full-resolution pixel
+metrics.
 
 ## Mask Refinement
 

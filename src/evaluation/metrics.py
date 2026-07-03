@@ -85,7 +85,11 @@ def summarize_image_scores(rows: list[dict[str, str]]) -> dict[str, float]:
     }
 
 
-def evaluate_heatmap_rows(rows: list[dict[str, str]]) -> dict[str, float]:
+def evaluate_heatmap_rows(
+    rows: list[dict[str, str]],
+    max_pixels: int | None = None,
+    seed: int = 4880,
+) -> dict[str, float]:
     """Evaluate image-level scores and pixel-level heatmaps from score CSV rows."""
 
     image_metrics = summarize_image_scores(rows)
@@ -111,6 +115,8 @@ def evaluate_heatmap_rows(rows: list[dict[str, str]]) -> dict[str, float]:
     if pixel_scores:
         labels = np.concatenate(pixel_labels, axis=0)
         scores = np.concatenate(pixel_scores, axis=0)
+        labels, scores = sample_pixels(labels, scores, max_pixels=max_pixels, seed=seed)
+        metrics["num_pixels_evaluated"] = float(scores.shape[0])
         metrics["pixel_auroc"] = binary_roc_auc(labels, scores)
         threshold_metrics = best_f1_iou(labels, scores)
         metrics["best_pixel_f1"] = threshold_metrics["best_f1"]
@@ -123,6 +129,7 @@ def evaluate_heatmap_rows(rows: list[dict[str, str]]) -> dict[str, float]:
         metrics["best_pixel_iou"] = math.nan
         metrics["best_pixel_threshold"] = math.nan
         metrics["num_pixel_thresholds"] = 0.0
+        metrics["num_pixels_evaluated"] = 0.0
     return metrics
 
 
@@ -159,6 +166,19 @@ def metrics_to_jsonable(metrics: dict[str, float]) -> dict[str, float | int | No
         else:
             jsonable[key] = float(value)
     return jsonable
+
+
+def sample_pixels(
+    labels: np.ndarray,
+    scores: np.ndarray,
+    max_pixels: int | None,
+    seed: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    if max_pixels is None or max_pixels <= 0 or scores.shape[0] <= max_pixels:
+        return labels, scores
+    rng = np.random.default_rng(seed)
+    indices = rng.choice(scores.shape[0], size=max_pixels, replace=False)
+    return labels[indices], scores[indices]
 
 
 def _average_ranks(values: np.ndarray) -> np.ndarray:
