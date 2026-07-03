@@ -36,6 +36,8 @@ class CreateManifestsScriptTest(unittest.TestCase):
                     "0.34",
                     "--deeppcb-train-count",
                     "1",
+                    "--num-folds",
+                    "2",
                 ],
                 check=False,
                 cwd=repo_root,
@@ -47,11 +49,17 @@ class CreateManifestsScriptTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             visa_rows = _read_csv(output_dir / "visa_pcb_manifest.csv")
             deeppcb_rows = _read_csv(output_dir / "deeppcb_manifest.csv")
+            visa_fold_rows = _read_csv(output_dir / "visa_pcb_folds.csv")
+            deeppcb_fold_rows = _read_csv(output_dir / "deeppcb_folds.csv")
 
         self.assertEqual({row["category"] for row in visa_rows}, {"pcb1"})
         self.assertIn("val", {row["split"] for row in visa_rows})
         self.assertIn("test", {row["split"] for row in visa_rows})
         self.assertEqual({row["dataset"] for row in deeppcb_rows}, {"deeppcb"})
+        self.assertEqual({row["fold_id"] for row in visa_fold_rows}, {"0", "1"})
+        self.assertEqual({row["fold_split"] for row in visa_fold_rows}, {"dev", "test", "val"})
+        self.assertEqual({row["fold_id"] for row in deeppcb_fold_rows}, {"0", "1"})
+        self.assertIn("val", {row["fold_split"] for row in deeppcb_fold_rows})
 
     def test_script_uses_deeppcb_official_split_files_when_available(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
@@ -78,6 +86,8 @@ class CreateManifestsScriptTest(unittest.TestCase):
                     str(output_dir),
                     "--val-ratio",
                     "0.0",
+                    "--num-folds",
+                    "2",
                 ],
                 check=False,
                 cwd=repo_root,
@@ -88,10 +98,19 @@ class CreateManifestsScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             rows = _read_csv(output_dir / "deeppcb_manifest.csv")
+            fold_rows = _read_csv(output_dir / "deeppcb_folds.csv")
 
         self.assertEqual(
             {row["sample_id"]: row["split"] for row in rows},
             {"77000016_test": "train", "77000017_test": "test"},
+        )
+        self.assertEqual(
+            {(row["sample_id"], row["fold_split"]) for row in fold_rows if row["fold_id"] == "0"},
+            {("77000016_test", "val"), ("77000017_test", "test")},
+        )
+        self.assertIn(
+            '"class_ids": [4, 4]',
+            next(row["metadata_json"] for row in fold_rows if row["sample_id"] == "77000016_test"),
         )
 
 
@@ -107,7 +126,7 @@ def _write_deeppcb_official_pair(root: Path, sample_id: str) -> None:
     annotation_dir.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (16, 16), (0, 80, 50)).save(image_dir / f"{sample_id}_temp.jpg")
     Image.new("RGB", (16, 16), (120, 80, 50)).save(image_dir / f"{sample_id}_test.jpg")
-    (annotation_dir / f"{sample_id}.txt").write_text("1,2,8,9,4\n")
+    (annotation_dir / f"{sample_id}.txt").write_text("1,2,8,9,4\n2,3,9,10,4\n")
 
 
 if __name__ == "__main__":

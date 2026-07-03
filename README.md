@@ -59,7 +59,7 @@ data/
 ```
 
 See [docs/dataset_layout.md](docs/dataset_layout.md) for supported path conventions and config details.
-See [docs/data_acquisition.md](docs/data_acquisition.md) for official download and train/validation/test manifest generation commands.
+See [docs/data_acquisition.md](docs/data_acquisition.md) for official download plus train/validation/test and five-fold manifest generation commands.
 
 Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, and API keys are ignored by `.gitignore`.
 

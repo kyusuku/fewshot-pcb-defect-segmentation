@@ -59,7 +59,7 @@ The resulting root for this project's VisA loader is usually:
 data/processed/VisA_pytorch/1cls
 ```
 
-## Create Train/Val/Test Manifests
+## Create Train/Val/Test and Fold Manifests
 
 After extracting DeepPCB and preparing VisA:
 
@@ -76,8 +76,10 @@ The script writes:
 
 - `data/manifests/visa_pcb_manifest.csv`
 - `data/manifests/deeppcb_manifest.csv`
+- `data/manifests/visa_pcb_folds.csv`
+- `data/manifests/deeppcb_folds.csv`
 
-For VisA, official test records stay locked as `test`; validation is sampled only from official normal training images, grouped by category. For DeepPCB, the script uses `PCBData/trainval.txt` and `PCBData/test.txt` when they are present, then validation is reserved from the train partition. If those files are absent, it falls back to the documented 1,000 train / remaining test convention.
+The `*_manifest.csv` files provide one deterministic 80/20 development/validation split for quick smoke runs. The `*_folds.csv` files encode the Milestone 1 five-fold protocol with `fold_id` and `fold_split` columns. For VisA, fold validation is category-stratified within the official normal training images. For DeepPCB, the script uses `PCBData/trainval.txt` and `PCBData/test.txt` when they are present and balances validation folds using parsed box-instance defect class IDs. If those files are absent, it falls back to the documented 1,000 train / remaining test convention. Official test records stay locked as `fold_split=test` in every fold.
 
 ## Debug Real Samples
 
