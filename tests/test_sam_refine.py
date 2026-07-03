@@ -112,12 +112,16 @@ class MaskRefinementScriptTest(unittest.TestCase):
             tmp_path = Path(tmpdir)
             image_path = tmp_path / "image.png"
             heatmap_path = tmp_path / "heatmap.npy"
+            mask_path = tmp_path / "mask.png"
             scores_path = tmp_path / "scores.csv"
             output_dir = tmp_path / "refined"
             Image.new("RGB", (10, 10), (20, 40, 60)).save(image_path)
             heatmap = np.zeros((10, 10), dtype=np.float32)
             heatmap[3:6, 2:5] = 0.9
             np.save(heatmap_path, heatmap)
+            mask = np.zeros((10, 10), dtype=np.uint8)
+            mask[3:6, 2:5] = 255
+            Image.fromarray(mask, mode="L").save(mask_path)
             with scores_path.open("w", newline="") as handle:
                 writer = csv.DictWriter(
                     handle,
@@ -140,7 +144,7 @@ class MaskRefinementScriptTest(unittest.TestCase):
                         "label": "1",
                         "image_score": "0.9",
                         "image_path": str(image_path),
-                        "mask_path": "",
+                        "mask_path": str(mask_path),
                         "heatmap_path": str(heatmap_path),
                         "debug_path": "",
                     }
@@ -173,6 +177,7 @@ class MaskRefinementScriptTest(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(int(pred_mask.sum()), 9)
+        self.assertEqual(rows[0]["mask_path"], str(mask_path))
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:

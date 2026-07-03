@@ -192,6 +192,20 @@ For SAM2 mode, connected high-anomaly regions become box prompts plus one
 positive point prompt at the region center. Predicted masks are resized back to
 the anomaly-heatmap grid before saving and evaluation.
 
+Evaluate saved refined masks against VisA ground-truth masks:
+
+```bash
+PYTHONPATH=src python scripts/evaluate_masks.py \
+  --mask-scores-csv outputs/mask_refinement_smoke/mask_scores.csv \
+  --source-scores-csv outputs/dinov2_color_patch_smoke/scores.csv \
+  --output-json outputs/mask_refinement_smoke/mask_metrics.json \
+  --output-csv outputs/mask_refinement_smoke/mask_metrics.csv
+```
+
+New `mask_scores.csv` files include `mask_path` directly. The
+`--source-scores-csv` argument is useful for older refinement outputs that need
+ground-truth mask paths joined from the original DINOv2 `scores.csv`.
+
 ## Repository Layout
 
 ```text
