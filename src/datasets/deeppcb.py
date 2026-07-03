@@ -167,7 +167,7 @@ class DeepPCBDataset:
             if self._allowed_ids is not None and not _matches_split_id(image_path, self._allowed_ids):
                 continue
 
-            annotation_path = image_path.with_suffix(".txt")
+            annotation_path = _find_annotation_for_test_image(image_path)
             template_path = _find_template_for_test_image(image_path)
             sample_id = image_path.stem
             group = image_path.parent.name
@@ -179,7 +179,7 @@ class DeepPCBDataset:
                     split=self.split,
                     image_path=image_path,
                     label=1,
-                    box_path=annotation_path if annotation_path.exists() else None,
+                    box_path=annotation_path,
                     template_path=template_path,
                     metadata={"group": group},
                 )
@@ -197,8 +197,8 @@ class DeepPCBDataset:
             value = line.strip()
             if not value or value.startswith("#"):
                 continue
-            ids.add(Path(value).stem)
-            ids.add(value)
+            for token in value.split():
+                _add_split_id_variants(ids, token)
         return ids
 
 
@@ -228,6 +228,48 @@ def _find_template_for_test_image(test_path: Path) -> Path | None:
         if candidate.exists() and candidate != test_path:
             return candidate
     return None
+
+
+def _find_annotation_for_test_image(test_path: Path) -> Path | None:
+    stems = _candidate_annotation_stems(test_path)
+    candidates = [test_path.with_name(f"{stem}.txt") for stem in stems]
+
+    parent = test_path.parent
+    sibling_annotation_dir = parent.parent / f"{parent.name}_not"
+    candidates.extend(sibling_annotation_dir / f"{stem}.txt" for stem in stems)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _candidate_annotation_stems(test_path: Path) -> list[str]:
+    stems = [test_path.stem]
+    lower_stem = test_path.stem.lower()
+    for marker in TEST_MARKERS:
+        if marker in lower_stem:
+            start = lower_stem.index(marker)
+            candidate = test_path.stem[:start] + test_path.stem[start + len(marker) :]
+            candidate = candidate.strip("_-")
+            if candidate and candidate not in stems:
+                stems.append(candidate)
+    return stems
+
+
+def _add_split_id_variants(ids: set[str], value: str) -> None:
+    path = Path(value)
+    stem = path.stem
+    ids.update({value, path.name, stem})
+    for marker in TEST_MARKERS:
+        lower_stem = stem.lower()
+        if marker in lower_stem:
+            start = lower_stem.index(marker)
+            base = (stem[:start] + stem[start + len(marker) :]).strip("_-")
+            if base:
+                ids.update({base, f"{base}_test"})
+            return
+    ids.add(f"{stem}_test")
 
 
 def _matches_split_id(path: Path, allowed_ids: Iterable[str]) -> bool:

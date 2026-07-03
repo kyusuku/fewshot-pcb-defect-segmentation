@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="Path to dataset YAML config.")
     parser.add_argument("--root", help="Override dataset root path.")
     parser.add_argument("--split", help="Override split: train, val, test, or all.")
+    parser.add_argument("--split-file", help="Optional split file for datasets that support one.")
     parser.add_argument(
         "--category",
         action="append",
@@ -45,6 +46,7 @@ def main() -> None:
     dataset_overrides = {
         "root": args.root,
         "split": args.split,
+        "split_file": args.split_file,
         "categories": args.categories,
         "return_tensors": False,
     }

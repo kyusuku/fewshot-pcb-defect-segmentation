@@ -1,6 +1,6 @@
 dataset:
   name: deeppcb
-  root: data/DeepPCB/PCBData
+  root: data/raw/DeepPCB-master/PCBData
   split: test
   split_file: null
   return_tensors: true

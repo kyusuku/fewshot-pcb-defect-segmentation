@@ -34,6 +34,16 @@ The loader scans for tested images whose names contain `_test`, `test`, or `test
 
 - matching template image names using `_temp`, `_template`, or `template`
 - matching annotation text file with the same stem
+- official sibling annotation folders such as `group77000/77000_not/77000016.txt`
+
+DeepPCB's official `trainval.txt` and `test.txt` files use two columns:
+
+```text
+group20085/20085/20085000.jpg group20085/20085_not/20085000.txt
+```
+
+The loader accepts these files through `split_file` and matches them to actual
+tested images such as `group20085/20085/20085000_test.jpg`.
 
 Annotation lines are parsed as:
 
@@ -70,3 +80,14 @@ PYTHONPATH=src python -c "from pathlib import Path; from utils.synthetic_data im
 ```
 
 Then point `scripts/debug_dataset.py` at `/tmp/pcb_debug_fixture/VisA` or `/tmp/pcb_debug_fixture/DeepPCB/PCBData`.
+
+For official DeepPCB test samples, pass the split file explicitly:
+
+```bash
+PYTHONPATH=src python scripts/debug_dataset.py \
+  --config configs/datasets/deeppcb.yaml \
+  --root data/raw/DeepPCB-master/PCBData \
+  --split test \
+  --split-file data/raw/DeepPCB-master/PCBData/test.txt \
+  --limit 8
+```

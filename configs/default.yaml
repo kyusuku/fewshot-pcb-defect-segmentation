@@ -5,8 +5,8 @@ project:
 
 paths:
   data_root: data
-  visa_root: data/VisA
-  deeppcb_root: data/DeepPCB/PCBData
+  visa_root: data/processed/VisA_pytorch/1cls
+  deeppcb_root: data/raw/DeepPCB-master/PCBData
   outputs_dir: outputs
   checkpoints_dir: checkpoints
   weights_dir: weights
@@ -14,7 +14,7 @@ paths:
 datasets:
   visa_pcb:
     name: visa_pcb
-    root: data/VisA
+    root: data/processed/VisA_pytorch/1cls
     manifest_csv: null
     categories: [pcb1, pcb2, pcb3, pcb4]
     split: test
@@ -24,7 +24,7 @@ datasets:
 
   deeppcb:
     name: deeppcb
-    root: data/DeepPCB/PCBData
+    root: data/raw/DeepPCB-master/PCBData
     split: test
     split_file: null
     return_tensors: true

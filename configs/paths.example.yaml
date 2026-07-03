@@ -2,13 +2,13 @@
 # Raw datasets should stay outside git.
 
 data:
-  visa_root: data/VisA
+  visa_root: data/processed/VisA_pytorch/1cls
   # Optional official one-class split CSV. Leave null to scan the directory tree.
   visa_manifest_csv: null
 
   # DeepPCB root usually points at the PCBData directory.
-  deeppcb_root: data/DeepPCB/PCBData
-  deeppcb_train_list: null
-  deeppcb_test_list: null
+  deeppcb_root: data/raw/DeepPCB-master/PCBData
+  deeppcb_train_list: data/raw/DeepPCB-master/PCBData/trainval.txt
+  deeppcb_test_list: data/raw/DeepPCB-master/PCBData/test.txt
 
 outputs_dir: outputs

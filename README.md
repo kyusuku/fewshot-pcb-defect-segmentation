@@ -51,9 +51,11 @@ data/
   DeepPCB/
     PCBData/
       group00041/
-        00041000_test.jpg
-        00041000_temp.jpg
-        00041000.txt
+        00041/
+          00041000_test.jpg
+          00041000_temp.jpg
+        00041_not/
+          00041000.txt
 ```
 
 See [docs/dataset_layout.md](docs/dataset_layout.md) for supported path conventions and config details.
@@ -97,6 +99,7 @@ python scripts/debug_dataset.py \
   --config configs/datasets/deeppcb.yaml \
   --root /absolute/path/to/DeepPCB/PCBData \
   --split test \
+  --split-file /absolute/path/to/DeepPCB/PCBData/test.txt \
   --limit 4
 ```
 
@@ -113,8 +116,12 @@ src/anomaly/      memory bank and anomaly heatmaps
 src/sam_refine/   SAM2 prompt and mask refinement
 src/evaluation/   metrics and qualitative outputs
 src/utils/        shared helpers
-notebooks/        exploration only
+notebooks/        final readable pipeline notebook plus exploration notes
 ```
+
+The final notebook should be a readable end-to-end companion that calls the
+modular code in `src/`; dataset loaders, model code, metrics, and reusable
+utilities should remain outside the notebook.
 
 ## License
 

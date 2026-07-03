@@ -1,6 +1,6 @@
 dataset:
   name: visa_pcb
-  root: data/VisA
+  root: data/processed/VisA_pytorch/1cls
   manifest_csv: null
   categories: [pcb1, pcb2, pcb3, pcb4]
   split: test

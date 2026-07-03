@@ -36,6 +36,16 @@ def parse_args() -> argparse.Namespace:
         help="PCB category to include. Repeatable. Defaults to pcb1-pcb4.",
     )
     parser.add_argument("--deeppcb-root", type=Path, help="Root of DeepPCB PCBData directory.")
+    parser.add_argument(
+        "--deeppcb-train-split-file",
+        type=Path,
+        help="Optional official DeepPCB trainval.txt file. Defaults to <deeppcb-root>/trainval.txt if present.",
+    )
+    parser.add_argument(
+        "--deeppcb-test-split-file",
+        type=Path,
+        help="Optional official DeepPCB test.txt file. Defaults to <deeppcb-root>/test.txt if present.",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("data/manifests"))
     parser.add_argument("--val-ratio", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=4880)
@@ -76,13 +86,34 @@ def main() -> None:
         wrote_any = True
 
     if args.deeppcb_root:
-        deeppcb = DeepPCBDataset(root=args.deeppcb_root, split="all", return_tensors=False)
-        deeppcb_records = apply_deeppcb_train_test_split(
-            deeppcb.records,
-            train_count=args.deeppcb_train_count,
-            val_ratio=args.val_ratio,
-            seed=args.seed,
-        )
+        train_split_file = args.deeppcb_train_split_file or args.deeppcb_root / "trainval.txt"
+        test_split_file = args.deeppcb_test_split_file or args.deeppcb_root / "test.txt"
+        if train_split_file.exists() and test_split_file.exists():
+            deeppcb_train = DeepPCBDataset(
+                root=args.deeppcb_root,
+                split="train",
+                split_file=train_split_file,
+                return_tensors=False,
+            )
+            deeppcb_test = DeepPCBDataset(
+                root=args.deeppcb_root,
+                split="test",
+                split_file=test_split_file,
+                return_tensors=False,
+            )
+            deeppcb_records = split_train_validation(
+                [*deeppcb_train.records, *deeppcb_test.records],
+                val_ratio=args.val_ratio,
+                seed=args.seed,
+            )
+        else:
+            deeppcb = DeepPCBDataset(root=args.deeppcb_root, split="all", return_tensors=False)
+            deeppcb_records = apply_deeppcb_train_test_split(
+                deeppcb.records,
+                train_count=args.deeppcb_train_count,
+                val_ratio=args.val_ratio,
+                seed=args.seed,
+            )
         output_path = write_manifest_csv(deeppcb_records, args.output_dir / "deeppcb_manifest.csv")
         _print_split_summary("deeppcb", output_path, deeppcb_records)
         wrote_any = True
