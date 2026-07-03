@@ -10,6 +10,9 @@ Current status: dataset loaders, official split manifests, DINOv2-style anomaly
 heatmap baseline, optional multi-scale crop fusion, heatmap evaluation, and a
 SAM2-compatible mask refinement stage with a deterministic fallback refiner.
 
+See [docs/PRD.md](docs/PRD.md) for the staged research plan, exit criteria, and
+publishability gates.
+
 ## Benchmarks
 
 - **VisA PCB subsets**: `pcb1`, `pcb2`, `pcb3`, `pcb4`, with image labels and pixel masks.
