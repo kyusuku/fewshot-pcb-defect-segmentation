@@ -50,6 +50,24 @@ class MultiScaleAnomalyTest(unittest.TestCase):
         self.assertEqual(heatmap.shape, (8, 8))
         self.assertGreater(float(heatmap.max()), 0.0)
 
+    def test_compute_anomaly_heatmap_preserves_absolute_score_scale(self) -> None:
+        support = Image.new("RGB", (8, 8), (0, 0, 0))
+        query = Image.new("RGB", (8, 8), (0, 0, 0))
+        ImageDraw.Draw(query).rectangle((4, 0, 7, 7), fill=(25, 25, 25))
+        extractor = ColorPatchFeatureExtractor(image_size=4, patch_size=2)
+        memory_bank = build_memory_bank([extractor.extract(support)], normalize=False)
+
+        heatmap = compute_anomaly_heatmap(
+            image=query,
+            extractor=extractor,
+            memory_bank=memory_bank,
+            crop_sizes=[],
+            normalize_features=False,
+        )
+
+        self.assertGreater(float(heatmap.max()), 0.0)
+        self.assertLess(float(heatmap.max()), 0.5)
+
 
 class MultiScaleBaselineScriptTest(unittest.TestCase):
     def test_script_accepts_multiscale_crop_arguments(self) -> None:

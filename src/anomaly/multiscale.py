@@ -108,7 +108,7 @@ def _score_image(
         memory_bank,
         normalize=normalize_features,
     )
-    return resize_heatmap_to_image(patch_heatmap, image.size)
+    return resize_heatmap_to_image(patch_heatmap, image.size, normalize=False)
 
 
 def _axis_positions(length: int, window: int, step: int) -> list[int]:

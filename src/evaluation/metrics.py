@@ -30,7 +30,11 @@ def binary_roc_auc(labels: np.ndarray, scores: np.ndarray) -> float:
     return float(auc)
 
 
-def best_f1_iou(labels: np.ndarray, scores: np.ndarray) -> dict[str, float]:
+def best_f1_iou(
+    labels: np.ndarray,
+    scores: np.ndarray,
+    max_thresholds: int = 512,
+) -> dict[str, float]:
     """Find the best binary threshold by F1 and report the IoU at that threshold."""
 
     labels = np.asarray(labels).astype(np.uint8).ravel()
@@ -38,10 +42,21 @@ def best_f1_iou(labels: np.ndarray, scores: np.ndarray) -> dict[str, float]:
     if labels.shape[0] != scores.shape[0]:
         raise ValueError("labels and scores must have the same number of elements")
     if int(np.sum(labels == 1)) == 0:
-        return {"best_f1": math.nan, "best_iou": math.nan, "best_threshold": math.nan}
+        return {
+            "best_f1": math.nan,
+            "best_iou": math.nan,
+            "best_threshold": math.nan,
+            "num_thresholds": 0.0,
+        }
 
-    best = {"best_f1": -1.0, "best_iou": 0.0, "best_threshold": math.nan}
-    for threshold in np.unique(scores)[::-1]:
+    thresholds = _threshold_candidates(scores, max_thresholds=max_thresholds)
+    best = {
+        "best_f1": -1.0,
+        "best_iou": 0.0,
+        "best_threshold": math.nan,
+        "num_thresholds": float(len(thresholds)),
+    }
+    for threshold in thresholds:
         prediction = scores >= threshold
         target = labels == 1
         tp = float(np.sum(prediction & target))
@@ -56,6 +71,7 @@ def best_f1_iou(labels: np.ndarray, scores: np.ndarray) -> dict[str, float]:
                 "best_f1": float(f1),
                 "best_iou": float(iou),
                 "best_threshold": float(threshold),
+                "num_thresholds": float(len(thresholds)),
             }
     return best
 
@@ -100,11 +116,13 @@ def evaluate_heatmap_rows(rows: list[dict[str, str]]) -> dict[str, float]:
         metrics["best_pixel_f1"] = threshold_metrics["best_f1"]
         metrics["best_pixel_iou"] = threshold_metrics["best_iou"]
         metrics["best_pixel_threshold"] = threshold_metrics["best_threshold"]
+        metrics["num_pixel_thresholds"] = threshold_metrics["num_thresholds"]
     else:
         metrics["pixel_auroc"] = math.nan
         metrics["best_pixel_f1"] = math.nan
         metrics["best_pixel_iou"] = math.nan
         metrics["best_pixel_threshold"] = math.nan
+        metrics["num_pixel_thresholds"] = 0.0
     return metrics
 
 
@@ -156,6 +174,13 @@ def _average_ranks(values: np.ndarray) -> np.ndarray:
         ranks[order[start:end]] = average_rank
         start = end
     return ranks
+
+
+def _threshold_candidates(scores: np.ndarray, max_thresholds: int) -> np.ndarray:
+    unique = np.unique(scores)
+    if unique.shape[0] <= max_thresholds:
+        return unique[::-1]
+    return np.linspace(float(scores.max()), float(scores.min()), num=max_thresholds)
 
 
 def _resize_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:

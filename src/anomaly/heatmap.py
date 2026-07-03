@@ -19,10 +19,19 @@ def normalize_heatmap(heatmap: np.ndarray, eps: float = 1e-12) -> np.ndarray:
     return (heatmap - minimum) / (maximum - minimum)
 
 
-def resize_heatmap_to_image(heatmap: np.ndarray, image_size: tuple[int, int]) -> np.ndarray:
-    heatmap_image = Image.fromarray((normalize_heatmap(heatmap) * 255).astype(np.uint8), mode="L")
+def resize_heatmap_to_image(
+    heatmap: np.ndarray,
+    image_size: tuple[int, int],
+    normalize: bool = True,
+) -> np.ndarray:
+    heatmap = heatmap.astype(np.float32, copy=False)
+    if normalize:
+        heatmap = normalize_heatmap(heatmap)
+    scale = 255.0 if normalize else 65535.0
+    dtype = np.uint8 if normalize else np.uint16
+    heatmap_image = Image.fromarray((heatmap * scale).astype(dtype))
     resized = heatmap_image.resize(image_size, Image.Resampling.BILINEAR)
-    return np.asarray(resized, dtype=np.float32) / 255.0
+    return np.asarray(resized, dtype=np.float32) / scale
 
 
 def heatmap_to_rgb(heatmap: np.ndarray) -> Image.Image:

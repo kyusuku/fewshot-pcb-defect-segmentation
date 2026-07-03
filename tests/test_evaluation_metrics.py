@@ -36,6 +36,15 @@ class EvaluationMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["best_iou"], 1.0)
         self.assertGreater(metrics["best_threshold"], 0.2)
 
+    def test_best_f1_iou_can_use_bounded_threshold_sweep(self) -> None:
+        target = np.array([0, 0, 1, 1], dtype=np.uint8)
+        scores = np.array([0.0, 0.25, 0.75, 1.0], dtype=np.float32)
+
+        metrics = best_f1_iou(target, scores, max_thresholds=3)
+
+        self.assertGreaterEqual(metrics["best_f1"], 0.8)
+        self.assertLessEqual(metrics["num_thresholds"], 3.0)
+
     def test_evaluate_heatmap_rows_computes_image_and_pixel_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -94,6 +103,15 @@ class EvaluationMetricsTest(unittest.TestCase):
         )
 
         self.assertTrue(np.isnan(metrics["image_auroc"]))
+
+    def test_best_f1_iou_without_positive_pixels_keeps_threshold_count(self) -> None:
+        metrics = best_f1_iou(
+            np.array([0, 0, 0], dtype=np.uint8),
+            np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        )
+
+        self.assertTrue(np.isnan(metrics["best_f1"]))
+        self.assertEqual(metrics["num_thresholds"], 0.0)
 
 
 class EvaluateHeatmapsScriptTest(unittest.TestCase):
