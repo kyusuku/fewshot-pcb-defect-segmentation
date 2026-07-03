@@ -67,6 +67,7 @@ class SAM2MaskRefinerTest(unittest.TestCase):
     def test_sam2_refiner_scales_prompts_and_resizes_masks(self) -> None:
         image = Image.new("RGB", (20, 30), (0, 0, 0))
         heatmap = np.zeros((10, 10), dtype=np.float32)
+        heatmap[3:6, 2:5] = 1.0
         region = PromptRegion(
             box_xyxy=(2, 3, 5, 6),
             point_xy=(3.5, 4.5),
@@ -83,6 +84,7 @@ class SAM2MaskRefinerTest(unittest.TestCase):
         predictions = refiner.refine(image=image, heatmap=heatmap, regions=[region])
 
         self.assertEqual(predictor.image_shape, (30, 20, 3))
+        self.assertTrue(predictor.image_writeable)
         self.assertEqual(len(predictor.calls), 1)
         call = predictor.calls[0]
         np.testing.assert_allclose(
@@ -101,8 +103,30 @@ class SAM2MaskRefinerTest(unittest.TestCase):
         self.assertEqual(len(predictions), 1)
         self.assertEqual(predictions[0].mask.shape, heatmap.shape)
         self.assertEqual(int(predictions[0].mask.sum()), 9)
-        self.assertAlmostEqual(predictions[0].score, 0.8)
+        self.assertGreater(predictions[0].score, 0.0)
         self.assertEqual(predictions[0].source, "sam2")
+
+    def test_sam2_refiner_prefers_anomaly_aligned_mask_over_larger_sam2_mask(self) -> None:
+        image = Image.new("RGB", (20, 30), (0, 0, 0))
+        heatmap = np.zeros((10, 10), dtype=np.float32)
+        heatmap[3:6, 2:5] = 1.0
+        region = PromptRegion(
+            box_xyxy=(2, 3, 5, 6),
+            point_xy=(3.5, 4.5),
+            area=9,
+            score=0.9,
+        )
+        refiner = SAM2MaskRefiner(
+            checkpoint_path="weights/fake.pt",
+            model_config="configs/fake.yaml",
+        )
+        refiner._predictor = _OversizedSAM2Predictor()
+
+        predictions = refiner.refine(image=image, heatmap=heatmap, regions=[region])
+
+        self.assertEqual(len(predictions), 1)
+        self.assertEqual(int(predictions[0].mask.sum()), 9)
+        np.testing.assert_array_equal(predictions[0].mask, (heatmap > 0).astype(np.uint8))
 
 
 class MaskRefinementScriptTest(unittest.TestCase):
@@ -188,10 +212,12 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 class _FakeSAM2Predictor:
     def __init__(self) -> None:
         self.image_shape: tuple[int, ...] | None = None
+        self.image_writeable: bool | None = None
         self.calls: list[dict[str, object]] = []
 
     def set_image(self, image: np.ndarray) -> None:
         self.image_shape = image.shape
+        self.image_writeable = bool(image.flags.writeable)
 
     def predict(self, **kwargs):
         self.calls.append(kwargs)
@@ -199,6 +225,19 @@ class _FakeSAM2Predictor:
         masks[0, 0:2, 0:2] = 1
         masks[1, 9:18, 4:10] = 1
         scores = np.asarray([0.2, 0.8], dtype=np.float32)
+        return masks, scores, None
+
+
+class _OversizedSAM2Predictor:
+    def set_image(self, image: np.ndarray) -> None:
+        del image
+
+    def predict(self, **kwargs):
+        del kwargs
+        masks = np.zeros((2, 30, 20), dtype=np.uint8)
+        masks[0, 9:18, 4:10] = 1
+        masks[1, :, :] = 1
+        scores = np.asarray([0.2, 0.95], dtype=np.float32)
         return masks, scores, None
 
 

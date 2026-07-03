@@ -11,4 +11,6 @@ mask scoring modules.
 The SAM2 adapter keeps the rest of the repo runnable without SAM2 installed. It
 loads SAM2 only when `--refiner sam2` is selected, scales heatmap-space prompts
 to the RGB image coordinate frame, sends both a box prompt and positive point
-prompt, then resizes returned masks back to the heatmap grid.
+prompt, then resizes returned masks back to the heatmap grid. For multimask
+outputs, it ranks candidates with an anomaly-aware score using SAM2 confidence,
+mean anomaly strength, prompt containment, and mask area.

@@ -178,6 +178,13 @@ downloading a checkpoint into ignored `weights/`, and running with
 `--refiner sam2 --sam2-checkpoint ... --sam2-model-config ...`:
 
 ```bash
+git clone --depth 1 https://github.com/facebookresearch/sam2.git external/sam2
+SAM2_BUILD_CUDA=0 python -m pip install -e external/sam2
+curl -L https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt \
+  -o weights/sam2.1_hiera_tiny.pt
+```
+
+```bash
 PYTHONPATH=src python scripts/run_mask_refinement.py \
   --scores-csv outputs/dinov2_vits14_pcb1_fold0_full/scores.csv \
   --output-dir outputs/dinov2_vits14_pcb1_fold0_full_sam2 \
@@ -190,7 +197,10 @@ PYTHONPATH=src python scripts/run_mask_refinement.py \
 
 For SAM2 mode, connected high-anomaly regions become box prompts plus one
 positive point prompt at the region center. Predicted masks are resized back to
-the anomaly-heatmap grid before saving and evaluation.
+the anomaly-heatmap grid before saving and evaluation. When SAM2 returns
+multiple candidate masks, the adapter selects the mask using SAM2 confidence,
+anomaly strength, prompt containment, and mask area instead of SAM2 confidence
+alone.
 
 Evaluate saved refined masks against VisA ground-truth masks:
 

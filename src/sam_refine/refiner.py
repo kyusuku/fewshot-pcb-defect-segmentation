@@ -99,7 +99,7 @@ class SAM2MaskRefiner:
 
         predictor = self._load_predictor()
         image = image.convert("RGB")
-        predictor.set_image(np.asarray(image))
+        predictor.set_image(np.asarray(image).copy())
         predictions = []
         for region in regions:
             box = _scale_box_to_image(
@@ -118,8 +118,12 @@ class SAM2MaskRefiner:
                 box=box,
                 multimask_output=self.multimask_output,
             )
-            mask, score = _best_mask(masks=masks, scores=scores)
-            mask = _resize_binary_mask(mask, heatmap.shape)
+            mask, score = _best_mask(
+                masks=masks,
+                scores=scores,
+                heatmap=heatmap,
+                region=region,
+            )
             predictions.append(
                 MaskPrediction(
                     mask=mask,
@@ -186,7 +190,12 @@ def _scale_point_to_image(
     return point
 
 
-def _best_mask(masks: np.ndarray, scores: np.ndarray) -> tuple[np.ndarray, float]:
+def _best_mask(
+    masks: np.ndarray,
+    scores: np.ndarray,
+    heatmap: np.ndarray,
+    region: PromptRegion,
+) -> tuple[np.ndarray, float]:
     masks = np.asarray(masks)
     scores = np.asarray(scores, dtype=np.float32).reshape(-1)
     if masks.ndim == 2:
@@ -200,8 +209,54 @@ def _best_mask(masks: np.ndarray, scores: np.ndarray) -> tuple[np.ndarray, float
             "SAM2 returned a different number of masks and scores: "
             f"{masks.shape[0]} masks vs {scores.size} scores"
         )
-    best_index = int(np.argmax(scores))
-    return masks[best_index], float(scores[best_index])
+    best_score = -1.0
+    best_mask = np.zeros(heatmap.shape, dtype=np.uint8)
+    normalized_heatmap = _normalize_heatmap(heatmap)
+    for index, mask in enumerate(masks):
+        resized_mask = _resize_binary_mask(mask, heatmap.shape)
+        selection_score = _mask_selection_score(
+            mask=resized_mask,
+            normalized_heatmap=normalized_heatmap,
+            region=region,
+            sam_score=float(scores[index]),
+        )
+        if selection_score > best_score:
+            best_score = selection_score
+            best_mask = resized_mask
+    return best_mask, float(best_score)
+
+
+def _mask_selection_score(
+    mask: np.ndarray,
+    normalized_heatmap: np.ndarray,
+    region: PromptRegion,
+    sam_score: float,
+) -> float:
+    mask = (mask > 0).astype(np.uint8)
+    mask_area = float(np.sum(mask))
+    if mask_area <= 0.0:
+        return 0.0
+    anomaly_score = float(np.mean(normalized_heatmap[mask > 0]))
+    x1, y1, x2, y2 = region.box_xyxy
+    prompt_mask = np.zeros(mask.shape, dtype=np.uint8)
+    prompt_mask[y1:y2, x1:x2] = 1
+    prompt_containment = float(np.sum((mask > 0) & (prompt_mask > 0))) / mask_area
+    area_fraction = mask_area / float(mask.size)
+    return (
+        float(sam_score)
+        * (0.25 + anomaly_score)
+        * (0.25 + prompt_containment)
+        / (0.25 + area_fraction)
+    )
+
+
+def _normalize_heatmap(heatmap: np.ndarray) -> np.ndarray:
+    heatmap = np.asarray(heatmap, dtype=np.float32)
+    minimum = float(heatmap.min())
+    maximum = float(heatmap.max())
+    if maximum <= minimum:
+        return np.zeros_like(heatmap, dtype=np.float32)
+    return (heatmap - minimum) / (maximum - minimum)
 
 
 def _resize_binary_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
