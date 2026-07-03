@@ -148,6 +148,15 @@ metrics use a deterministic sample of up to 1,000,000 pixels by default for
 fast full-fold iteration; pass `--max-pixels 0` for exact full-resolution pixel
 metrics.
 
+Summarize multiple category-level metric files:
+
+```bash
+PYTHONPATH=src python scripts/summarize_metrics.py \
+  --metrics-json outputs/dinov2_vits14_pcb*/metrics.json \
+  --output-csv outputs/summary/dinov2_vits14_fold0_summary.csv \
+  --output-md outputs/summary/dinov2_vits14_fold0_summary.md
+```
+
 ## Mask Refinement
 
 Run the current deterministic fallback refiner:
