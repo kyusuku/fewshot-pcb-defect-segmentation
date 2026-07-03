@@ -91,21 +91,39 @@ class SAM2MaskRefiner:
         heatmap: np.ndarray,
         regions: list[PromptRegion],
     ) -> list[MaskPrediction]:
+        if not regions:
+            return []
+        heatmap = np.asarray(heatmap, dtype=np.float32)
+        if heatmap.ndim != 2:
+            raise ValueError("heatmap must be a 2D array")
+
         predictor = self._load_predictor()
-        predictor.set_image(np.asarray(image.convert("RGB")))
+        image = image.convert("RGB")
+        predictor.set_image(np.asarray(image))
         predictions = []
         for region in regions:
-            box = np.asarray(region.box_xyxy, dtype=np.float32)
+            box = _scale_box_to_image(
+                box_xyxy=region.box_xyxy,
+                heatmap_shape=heatmap.shape,
+                image_size=image.size,
+            )
+            point_coords = _scale_point_to_image(
+                point_xy=region.point_xy,
+                heatmap_shape=heatmap.shape,
+                image_size=image.size,
+            )[None, :]
             masks, scores, _ = predictor.predict(
+                point_coords=point_coords,
+                point_labels=np.asarray([1], dtype=np.int32),
                 box=box,
                 multimask_output=self.multimask_output,
             )
-            best_index = int(np.argmax(scores))
-            mask = masks[best_index].astype(np.uint8)
+            mask, score = _best_mask(masks=masks, scores=scores)
+            mask = _resize_binary_mask(mask, heatmap.shape)
             predictions.append(
                 MaskPrediction(
                     mask=mask,
-                    score=float(scores[best_index]),
+                    score=score,
                     region=region,
                     source="sam2",
                 )
@@ -131,3 +149,66 @@ class SAM2MaskRefiner:
         model = build_sam2(self.model_config, str(self.checkpoint_path), device=device)
         self._predictor = SAM2ImagePredictor(model)
         return self._predictor
+
+
+def _scale_box_to_image(
+    box_xyxy: tuple[int, int, int, int],
+    heatmap_shape: tuple[int, int],
+    image_size: tuple[int, int],
+) -> np.ndarray:
+    heatmap_height, heatmap_width = heatmap_shape
+    image_width, image_height = image_size
+    x_scale = image_width / heatmap_width
+    y_scale = image_height / heatmap_height
+    x1, y1, x2, y2 = box_xyxy
+    box = np.asarray(
+        [x1 * x_scale, y1 * y_scale, x2 * x_scale, y2 * y_scale],
+        dtype=np.float32,
+    )
+    box[[0, 2]] = np.clip(box[[0, 2]], 0.0, float(image_width))
+    box[[1, 3]] = np.clip(box[[1, 3]], 0.0, float(image_height))
+    return box
+
+
+def _scale_point_to_image(
+    point_xy: tuple[float, float],
+    heatmap_shape: tuple[int, int],
+    image_size: tuple[int, int],
+) -> np.ndarray:
+    heatmap_height, heatmap_width = heatmap_shape
+    image_width, image_height = image_size
+    x_scale = image_width / heatmap_width
+    y_scale = image_height / heatmap_height
+    x, y = point_xy
+    point = np.asarray([x * x_scale, y * y_scale], dtype=np.float32)
+    point[0] = np.clip(point[0], 0.0, max(float(image_width - 1), 0.0))
+    point[1] = np.clip(point[1], 0.0, max(float(image_height - 1), 0.0))
+    return point
+
+
+def _best_mask(masks: np.ndarray, scores: np.ndarray) -> tuple[np.ndarray, float]:
+    masks = np.asarray(masks)
+    scores = np.asarray(scores, dtype=np.float32).reshape(-1)
+    if masks.ndim == 2:
+        masks = masks[None, :, :]
+    elif masks.ndim == 4:
+        masks = masks.reshape((-1, masks.shape[-2], masks.shape[-1]))
+    if masks.ndim != 3:
+        raise RuntimeError(f"SAM2 returned masks with unsupported shape {masks.shape}")
+    if masks.shape[0] != scores.size:
+        raise RuntimeError(
+            "SAM2 returned a different number of masks and scores: "
+            f"{masks.shape[0]} masks vs {scores.size} scores"
+        )
+    best_index = int(np.argmax(scores))
+    return masks[best_index], float(scores[best_index])
+
+
+def _resize_binary_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+    mask = (np.asarray(mask) > 0).astype(np.uint8)
+    if mask.shape == shape:
+        return mask
+    height, width = shape
+    image = Image.fromarray(mask * 255, mode="L")
+    image = image.resize((width, height), Image.Resampling.NEAREST)
+    return (np.asarray(image) > 0).astype(np.uint8)

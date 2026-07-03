@@ -10,8 +10,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from sam_refine.prompts import heatmap_to_prompt_regions
-from sam_refine.refiner import FallbackMaskRefiner
+from sam_refine.prompts import PromptRegion, heatmap_to_prompt_regions
+from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
 
 
 class PromptGenerationTest(unittest.TestCase):
@@ -50,6 +50,59 @@ class FallbackMaskRefinerTest(unittest.TestCase):
         self.assertEqual(predictions[0].mask.shape, (10, 10))
         self.assertEqual(int(predictions[0].mask.sum()), 9)
         self.assertGreater(predictions[0].score, 0.0)
+
+
+class SAM2MaskRefinerTest(unittest.TestCase):
+    def test_empty_regions_do_not_require_loading_sam2(self) -> None:
+        image = Image.new("RGB", (20, 30), (0, 0, 0))
+        heatmap = np.zeros((10, 10), dtype=np.float32)
+
+        predictions = SAM2MaskRefiner(
+            checkpoint_path="weights/missing.pt",
+            model_config="configs/missing.yaml",
+        ).refine(image=image, heatmap=heatmap, regions=[])
+
+        self.assertEqual(predictions, [])
+
+    def test_sam2_refiner_scales_prompts_and_resizes_masks(self) -> None:
+        image = Image.new("RGB", (20, 30), (0, 0, 0))
+        heatmap = np.zeros((10, 10), dtype=np.float32)
+        region = PromptRegion(
+            box_xyxy=(2, 3, 5, 6),
+            point_xy=(3.5, 4.5),
+            area=9,
+            score=0.9,
+        )
+        predictor = _FakeSAM2Predictor()
+        refiner = SAM2MaskRefiner(
+            checkpoint_path="weights/fake.pt",
+            model_config="configs/fake.yaml",
+        )
+        refiner._predictor = predictor
+
+        predictions = refiner.refine(image=image, heatmap=heatmap, regions=[region])
+
+        self.assertEqual(predictor.image_shape, (30, 20, 3))
+        self.assertEqual(len(predictor.calls), 1)
+        call = predictor.calls[0]
+        np.testing.assert_allclose(
+            call["box"],
+            np.asarray([4.0, 9.0, 10.0, 18.0], dtype=np.float32),
+        )
+        np.testing.assert_allclose(
+            call["point_coords"],
+            np.asarray([[7.0, 13.5]], dtype=np.float32),
+        )
+        np.testing.assert_array_equal(
+            call["point_labels"],
+            np.asarray([1], dtype=np.int32),
+        )
+        self.assertTrue(call["multimask_output"])
+        self.assertEqual(len(predictions), 1)
+        self.assertEqual(predictions[0].mask.shape, heatmap.shape)
+        self.assertEqual(int(predictions[0].mask.sum()), 9)
+        self.assertAlmostEqual(predictions[0].score, 0.8)
+        self.assertEqual(predictions[0].source, "sam2")
 
 
 class MaskRefinementScriptTest(unittest.TestCase):
@@ -125,6 +178,23 @@ class MaskRefinementScriptTest(unittest.TestCase):
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+class _FakeSAM2Predictor:
+    def __init__(self) -> None:
+        self.image_shape: tuple[int, ...] | None = None
+        self.calls: list[dict[str, object]] = []
+
+    def set_image(self, image: np.ndarray) -> None:
+        self.image_shape = image.shape
+
+    def predict(self, **kwargs):
+        self.calls.append(kwargs)
+        masks = np.zeros((2, 30, 20), dtype=np.uint8)
+        masks[0, 0:2, 0:2] = 1
+        masks[1, 9:18, 4:10] = 1
+        scores = np.asarray([0.2, 0.8], dtype=np.float32)
+        return masks, scores, None
 
 
 if __name__ == "__main__":

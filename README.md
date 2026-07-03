@@ -172,7 +172,22 @@ PYTHONPATH=src python scripts/run_mask_refinement.py \
 The fallback refiner is a runnable stand-in for debugging prompts and mask
 artifacts. Real SAM2 inference requires installing `facebookresearch/sam2`,
 downloading a checkpoint into ignored `weights/`, and running with
-`--refiner sam2 --sam2-checkpoint ... --sam2-model-config ...`.
+`--refiner sam2 --sam2-checkpoint ... --sam2-model-config ...`:
+
+```bash
+PYTHONPATH=src python scripts/run_mask_refinement.py \
+  --scores-csv outputs/dinov2_vits14_pcb1_fold0_full/scores.csv \
+  --output-dir outputs/dinov2_vits14_pcb1_fold0_full_sam2 \
+  --percentile 95 \
+  --refiner sam2 \
+  --sam2-checkpoint weights/sam2.1_hiera_tiny.pt \
+  --sam2-model-config configs/sam2.1/sam2.1_hiera_t.yaml \
+  --device auto
+```
+
+For SAM2 mode, connected high-anomaly regions become box prompts plus one
+positive point prompt at the region center. Predicted masks are resized back to
+the anomaly-heatmap grid before saving and evaluation.
 
 ## Repository Layout
 
