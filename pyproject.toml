@@ -25,7 +25,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["anomaly*", "datasets*", "features*", "utils*"]
+include = ["anomaly*", "datasets*", "evaluation*", "features*", "sam_refine*", "utils*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

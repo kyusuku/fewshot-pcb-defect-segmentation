@@ -12,6 +12,7 @@ import numpy as np
 from anomaly.heatmap import normalize_heatmap, resize_heatmap_to_image
 from anomaly.memory_bank import build_memory_bank, score_patch_features
 from features.dinov2 import PatchFeatureMap
+from scripts.run_dinov2_baseline import select_rows
 from utils.synthetic_data import create_synthetic_debug_datasets
 
 
@@ -47,6 +48,21 @@ class MemoryBankTest(unittest.TestCase):
 
 
 class DINOv2BaselineScriptTest(unittest.TestCase):
+    def test_select_rows_interleaves_test_normals_and_anomalies_for_small_limits(self) -> None:
+        rows = _tiny_manifest_rows_for_selection()
+
+        _, query_rows = select_rows(
+            rows=rows,
+            fold_id=0,
+            category="pcb1",
+            k=2,
+            query_fold_split="test",
+            limit=2,
+            seed=4880,
+        )
+
+        self.assertEqual([row["label"] for row in query_rows], ["1", "0"])
+
     def test_script_writes_color_patch_smoke_outputs(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -89,6 +105,9 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             output_files = sorted(path.name for path in output_dir.glob("*.png"))
             rows = _read_csv(output_dir / "scores.csv")
+            self.assertTrue(Path(rows[0]["heatmap_path"]).is_file())
+            self.assertTrue(Path(rows[0]["image_path"]).is_file())
+            self.assertTrue(Path(rows[0]["mask_path"]).is_file())
 
         self.assertEqual(output_files, ["000_pcb1_anomaly_000.png"])
         self.assertEqual(len(rows), 1)
@@ -158,6 +177,40 @@ def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _tiny_manifest_rows_for_selection() -> list[dict[str, str]]:
+    rows = []
+    for index in range(3):
+        rows.append(
+            {
+                "dataset": "visa_pcb",
+                "category": "pcb1",
+                "sample_id": f"pcb1/train_normal_{index}",
+                "split": "train",
+                "image_path": f"train_{index}.png",
+                "label": "0",
+                "mask_path": "",
+                "fold_id": "0",
+                "fold_split": "dev",
+            }
+        )
+    for label, prefix in (("1", "anomaly"), ("0", "normal")):
+        for index in range(2):
+            rows.append(
+                {
+                    "dataset": "visa_pcb",
+                    "category": "pcb1",
+                    "sample_id": f"pcb1/{prefix}_{index}",
+                    "split": "test",
+                    "image_path": f"{prefix}_{index}.png",
+                    "label": label,
+                    "mask_path": "",
+                    "fold_id": "0",
+                    "fold_split": "test",
+                }
+            )
+    return rows
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
