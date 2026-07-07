@@ -24,14 +24,48 @@ def resize_heatmap_to_image(
     image_size: tuple[int, int],
     normalize: bool = True,
 ) -> np.ndarray:
-    heatmap = heatmap.astype(np.float32, copy=False)
+    heatmap = np.asarray(heatmap, dtype=np.float32)
+    if heatmap.ndim != 2:
+        raise ValueError(f"Expected a 2D heatmap, got shape {heatmap.shape}")
+
     if normalize:
         heatmap = normalize_heatmap(heatmap)
-    scale = 255.0 if normalize else 65535.0
-    dtype = np.uint8 if normalize else np.uint16
-    heatmap_image = Image.fromarray((heatmap * scale).astype(dtype))
-    resized = heatmap_image.resize(image_size, Image.Resampling.BILINEAR)
-    return np.asarray(resized, dtype=np.float32) / scale
+
+    width, height = image_size
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Expected positive image size, got {image_size}")
+    return _resize_float_bilinear(heatmap, output_shape=(height, width))
+
+
+def _resize_float_bilinear(heatmap: np.ndarray, output_shape: tuple[int, int]) -> np.ndarray:
+    input_height, input_width = heatmap.shape
+    output_height, output_width = output_shape
+    if input_height == 0 or input_width == 0:
+        raise ValueError("Cannot resize an empty heatmap")
+    if (input_height, input_width) == (output_height, output_width):
+        return heatmap.astype(np.float32, copy=True)
+
+    y_coords = (np.arange(output_height, dtype=np.float32) + 0.5) * input_height / output_height - 0.5
+    x_coords = (np.arange(output_width, dtype=np.float32) + 0.5) * input_width / output_width - 0.5
+    y_coords = np.clip(y_coords, 0.0, input_height - 1)
+    x_coords = np.clip(x_coords, 0.0, input_width - 1)
+
+    y0 = np.floor(y_coords).astype(np.int64)
+    x0 = np.floor(x_coords).astype(np.int64)
+    y1 = np.minimum(y0 + 1, input_height - 1)
+    x1 = np.minimum(x0 + 1, input_width - 1)
+    y_weight = (y_coords - y0).astype(np.float32)
+    x_weight = (x_coords - x0).astype(np.float32)
+
+    top_left = heatmap[y0[:, None], x0[None, :]]
+    top_right = heatmap[y0[:, None], x1[None, :]]
+    bottom_left = heatmap[y1[:, None], x0[None, :]]
+    bottom_right = heatmap[y1[:, None], x1[None, :]]
+
+    top = top_left * (1.0 - x_weight)[None, :] + top_right * x_weight[None, :]
+    bottom = bottom_left * (1.0 - x_weight)[None, :] + bottom_right * x_weight[None, :]
+    resized = top * (1.0 - y_weight)[:, None] + bottom * y_weight[:, None]
+    return resized.astype(np.float32, copy=False)
 
 
 def heatmap_to_rgb(heatmap: np.ndarray) -> Image.Image:

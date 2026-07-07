@@ -46,6 +46,15 @@ class MemoryBankTest(unittest.TestCase):
         self.assertGreaterEqual(float(resized.min()), 0.0)
         self.assertLessEqual(float(resized.max()), 1.0)
 
+    def test_absolute_heatmap_resize_preserves_scores_above_one(self) -> None:
+        heatmap = np.array([[0.0, 2.0], [4.0, 6.0]], dtype=np.float32)
+
+        resized = resize_heatmap_to_image(heatmap, image_size=(4, 4), normalize=False)
+
+        self.assertEqual(resized.shape, (4, 4))
+        self.assertGreater(float(resized.max()), 5.0)
+        self.assertLessEqual(float(resized.max()), 6.0)
+
 
 class DINOv2BaselineScriptTest(unittest.TestCase):
     def test_select_rows_interleaves_test_normals_and_anomalies_for_small_limits(self) -> None:
