@@ -78,11 +78,15 @@ class SAM2MaskRefiner:
         model_config: str,
         device: str = "auto",
         multimask_output: bool = True,
+        max_mask_area_fraction: float | None = None,
     ) -> None:
+        if max_mask_area_fraction is not None and not 0.0 < max_mask_area_fraction <= 1.0:
+            raise ValueError("max_mask_area_fraction must be in (0, 1]")
         self.checkpoint_path = Path(checkpoint_path)
         self.model_config = model_config
         self.device = device
         self.multimask_output = multimask_output
+        self.max_mask_area_fraction = max_mask_area_fraction
         self._predictor = None
 
     def refine(
@@ -123,6 +127,7 @@ class SAM2MaskRefiner:
                 scores=scores,
                 heatmap=heatmap,
                 region=region,
+                max_area_fraction=self.max_mask_area_fraction,
             )
             predictions.append(
                 MaskPrediction(
@@ -195,6 +200,7 @@ def _best_mask(
     scores: np.ndarray,
     heatmap: np.ndarray,
     region: PromptRegion,
+    max_area_fraction: float | None = None,
 ) -> tuple[np.ndarray, float]:
     masks = np.asarray(masks)
     scores = np.asarray(scores, dtype=np.float32).reshape(-1)
@@ -211,6 +217,8 @@ def _best_mask(
         )
     best_score = -1.0
     best_mask = np.zeros(heatmap.shape, dtype=np.uint8)
+    fallback_score = -1.0
+    fallback_mask = np.zeros(heatmap.shape, dtype=np.uint8)
     normalized_heatmap = _normalize_heatmap(heatmap)
     for index, mask in enumerate(masks):
         resized_mask = _resize_binary_mask(mask, heatmap.shape)
@@ -220,9 +228,16 @@ def _best_mask(
             region=region,
             sam_score=float(scores[index]),
         )
+        if selection_score > fallback_score:
+            fallback_score = selection_score
+            fallback_mask = resized_mask
+        if _exceeds_max_area_fraction(resized_mask, max_area_fraction):
+            continue
         if selection_score > best_score:
             best_score = selection_score
             best_mask = resized_mask
+    if best_score < 0.0:
+        return fallback_mask, float(max(fallback_score, 0.0))
     return best_mask, float(best_score)
 
 
@@ -248,6 +263,16 @@ def _mask_selection_score(
         * (0.25 + prompt_containment)
         / (0.25 + area_fraction)
     )
+
+
+def _exceeds_max_area_fraction(
+    mask: np.ndarray,
+    max_area_fraction: float | None,
+) -> bool:
+    if max_area_fraction is None:
+        return False
+    area_fraction = float(np.sum(mask > 0)) / float(mask.size)
+    return area_fraction > max_area_fraction
 
 
 def _normalize_heatmap(heatmap: np.ndarray) -> np.ndarray:

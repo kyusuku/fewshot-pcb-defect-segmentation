@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evaluation.summary import summarize_metric_files
+from evaluation.summary import format_markdown_table, summarize_metric_files
 
 
 class MetricsSummaryTest(unittest.TestCase):
@@ -24,6 +24,25 @@ class MetricsSummaryTest(unittest.TestCase):
         self.assertEqual(rows[0]["num_images"], 10)
         self.assertAlmostEqual(rows[-1]["image_auroc"], 0.7)
         self.assertAlmostEqual(rows[-1]["pixel_auroc"], 0.6)
+        self.assertAlmostEqual(rows[-1]["aupro"], 0.55)
+
+    def test_format_markdown_table_uses_dash_for_missing_aupro(self) -> None:
+        markdown = format_markdown_table(
+            [
+                {
+                    "category": "pcb1",
+                    "num_images": 10,
+                    "image_auroc": 0.8,
+                    "pixel_auroc": 0.7,
+                    "aupro": None,
+                    "best_pixel_f1": 0.2,
+                    "best_pixel_iou": 0.1,
+                    "num_pixels_evaluated": 1000,
+                }
+            ]
+        )
+
+        self.assertIn("| pcb1 | 10 | 0.8000 | 0.7000 | - | 0.2000 | 0.1000 |", markdown)
 
 
 class MetricsSummaryScriptTest(unittest.TestCase):
@@ -68,7 +87,7 @@ class MetricsSummaryScriptTest(unittest.TestCase):
             markdown = output_md.read_text()
 
         self.assertEqual(csv_rows[-1]["category"], "mean")
-        self.assertIn("| category | num_images | image_auroc | pixel_auroc |", markdown)
+        self.assertIn("| category | num_images | image_auroc | pixel_auroc | aupro |", markdown)
 
 
 def _write_metrics(path: Path, image_auroc: float, pixel_auroc: float) -> Path:
@@ -79,6 +98,7 @@ def _write_metrics(path: Path, image_auroc: float, pixel_auroc: float) -> Path:
                 "num_images": 10,
                 "image_auroc": image_auroc,
                 "pixel_auroc": pixel_auroc,
+                "aupro": pixel_auroc - 0.05,
                 "best_pixel_f1": 0.2,
                 "best_pixel_iou": 0.1,
                 "num_pixels_evaluated": 1000,

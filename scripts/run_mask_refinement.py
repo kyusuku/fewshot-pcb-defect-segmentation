@@ -35,6 +35,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fallback-threshold-fraction", type=float, default=0.5)
     parser.add_argument("--sam2-checkpoint", type=Path, default=Path("weights/sam2_checkpoint.pt"))
     parser.add_argument("--sam2-model-config", default="")
+    parser.add_argument(
+        "--max-mask-area-fraction",
+        type=float,
+        default=None,
+        help="Reject SAM2 mask candidates covering more than this image fraction.",
+    )
     parser.add_argument("--device", default="auto")
     return parser.parse_args()
 
@@ -100,6 +106,7 @@ def build_refiner(args: argparse.Namespace):
         checkpoint_path=args.sam2_checkpoint,
         model_config=args.sam2_model_config,
         device=args.device,
+        max_mask_area_fraction=args.max_mask_area_fraction,
     )
 
 

@@ -13,4 +13,6 @@ loads SAM2 only when `--refiner sam2` is selected, scales heatmap-space prompts
 to the RGB image coordinate frame, sends both a box prompt and positive point
 prompt, then resizes returned masks back to the heatmap grid. For multimask
 outputs, it ranks candidates with an anomaly-aware score using SAM2 confidence,
-mean anomaly strength, prompt containment, and mask area.
+mean anomaly strength, prompt containment, and mask area. Experiments can pass
+`--max-mask-area-fraction` to reject SAM2 candidates that cover too much of the
+image before selecting the best candidate.

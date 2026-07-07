@@ -95,7 +95,7 @@ evaluated under few-shot normal-only PCB inspection constraints.
 | 1 | DINOv2-Only Baseline | Few-shot memory bank and heatmap scoring | Initial implementation complete | Per-category VisA metrics saved and summarized |
 | 2 | Multi-Scale DINOv2 Proposals | Improve small-defect localization with crops | Initial implementation complete | Single-scale vs multi-scale ablation complete |
 | 3 | SAM2 Mask Refinement | Refine anomaly proposals into masks | Adapter/fallback implemented | Real SAM2 run works on a small subset |
-| 4 | Baseline Comparison | Compare method variants fairly | Pending | Four baseline rows reported with same data split |
+| 4 | Baseline Comparison | Compare method variants fairly | SAM2-only script and summary tooling added; full SAM2-only table pending | Four baseline rows reported with same data split |
 | 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | Pending | Milestone/final report figures reproducible |
 | 6 | Public Release Polish | Make repo and paper artifacts publication-safe | Ongoing | Clean README, commands, license, no private artifacts |
 
@@ -210,7 +210,7 @@ Make the final claim credible by comparing against fair baselines.
 
 - Image AUROC.
 - Pixel AUROC.
-- AUPRO if implemented in time.
+- AUPRO.
 - Best pixel F1.
 - Best pixel IoU.
 - DeepPCB box-level localization or coarse pseudo-mask metrics only when clearly
@@ -218,6 +218,7 @@ Make the final claim credible by comparing against fair baselines.
 
 ### Exit Criteria
 
+- `scripts/run_sam2_baseline.py` generates the SAM2-only/simple prompt baseline.
 - All baselines use the same categories, folds, support size, and query split.
 - Metrics are summarized per category and as a mean.
 - The final method improves at least one meaningful segmentation metric without

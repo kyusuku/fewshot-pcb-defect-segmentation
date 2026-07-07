@@ -76,6 +76,73 @@ def best_f1_iou(
     return best
 
 
+def average_pro_score(
+    targets: list[np.ndarray],
+    scores: list[np.ndarray],
+    max_fpr: float = 0.3,
+    max_thresholds: int = 256,
+) -> float:
+    """Compute normalized area under the per-region-overlap curve.
+
+    The PRO value at a threshold is the mean overlap over connected ground-truth
+    anomaly regions. The x-axis is pixel false-positive rate on normal pixels,
+    and the returned area is normalized by `max_fpr`.
+    """
+
+    if not 0.0 < max_fpr <= 1.0:
+        raise ValueError("max_fpr must be in (0, 1]")
+    if len(targets) != len(scores):
+        raise ValueError("targets and scores must contain the same number of images")
+
+    prepared_targets: list[np.ndarray] = []
+    prepared_scores: list[np.ndarray] = []
+    regions_by_image: list[list[np.ndarray]] = []
+    num_negative_pixels = 0
+    for target, score in zip(targets, scores):
+        target = np.asarray(target).astype(bool)
+        score = np.asarray(score, dtype=np.float32)
+        if target.shape != score.shape:
+            raise ValueError("each target and score map must have the same shape")
+        prepared_targets.append(target)
+        prepared_scores.append(score)
+        regions = _connected_components(target)
+        regions_by_image.append(regions)
+        num_negative_pixels += int(np.sum(~target))
+
+    num_regions = sum(len(regions) for regions in regions_by_image)
+    if num_regions == 0 or num_negative_pixels == 0:
+        return math.nan
+
+    all_scores = np.concatenate([score.ravel() for score in prepared_scores], axis=0)
+    thresholds = _threshold_candidates(all_scores, max_thresholds=max_thresholds)
+    fpr_to_pro: dict[float, float] = {}
+    for threshold in thresholds:
+        false_positives = 0
+        region_overlaps = []
+        for target, score, regions in zip(prepared_targets, prepared_scores, regions_by_image):
+            prediction = score >= threshold
+            false_positives += int(np.sum(prediction & ~target))
+            for region in regions:
+                region_overlaps.append(float(np.sum(prediction & region)) / float(np.sum(region)))
+        fpr = false_positives / float(num_negative_pixels)
+        pro = float(sum(region_overlaps) / len(region_overlaps))
+        fpr_to_pro[fpr] = max(pro, fpr_to_pro.get(fpr, 0.0))
+
+    points = sorted(fpr_to_pro.items())
+    if not points or points[0][0] > 0.0:
+        points.insert(0, (0.0, 0.0))
+    clipped = [(fpr, pro) for fpr, pro in points if fpr <= max_fpr]
+    if not clipped or clipped[0][0] > 0.0:
+        clipped.insert(0, (0.0, 0.0))
+    if clipped[-1][0] < max_fpr:
+        clipped.append((max_fpr, _interpolate_pro(points, max_fpr)))
+
+    area = 0.0
+    for (x1, y1), (x2, y2) in zip(clipped, clipped[1:]):
+        area += (x2 - x1) * (y1 + y2) / 2.0
+    return float(area / max_fpr)
+
+
 def summarize_image_scores(rows: list[dict[str, str]]) -> dict[str, float]:
     labels = np.asarray([int(row["label"]) for row in rows], dtype=np.uint8)
     scores = np.asarray([float(row["image_score"]) for row in rows], dtype=np.float32)
@@ -95,6 +162,8 @@ def evaluate_heatmap_rows(
     image_metrics = summarize_image_scores(rows)
     pixel_labels: list[np.ndarray] = []
     pixel_scores: list[np.ndarray] = []
+    heatmap_masks: list[np.ndarray] = []
+    heatmap_scores: list[np.ndarray] = []
     for row in rows:
         heatmap_path = row.get("heatmap_path") or ""
         if not heatmap_path:
@@ -107,6 +176,8 @@ def evaluate_heatmap_rows(
             mask = np.zeros(heatmap.shape, dtype=np.uint8)
         if mask.shape != heatmap.shape:
             mask = _resize_mask(mask, heatmap.shape)
+        heatmap_masks.append(mask)
+        heatmap_scores.append(heatmap)
         pixel_labels.append(mask.ravel())
         pixel_scores.append(heatmap.ravel())
 
@@ -118,6 +189,7 @@ def evaluate_heatmap_rows(
         labels, scores = sample_pixels(labels, scores, max_pixels=max_pixels, seed=seed)
         metrics["num_pixels_evaluated"] = float(scores.shape[0])
         metrics["pixel_auroc"] = binary_roc_auc(labels, scores)
+        metrics["aupro"] = average_pro_score(heatmap_masks, heatmap_scores)
         threshold_metrics = best_f1_iou(labels, scores)
         metrics["best_pixel_f1"] = threshold_metrics["best_f1"]
         metrics["best_pixel_iou"] = threshold_metrics["best_iou"]
@@ -125,6 +197,7 @@ def evaluate_heatmap_rows(
         metrics["num_pixel_thresholds"] = threshold_metrics["num_thresholds"]
     else:
         metrics["pixel_auroc"] = math.nan
+        metrics["aupro"] = math.nan
         metrics["best_pixel_f1"] = math.nan
         metrics["best_pixel_iou"] = math.nan
         metrics["best_pixel_threshold"] = math.nan
@@ -201,6 +274,53 @@ def _threshold_candidates(scores: np.ndarray, max_thresholds: int) -> np.ndarray
     if unique.shape[0] <= max_thresholds:
         return unique[::-1]
     return np.linspace(float(scores.max()), float(scores.min()), num=max_thresholds)
+
+
+def _connected_components(mask: np.ndarray) -> list[np.ndarray]:
+    mask = np.asarray(mask).astype(bool)
+    visited = np.zeros(mask.shape, dtype=bool)
+    components = []
+    height, width = mask.shape
+    for y in range(height):
+        for x in range(width):
+            if visited[y, x] or not mask[y, x]:
+                continue
+            component = np.zeros(mask.shape, dtype=bool)
+            stack = [(x, y)]
+            visited[y, x] = True
+            while stack:
+                current_x, current_y = stack.pop()
+                component[current_y, current_x] = True
+                for next_x, next_y in (
+                    (current_x - 1, current_y),
+                    (current_x + 1, current_y),
+                    (current_x, current_y - 1),
+                    (current_x, current_y + 1),
+                ):
+                    if not (0 <= next_x < width and 0 <= next_y < height):
+                        continue
+                    if visited[next_y, next_x] or not mask[next_y, next_x]:
+                        continue
+                    visited[next_y, next_x] = True
+                    stack.append((next_x, next_y))
+            components.append(component)
+    return components
+
+
+def _interpolate_pro(points: list[tuple[float, float]], target_fpr: float) -> float:
+    if not points:
+        return 0.0
+    previous_x, previous_y = points[0]
+    if target_fpr <= previous_x:
+        return previous_y
+    for current_x, current_y in points[1:]:
+        if current_x >= target_fpr:
+            if current_x == previous_x:
+                return max(previous_y, current_y)
+            weight = (target_fpr - previous_x) / (current_x - previous_x)
+            return float(previous_y + weight * (current_y - previous_y))
+        previous_x, previous_y = current_x, current_y
+    return previous_y
 
 
 def _resize_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:

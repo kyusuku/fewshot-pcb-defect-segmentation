@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image
 
 from evaluation.metrics import (
+    average_pro_score,
     best_f1_iou,
     binary_roc_auc,
     evaluate_heatmap_rows,
@@ -44,6 +45,23 @@ class EvaluationMetricsTest(unittest.TestCase):
 
         self.assertGreaterEqual(metrics["best_f1"], 0.8)
         self.assertLessEqual(metrics["num_thresholds"], 3.0)
+
+    def test_average_pro_score_is_one_for_perfect_region_ranking(self) -> None:
+        target = np.zeros((4, 4), dtype=np.uint8)
+        target[1:3, 1:3] = 1
+        scores = np.full((4, 4), 0.1, dtype=np.float32)
+        scores[target > 0] = 0.9
+
+        self.assertAlmostEqual(average_pro_score([target], [scores], max_fpr=0.3), 1.0)
+
+    def test_average_pro_score_penalizes_false_positives_before_region_overlap(self) -> None:
+        target = np.zeros((4, 4), dtype=np.uint8)
+        target[1:3, 1:3] = 1
+        scores = np.full((4, 4), 0.1, dtype=np.float32)
+        scores[0, :] = 0.95
+        scores[target > 0] = 0.9
+
+        self.assertLess(average_pro_score([target], [scores], max_fpr=0.3), 0.5)
 
     def test_evaluate_heatmap_rows_computes_image_and_pixel_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -91,6 +109,7 @@ class EvaluationMetricsTest(unittest.TestCase):
 
         self.assertAlmostEqual(metrics["image_auroc"], 1.0)
         self.assertAlmostEqual(metrics["pixel_auroc"], 1.0)
+        self.assertAlmostEqual(metrics["aupro"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_f1"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
 
@@ -199,6 +218,7 @@ class EvaluateHeatmapsScriptTest(unittest.TestCase):
             metrics = json.loads(output_path.read_text())
 
         self.assertEqual(metrics["num_images"], 1)
+        self.assertAlmostEqual(metrics["aupro"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
 
 

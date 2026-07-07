@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,7 @@ from PIL import Image
 
 from sam_refine.prompts import PromptRegion, heatmap_to_prompt_regions
 from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
+from scripts.run_mask_refinement import build_refiner
 
 
 class PromptGenerationTest(unittest.TestCase):
@@ -128,8 +130,44 @@ class SAM2MaskRefinerTest(unittest.TestCase):
         self.assertEqual(int(predictions[0].mask.sum()), 9)
         np.testing.assert_array_equal(predictions[0].mask, (heatmap > 0).astype(np.uint8))
 
+    def test_sam2_refiner_rejects_masks_above_max_area_fraction(self) -> None:
+        image = Image.new("RGB", (10, 10), (0, 0, 0))
+        heatmap = np.ones((10, 10), dtype=np.float32)
+        region = PromptRegion(
+            box_xyxy=(0, 0, 10, 10),
+            point_xy=(5.0, 5.0),
+            area=100,
+            score=1.0,
+        )
+        refiner = SAM2MaskRefiner(
+            checkpoint_path="weights/fake.pt",
+            model_config="configs/fake.yaml",
+            max_mask_area_fraction=0.5,
+        )
+        refiner._predictor = _HighConfidenceFullMaskPredictor()
+
+        predictions = refiner.refine(image=image, heatmap=heatmap, regions=[region])
+
+        self.assertEqual(len(predictions), 1)
+        self.assertEqual(int(predictions[0].mask.sum()), 9)
+
 
 class MaskRefinementScriptTest(unittest.TestCase):
+    def test_build_refiner_passes_max_mask_area_fraction_to_sam2(self) -> None:
+        refiner = build_refiner(
+            Namespace(
+                refiner="sam2",
+                sam2_checkpoint=Path("weights/fake.pt"),
+                sam2_model_config="configs/fake.yaml",
+                device="cpu",
+                max_mask_area_fraction=0.25,
+                fallback_threshold_fraction=0.5,
+            )
+        )
+
+        self.assertIsInstance(refiner, SAM2MaskRefiner)
+        self.assertEqual(refiner.max_mask_area_fraction, 0.25)
+
     def test_script_writes_mask_scores_and_predicted_masks(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -238,6 +276,19 @@ class _OversizedSAM2Predictor:
         masks[0, 9:18, 4:10] = 1
         masks[1, :, :] = 1
         scores = np.asarray([0.2, 0.95], dtype=np.float32)
+        return masks, scores, None
+
+
+class _HighConfidenceFullMaskPredictor:
+    def set_image(self, image: np.ndarray) -> None:
+        del image
+
+    def predict(self, **kwargs):
+        del kwargs
+        masks = np.zeros((2, 10, 10), dtype=np.uint8)
+        masks[0, 2:5, 2:5] = 1
+        masks[1, :, :] = 1
+        scores = np.asarray([0.2, 0.99], dtype=np.float32)
         return masks, scores, None
 
 

@@ -61,6 +61,14 @@ sam2:
   checkpoint_path: weights/sam2_checkpoint.pt
   model_config: null
   prompt_type: box
+  max_mask_area_fraction: null
+
+baselines:
+  sam2_only:
+    prompt_longest_side: 128
+    grid_size: 3
+    max_regions: 9
+    box_scale: 1.0
 
 evaluation:
   metrics: [image_auroc, pixel_auroc, aupro, f1, iou]

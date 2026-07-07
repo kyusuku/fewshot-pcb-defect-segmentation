@@ -145,8 +145,8 @@ PYTHONPATH=src python scripts/evaluate_heatmaps.py \
   --output-json outputs/dinov2_color_patch_smoke/metrics.json
 ```
 
-The evaluator reports image AUROC, pixel AUROC, best pixel F1, and best pixel
-IoU when both normal and anomalous samples with masks are available. Pixel
+The evaluator reports image AUROC, pixel AUROC, AUPRO, best pixel F1, and best
+pixel IoU when both normal and anomalous samples with masks are available. Pixel
 metrics use a deterministic sample of up to 1,000,000 pixels by default for
 fast full-fold iteration; pass `--max-pixels 0` for exact full-resolution pixel
 metrics.
@@ -158,6 +158,19 @@ PYTHONPATH=src python scripts/summarize_metrics.py \
   --metrics-json outputs/dinov2_vits14_pcb*/metrics.json \
   --output-csv outputs/summary/dinov2_vits14_fold0_summary.csv \
   --output-md outputs/summary/dinov2_vits14_fold0_summary.md
+```
+
+Summarize Stage 4 heatmap and mask baselines together:
+
+```bash
+PYTHONPATH=src python scripts/summarize_stage4.py \
+  --metrics-json \
+    outputs/dinov2_vits14_pcb1_fold0_full/metrics.json \
+    outputs/dinov2_vits14_pcb1_fold0_ms768_o025_max_full/metrics.json \
+    outputs/dinov2_vits14_pcb1_fold0_full_sam2/mask_metrics.json \
+    outputs/dinov2_vits14_pcb1_fold0_ms768_o025_max_full_sam2/mask_metrics.json \
+  --output-csv outputs/summary/stage4_fold0_multiscale_comparison.csv \
+  --output-md outputs/summary/stage4_fold0_multiscale_comparison.md
 ```
 
 ## Mask Refinement
@@ -192,6 +205,7 @@ PYTHONPATH=src python scripts/run_mask_refinement.py \
   --refiner sam2 \
   --sam2-checkpoint weights/sam2.1_hiera_tiny.pt \
   --sam2-model-config configs/sam2.1/sam2.1_hiera_t.yaml \
+  --max-mask-area-fraction 0.25 \
   --device auto
 ```
 
@@ -200,7 +214,31 @@ positive point prompt at the region center. Predicted masks are resized back to
 the anomaly-heatmap grid before saving and evaluation. When SAM2 returns
 multiple candidate masks, the adapter selects the mask using SAM2 confidence,
 anomaly strength, prompt containment, and mask area instead of SAM2 confidence
-alone.
+alone. Use `--max-mask-area-fraction` to reject oversized SAM2 candidates during
+mask selection; if all candidates exceed the cap, the adapter falls back to the
+best normally ranked candidate.
+
+Run the SAM2-only/simple prompt baseline without DINOv2 anomaly guidance:
+
+```bash
+PYTHONPATH=src python scripts/run_sam2_baseline.py \
+  --manifest data/manifests/visa_pcb_folds.csv \
+  --fold-id 0 \
+  --category pcb1 \
+  --query-fold-split test \
+  --limit 8 \
+  --prompt-longest-side 128 \
+  --grid-size 3 \
+  --max-regions 9 \
+  --refiner sam2 \
+  --sam2-checkpoint weights/sam2.1_hiera_tiny.pt \
+  --sam2-model-config configs/sam2.1/sam2.1_hiera_t.yaml \
+  --output-dir outputs/sam2_only_pcb1_fold0
+```
+
+This baseline deliberately uses fixed image-grid prompts instead of DINOv2
+heatmaps. It is a comparison point for measuring how much anomaly-guided
+prompting helps over promptable segmentation alone.
 
 Evaluate saved refined masks against VisA ground-truth masks:
 
