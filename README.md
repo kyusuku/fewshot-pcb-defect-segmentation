@@ -65,6 +65,7 @@ data/
 
 See [docs/dataset_layout.md](docs/dataset_layout.md) for supported path conventions and config details.
 See [docs/data_acquisition.md](docs/data_acquisition.md) for official download plus train/validation/test and five-fold manifest generation commands.
+See [docs/autodl_data_setup.md](docs/autodl_data_setup.md) for the no-download AutoDL upload workflow.
 
 Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, and API keys are ignored by `.gitignore`.
 
@@ -73,16 +74,16 @@ Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, a
 Synthetic smoke test without real datasets:
 
 ```bash
-PYTHONPATH=src python -c "from pathlib import Path; from utils.synthetic_data import create_synthetic_debug_datasets; create_synthetic_debug_datasets(Path('/tmp/pcb_debug_fixture'))"
+PYTHONPATH=src python scripts/create_synthetic_data.py --output-dir data/debug_fixture
 python scripts/debug_dataset.py \
   --config configs/datasets/visa_pcb.yaml \
-  --root /tmp/pcb_debug_fixture/VisA \
+  --root data/debug_fixture/VisA \
   --split test \
   --category pcb1 \
   --limit 2
 python scripts/debug_dataset.py \
   --config configs/datasets/deeppcb.yaml \
-  --root /tmp/pcb_debug_fixture/DeepPCB/PCBData \
+  --root data/debug_fixture/DeepPCB/PCBData \
   --split test \
   --limit 1
 ```

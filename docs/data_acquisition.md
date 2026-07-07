@@ -2,6 +2,11 @@
 
 Raw datasets, extracted archives, generated manifests, checkpoints, and outputs belong under `data/`, `weights/`, or `outputs/`, all of which are ignored by Git.
 
+If your AutoDL SSH session cannot download from external URLs, use
+[docs/autodl_data_setup.md](autodl_data_setup.md) instead: upload prepared data
+or archives into the ignored `data/` folder, then run the same debug and
+manifest scripts.
+
 ## Official Sources
 
 ### VisA
