@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import subprocess
 import sys
 import tempfile
@@ -267,11 +268,13 @@ class MaskRefinementScriptTest(unittest.TestCase):
                 device="cpu",
                 max_mask_area_fraction=0.25,
                 fallback_threshold_fraction=0.5,
+                prompt_mode="box",
             )
         )
 
         self.assertIsInstance(refiner, SAM2MaskRefiner)
         self.assertEqual(refiner.max_mask_area_fraction, 0.25)
+        self.assertEqual(refiner.prompt_mode, "box")
 
     def test_script_writes_mask_scores_and_predicted_masks(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
@@ -339,17 +342,192 @@ class MaskRefinementScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             rows = _read_csv(output_dir / "mask_scores.csv")
-            pred_mask_path = Path(rows[0]["pred_mask_path"])
+            pred_mask_path = output_dir / rows[0]["pred_mask_path"]
+            sam2_mask_path = output_dir / rows[0]["sam2_mask_path"]
             pred_mask = np.asarray(Image.open(pred_mask_path).convert("L")) > 0
+            sam2_mask = np.asarray(Image.open(sam2_mask_path).convert("L")) > 0
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(int(pred_mask.sum()), 9)
-        self.assertEqual(rows[0]["mask_path"], str(mask_path))
+        np.testing.assert_array_equal(pred_mask, sam2_mask)
+        self.assertEqual(rows[0]["mask_output"], "sam2")
+        self.assertEqual(rows[0]["prompt_mode"], "point_box")
+        self.assertEqual(rows[0]["point_mode"], "anomaly_max")
+        self.assertEqual(rows[0]["proposal_threshold"], "0.50000000")
+        self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+        self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
+        self.assertFalse(Path(rows[0]["sam2_mask_path"]).is_absolute())
+        self.assertFalse(Path(rows[0]["pred_mask_path"]).is_absolute())
+
+    def test_intersection_saves_raw_sam2_and_selected_mask_with_stable_fields(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            image_path, heatmap_path, mask_path, scores_path = _write_refinement_fixture(root)
+            output_dir = root / "refined"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "run_mask_refinement.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--output-dir",
+                    str(output_dir),
+                    "--threshold",
+                    "0.8",
+                    "--mask-output",
+                    "intersection",
+                    "--point-mode",
+                    "box_center",
+                    "--prompt-mode",
+                    "box",
+                    "--refiner",
+                    "fallback",
+                    "--min-area",
+                    "1",
+                ],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            rows = _read_csv(output_dir / "mask_scores.csv")
+            raw = np.asarray(
+                Image.open(output_dir / rows[0]["sam2_mask_path"]).convert("L")
+            ) > 0
+            selected = np.asarray(
+                Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")
+            ) > 0
+            portable_source_paths_resolve = (
+                (output_dir / rows[0]["image_path"]).samefile(image_path)
+                and (output_dir / rows[0]["mask_path"]).samefile(mask_path)
+                and (output_dir / rows[0]["heatmap_path"]).samefile(heatmap_path)
+            )
+
+        self.assertEqual(int(raw.sum()), 9)
+        self.assertEqual(int(selected.sum()), 8)
+        self.assertEqual(rows[0]["mask_output"], "intersection")
+        self.assertEqual(rows[0]["prompt_mode"], "box")
+        self.assertEqual(rows[0]["point_mode"], "box_center")
+        self.assertEqual(rows[0]["anomaly_pixels"], "8.00000000")
+        self.assertEqual(rows[0]["sam2_pixels"], "9.00000000")
+        self.assertEqual(rows[0]["intersection_pixels"], "8.00000000")
+        self.assertEqual(rows[0]["union_pixels"], "9.00000000")
+        self.assertAlmostEqual(float(rows[0]["mask_iou"]), 8.0 / 9.0)
+        self.assertAlmostEqual(float(rows[0]["sam2_to_anomaly_area_ratio"]), 9.0 / 8.0)
+        self.assertEqual(rows[0]["selective_min_iou"], "0.25000000")
+        self.assertEqual(rows[0]["selective_max_expansion"], "2.00000000")
+        self.assertTrue(portable_source_paths_resolve)
+
+    def test_calibration_threshold_overrides_explicit_threshold_and_writes_provenance(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _, _, _, scores_path = _write_refinement_fixture(root)
+            output_dir = root / "refined"
+            calibration_path = root / "calibration.json"
+            calibration_path.write_text(
+                json.dumps(
+                    {
+                        "quantile": 0.995,
+                        "threshold": 0.8,
+                        "num_images": 3,
+                        "num_pixels": 300,
+                        "source_split": "val",
+                    }
+                )
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "run_mask_refinement.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--output-dir",
+                    str(output_dir),
+                    "--calibration-json",
+                    str(calibration_path),
+                    "--threshold",
+                    "0.95",
+                    "--percentile",
+                    "10",
+                    "--mask-output",
+                    "anomaly",
+                    "--refiner",
+                    "fallback",
+                    "--min-area",
+                    "1",
+                ],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            rows = _read_csv(output_dir / "mask_scores.csv")
+            selected = np.asarray(
+                Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")
+            ) > 0
+
+        self.assertEqual(int(selected.sum()), 8)
+        self.assertEqual(rows[0]["proposal_threshold"], "0.80000000")
+        self.assertEqual(rows[0]["calibration_quantile"], "0.99500000")
+        self.assertEqual(rows[0]["calibration_threshold"], "0.80000000")
+        self.assertEqual(rows[0]["calibration_source_split"], "val")
+        self.assertEqual(rows[0]["calibration_num_images"], "3")
+        self.assertEqual(rows[0]["calibration_num_pixels"], "300")
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _write_refinement_fixture(root: Path) -> tuple[Path, Path, Path, Path]:
+    image_path = root / "image.png"
+    heatmap_path = root / "heatmap.npy"
+    mask_path = root / "mask.png"
+    scores_path = root / "scores.csv"
+    Image.new("RGB", (3, 3), (20, 40, 60)).save(image_path)
+    heatmap = np.full((3, 3), 0.9, dtype=np.float32)
+    heatmap[1, 1] = 0.5
+    np.save(heatmap_path, heatmap)
+    Image.fromarray((heatmap >= 0.8).astype(np.uint8) * 255, mode="L").save(mask_path)
+    with scores_path.open("w", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "sample_id",
+                "category",
+                "label",
+                "image_score",
+                "image_path",
+                "mask_path",
+                "heatmap_path",
+                "debug_path",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "sample_id": "pcb1/anomaly",
+                "category": "pcb1",
+                "label": "1",
+                "image_score": "0.9",
+                "image_path": str(image_path),
+                "mask_path": str(mask_path),
+                "heatmap_path": str(heatmap_path),
+                "debug_path": "",
+            }
+        )
+    return image_path, heatmap_path, mask_path, scores_path
 
 
 def _sam2_prompt_fixture() -> tuple[Image.Image, np.ndarray, PromptRegion]:

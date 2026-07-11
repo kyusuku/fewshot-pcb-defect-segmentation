@@ -213,17 +213,30 @@ def resolve_mask_row_paths(
 ) -> list[dict[str, str]]:
     """Resolve relative mask artifact paths against the CSV directory."""
 
-    base_dir = Path(base_dir)
+    base_dir = Path(base_dir).resolve()
+    project_root = Path(__file__).resolve().parents[2]
     resolved_rows = []
     for row in rows:
         resolved = dict(row)
-        for key in ("pred_mask_path", "mask_path", "heatmap_path", "debug_path"):
+        for key in (
+            "image_path",
+            "mask_path",
+            "heatmap_path",
+            "sam2_mask_path",
+            "pred_mask_path",
+            "debug_path",
+        ):
             value = resolved.get(key) or ""
             if not value:
                 continue
             path = Path(value)
-            if not path.is_absolute() and not path.exists():
-                resolved[key] = str(base_dir / path)
+            if not path.is_absolute():
+                csv_relative = base_dir / path
+                legacy_repo_relative = project_root / path
+                resolved_path = csv_relative
+                if not csv_relative.exists() and legacy_repo_relative.exists():
+                    resolved_path = legacy_repo_relative
+                resolved[key] = str(resolved_path)
         resolved_rows.append(resolved)
     return resolved_rows
 

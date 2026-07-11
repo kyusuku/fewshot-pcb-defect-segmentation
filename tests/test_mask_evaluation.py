@@ -11,10 +11,32 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from evaluation.masks import evaluate_mask_rows, mask_confusion_metrics, summarize_binary_metrics
+from evaluation.masks import (
+    evaluate_mask_rows,
+    mask_confusion_metrics,
+    resolve_mask_row_paths,
+    summarize_binary_metrics,
+)
 
 
 class MaskEvaluationTest(unittest.TestCase):
+    def test_resolves_all_portable_mask_score_artifact_paths_from_csv_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            row = {
+                "image_path": "source/image.png",
+                "mask_path": "source/ground_truth.png",
+                "heatmap_path": "source/heatmap.npy",
+                "sam2_mask_path": "artifacts/raw.png",
+                "pred_mask_path": "artifacts/pred.png",
+                "debug_path": "artifacts/debug.png",
+            }
+
+            resolved = resolve_mask_row_paths([row], base_dir=root)[0]
+
+        for field, relative_path in row.items():
+            self.assertEqual(resolved[field], str(root.resolve() / relative_path), msg=field)
+
     def test_mask_confusion_metrics_reports_overlap_quality(self) -> None:
         pred = np.array([[1, 0], [0, 1]], dtype=np.uint8)
         target = np.array([[1, 1], [0, 0]], dtype=np.uint8)
