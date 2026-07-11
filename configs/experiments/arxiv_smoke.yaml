@@ -24,3 +24,26 @@ sam2:
   prompt_mode: point_box
   point_mode: anomaly_max
   max_mask_area_fraction: 0.25
+patchcore:
+  backbone: wide_resnet50_2
+  weights: IMAGENET1K_V2
+  source: torchvision
+  layers: [layer2, layer3]
+  image_size: 512
+  patch_size: 8
+  coreset_ratio: 0.01
+  projection_dim: 64
+  normalization: imagenet
+  seed_policy: run_seed
+sam2_only:
+  refiner: fallback
+  query_policy: bounded_fixture
+  query_fold_split: test
+  limit: 2
+  prompt_longest_side: 56
+  grid_size: 2
+  max_regions: 4
+  box_scale: 1.0
+  max_mask_area_fraction: null
+  fallback_threshold_fraction: 0.5
+  device: cpu

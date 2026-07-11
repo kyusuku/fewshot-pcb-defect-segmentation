@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import importlib.metadata
 import json
@@ -9,12 +10,11 @@ import math
 import os
 import platform
 import subprocess
-import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Mapping, Sequence
 
-from experiments.spec import RunSpec
+from experiments.spec import RunSpec, load_yaml_mapping
 
 
 DEFAULT_LIBRARIES = ("numpy", "Pillow", "PyYAML", "torch", "torchvision")
@@ -80,7 +80,36 @@ def git_state(repo_root: str | Path) -> dict[str, object]:
     if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
         raise ValueError("git rev-parse returned an invalid commit SHA")
     status = _git(root, "status", "--porcelain=v1", "--untracked-files=normal")
-    return {"commit": commit, "dirty": bool(status.strip())}
+    state: dict[str, object] = {"commit": commit, "dirty": bool(status.strip())}
+    if state["dirty"]:
+        state["dirty_identity"] = _dirty_identity(root)
+    return state
+
+
+def _dirty_identity(root: Path) -> dict[str, object]:
+    staged = _git_bytes(root, "diff", "--cached", "--binary", "--no-ext-diff")
+    unstaged = _git_bytes(root, "diff", "--binary", "--no-ext-diff")
+    untracked_output = _git_bytes(
+        root, "ls-files", "--others", "--exclude-standard", "-z"
+    )
+    untracked: list[dict[str, str]] = []
+    for raw_path in sorted(value for value in untracked_output.split(b"\0") if value):
+        try:
+            relative = raw_path.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("untracked paths must be valid UTF-8") from exc
+        _validate_public_artifact_string(relative, "untracked path")
+        if _contains_sensitive_fragment(relative):
+            raise ValueError(f"sensitive untracked path cannot enter provenance: {relative!r}")
+        source = root / relative
+        if not source.is_file():
+            raise ValueError(f"untracked provenance source is not a file: {relative!r}")
+        untracked.append({"path": relative, "sha256": sha256_file(source)})
+    return {
+        "staged_diff_sha256": hashlib.sha256(staged).hexdigest(),
+        "unstaged_diff_sha256": hashlib.sha256(unstaged).hexdigest(),
+        "untracked": untracked,
+    }
 
 
 def build_provenance(
@@ -98,19 +127,16 @@ def build_provenance(
     cache_identity: Mapping[str, object] | None = None,
     artifact_identities: Mapping[str, object] | None = None,
     library_names: Sequence[str] = DEFAULT_LIBRARIES,
+    allow_dirty: bool = False,
 ) -> dict[str, object]:
     """Build one immutable provenance record without retaining private paths."""
 
     if not isinstance(run_spec, RunSpec):
         raise TypeError("run_spec must be a RunSpec")
-    support = _validate_support_ids(support_ids)
-    expected_support_count = 0 if run_spec.method == "sam2_only" else run_spec.k
-    if len(support) != expected_support_count:
-        raise ValueError(
-            f"run {run_spec.run_id} declares k={run_spec.k} but has "
-            f"{len(support)} unique support IDs"
-        )
-    git = _resolve_git_state(git_commit, git_dirty, repo_root)
+    support = validate_support_manifest(manifest_path, run_spec, support_ids)
+    if not isinstance(allow_dirty, bool):
+        raise ValueError("allow_dirty must be a boolean")
+    git = _resolve_git_state(git_commit, git_dirty, repo_root, allow_dirty)
     root = Path(repo_root).resolve() if repo_root is not None else None
     manifest = _file_identity(manifest_path, root)
     experiment_config = _config_identity(config_path, config, root)
@@ -120,6 +146,12 @@ def build_provenance(
     artifacts = _mapping_identity(artifact_identities or {}, "artifact_identities")
     libraries = _library_versions(library_names)
     overrides = run_spec.overrides
+    dependency_identities = {
+        dependency.run_id: dependency.expected_run_spec_sha256
+        for dependency in run_spec.dependencies
+    }
+    if any(identity is None for identity in dependency_identities.values()):
+        raise ValueError("every dependency must declare an expected run-spec identity")
 
     record: dict[str, object] = {
         "schema_version": 1,
@@ -128,6 +160,8 @@ def build_provenance(
         "run_spec_sha256": run_spec.identity_sha256,
         "overrides": overrides,
         "overrides_sha256": sha256_json(overrides),
+        "dependency_identities": dependency_identities,
+        "dependency_identities_sha256": sha256_json(dependency_identities),
         "manifest": manifest,
         "support_ids": support,
         "support_ids_sha256": sha256_json(support),
@@ -160,12 +194,16 @@ def build_provenance(
 
 
 def _resolve_git_state(
-    commit: str | None, dirty: bool | None, repo_root: str | Path | None
+    commit: str | None,
+    dirty: bool | None,
+    repo_root: str | Path | None,
+    allow_dirty: bool,
 ) -> dict[str, object]:
     if commit is None and dirty is None:
         if repo_root is None:
             raise ValueError("repo_root is required when git state is not supplied")
-        return git_state(repo_root)
+        observed = git_state(repo_root)
+        return _enforce_dirty_policy(observed, allow_dirty, repo_root)
     if commit is None or dirty is None:
         raise ValueError("git_commit and git_dirty must be supplied together")
     if (
@@ -179,9 +217,22 @@ def _resolve_git_state(
     supplied = {"commit": commit, "dirty": dirty}
     if repo_root is not None:
         observed = git_state(repo_root)
-        if supplied != observed:
+        if supplied != {"commit": observed["commit"], "dirty": observed["dirty"]}:
             raise ValueError(f"supplied git state does not match repository state: {observed}")
-    return supplied
+        supplied = observed
+    return _enforce_dirty_policy(supplied, allow_dirty, repo_root)
+
+
+def _enforce_dirty_policy(
+    state: dict[str, object], allow_dirty: bool, repo_root: str | Path | None
+) -> dict[str, object]:
+    if not state["dirty"]:
+        return state
+    if not allow_dirty:
+        raise ValueError("dirty repository provenance is rejected by default")
+    if repo_root is None or "dirty_identity" not in state:
+        raise ValueError("allow_dirty requires repo_root to hash all repository changes")
+    return state
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -191,6 +242,18 @@ def _git(root: Path, *arguments: str) -> str:
             check=True,
             capture_output=True,
             text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError(f"unable to inspect git repository {root.name!r}") from exc
+    return result.stdout
+
+
+def _git_bytes(root: Path, *arguments: str) -> bytes:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), *arguments],
+            check=True,
+            capture_output=True,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
         raise ValueError(f"unable to inspect git repository {root.name!r}") from exc
@@ -223,6 +286,9 @@ def _config_identity(
         raise ValueError("config_path and config must be supplied together")
     _validate_identity_mapping(config, "experiment_config")
     canonical_content = json.loads(canonical_json(dict(config)))
+    file_content = load_yaml_mapping(path)
+    if file_content != canonical_content:
+        raise ValueError("experiment config file does not match supplied config")
     file_identity = _file_identity(path, root)
     return {
         **file_identity,
@@ -252,10 +318,58 @@ def _public_path(path: Path, root: Path | None) -> str:
     else:
         relative = path
     value = relative.as_posix()
-    pure = PurePosixPath(value)
-    if pure.is_absolute() or ".." in pure.parts or any(part in {"", "."} for part in pure.parts):
-        raise ValueError("artifact path must be a normalized relative public path")
+    _validate_public_artifact_string(value, "artifact path")
     return value
+
+
+def validate_support_manifest(
+    manifest_path: str | Path,
+    run_spec: RunSpec,
+    support_ids: Sequence[str],
+) -> list[str]:
+    """Verify that a run's exact support set is legal in its frozen fold manifest."""
+
+    if not isinstance(run_spec, RunSpec):
+        raise TypeError("run_spec must be a RunSpec")
+    normalized = _validate_support_ids(support_ids)
+    expected_count = 0 if run_spec.method == "sam2_only" else run_spec.k
+    if len(normalized) != expected_count:
+        raise ValueError(
+            f"run {run_spec.run_id} declares k={run_spec.k} but has "
+            f"{len(normalized)} unique support IDs"
+        )
+    source = Path(manifest_path)
+    with source.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        headers = reader.fieldnames
+        if headers is None:
+            raise ValueError("manifest must have a CSV header")
+        if len(headers) != len(set(headers)):
+            raise ValueError("manifest must not contain duplicate CSV columns")
+        required = {"sample_id", "category", "fold_id", "fold_split", "label"}
+        missing = sorted(required - set(headers))
+        if missing:
+            raise ValueError(f"manifest is missing support-validation columns: {missing}")
+        rows = list(reader)
+
+    fold_value = str(run_spec.fold_id)
+    for support_id in normalized:
+        matching_id = [row for row in rows if row.get("sample_id") == support_id]
+        matching_fold = [row for row in matching_id if row.get("fold_id") == fold_value]
+        if len(matching_fold) != 1:
+            raise ValueError(
+                f"support ID {support_id!r} must exist exactly once for fold {run_spec.fold_id}"
+            )
+        row = matching_fold[0]
+        if row.get("category") != run_spec.category:
+            raise ValueError(
+                f"support ID {support_id!r} category does not match {run_spec.category}"
+            )
+        if row.get("label") != "0":
+            raise ValueError(f"support ID {support_id!r} must be normal with label=0")
+        if row.get("fold_split") != "dev":
+            raise ValueError(f"support ID {support_id!r} must have fold_split=dev")
+    return normalized
 
 
 def _validate_support_ids(support_ids: Sequence[str]) -> list[str]:
@@ -267,12 +381,34 @@ def _validate_support_ids(support_ids: Sequence[str]) -> list[str]:
     if len(normalized) != len(set(normalized)):
         raise ValueError("duplicate support IDs are not allowed")
     for value in normalized:
-        path = PurePosixPath(value)
-        if path.is_absolute() or ".." in path.parts or "\\" in value or any(
-            character.isspace() and character not in {" "} for character in value
-        ):
-            raise ValueError(f"unsafe support ID: {value!r}")
+        try:
+            _validate_public_artifact_string(value, "support ID")
+        except ValueError as exc:
+            raise ValueError(f"unsafe support ID: {value!r}") from exc
     return sorted(normalized)
+
+
+def validate_resume_identity(
+    provenance: Mapping[str, object],
+    *,
+    run_spec: RunSpec,
+    config_sha256: str,
+    dependency_identities: Mapping[str, str | None],
+) -> None:
+    """Reject resume unless every effective identity matches the requested run."""
+
+    if provenance.get("run_id") != run_spec.run_id:
+        raise ValueError("resume provenance run_id does not match requested run")
+    if provenance.get("run_spec_sha256") != run_spec.identity_sha256:
+        raise ValueError("resume provenance run-spec identity does not match requested run")
+    config_record = provenance.get("experiment_config")
+    if not isinstance(config_record, Mapping):
+        raise ValueError("resume provenance is missing experiment config identity")
+    if config_record.get("canonical_sha256") != config_sha256:
+        raise ValueError("resume provenance experiment config identity does not match")
+    normalized_dependencies = dict(sorted(dependency_identities.items()))
+    if provenance.get("dependency_identities") != normalized_dependencies:
+        raise ValueError("resume provenance dependency identities do not match")
 
 
 def _validate_identity_mapping(payload: Mapping[str, object], context: str) -> None:
@@ -286,19 +422,62 @@ def _validate_identity_mapping(payload: Mapping[str, object], context: str) -> N
             for index, item in enumerate(value):
                 if isinstance(item, Mapping):
                     _validate_identity_mapping(item, f"{context}.{key}[{index}]")
-                elif isinstance(item, str) and Path(item).is_absolute():
-                    raise ValueError(f"{context} must not expose absolute/private paths")
-        elif isinstance(value, str) and Path(value).is_absolute():
-            raise ValueError(f"{context} must not expose absolute/private paths")
+                else:
+                    _validate_identity_scalar(item, f"{context}.{key}[{index}]")
+        else:
+            _validate_identity_scalar(value, f"{context}.{key}")
 
 
 def _validate_identity_keys(payload: Mapping[str, object], context: str) -> None:
     for key in payload:
         if not isinstance(key, str) or not key:
             raise ValueError(f"{context} keys must be non-empty strings")
-        lowered = key.lower()
-        if any(fragment in lowered for fragment in _SENSITIVE_FRAGMENTS):
+        _validate_ascii_text(key, f"{context} key")
+        if _contains_sensitive_fragment(key):
             raise ValueError(f"{context} contains sensitive identity key {key!r}")
+
+
+def _validate_identity_scalar(value: object, context: str) -> None:
+    if isinstance(value, str):
+        _validate_ascii_text(value, context)
+        if (
+            value in {".", ".."}
+            or value.startswith(("/", "//", "~/"))
+            or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
+            or "\\" in value
+        ):
+            raise ValueError(f"{context} must not expose absolute/private paths or traversal")
+        if "/" in value and ".." in PurePosixPath(value).parts:
+            raise ValueError(f"{context} must not expose path traversal")
+    elif value is not None and not isinstance(value, (bool, int, float)):
+        raise TypeError(f"{context} must contain JSON scalar values")
+
+
+def _validate_public_artifact_string(value: str, context: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{context} must be a non-empty string")
+    _validate_ascii_text(value, context)
+    if (
+        value.startswith(("/", "//", "~/"))
+        or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
+        or "\\" in value
+    ):
+        raise ValueError(f"{context} must be a relative POSIX path")
+    path = PurePosixPath(value)
+    if not path.parts or ".." in path.parts:
+        raise ValueError(f"{context} must not contain path traversal")
+    if path.as_posix() != value or any(part in {"", "."} for part in path.parts):
+        raise ValueError(f"{context} must be normalized")
+
+
+def _validate_ascii_text(value: str, context: str) -> None:
+    if any(ord(character) < 32 or ord(character) > 126 for character in value):
+        raise ValueError(f"{context} must contain printable ASCII text")
+
+
+def _contains_sensitive_fragment(value: str) -> bool:
+    lowered = value.lower().replace("-", "_")
+    return any(fragment in lowered for fragment in _SENSITIVE_FRAGMENTS)
 
 
 def _library_versions(names: Sequence[str]) -> dict[str, str | None]:

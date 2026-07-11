@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import subprocess
 from pathlib import Path
@@ -31,8 +32,9 @@ def test_provenance_is_canonical_complete_and_does_not_leak_absolute_paths(
     config_path = tmp_path / "arxiv_smoke.yaml"
     checkpoint = tmp_path / "model.pt"
     model_config = tmp_path / "model.yaml"
-    manifest.write_text("sample_id\npcb1/0001\n")
-    config_path.write_text("name: arxiv_smoke\n")
+    _write_manifest(manifest, ["pcb1/0001", "pcb1/0002"])
+    config = {"name": "arxiv_smoke", "shots": [1]}
+    config_path.write_text("name: arxiv_smoke\nshots: [1]\n")
     checkpoint.write_bytes(b"weights")
     model_config.write_text("model: tiny\n")
     run = RunSpec(
@@ -49,9 +51,9 @@ def test_provenance_is_canonical_complete_and_does_not_leak_absolute_paths(
         manifest_path=manifest,
         support_ids=["pcb1/0002", "pcb1/0001"],
         git_commit="abc123",
-        git_dirty=True,
+        git_dirty=False,
         config_path=config_path,
-        config={"name": "arxiv_smoke", "shots": [1]},
+        config=config,
         checkpoint_paths={"sam2": checkpoint},
         model_config_paths={"sam2": model_config},
         cache_identity={"extractor_sha256": "a" * 64},
@@ -59,9 +61,9 @@ def test_provenance_is_canonical_complete_and_does_not_leak_absolute_paths(
     )
 
     assert record["support_ids"] == ["pcb1/0001", "pcb1/0002"]
-    assert record["git"] == {"commit": "abc123", "dirty": True}
+    assert record["git"] == {"commit": "abc123", "dirty": False}
     assert record["git_commit"] == "abc123"
-    assert record["git_dirty"] is True
+    assert record["git_dirty"] is False
     assert record["run_spec"] == run.to_dict()
     assert record["overrides"] == run.overrides
     assert record["manifest"]["sha256"] == sha256_file(manifest)
@@ -83,7 +85,7 @@ def test_provenance_hashes_change_with_config_checkpoint_and_cache_identity(
     manifest = tmp_path / "manifest.csv"
     config_path = tmp_path / "config.yaml"
     checkpoint = tmp_path / "model.pt"
-    manifest.write_text("sample_id\n")
+    _write_manifest(manifest, ["pcb1/0001"])
     config_path.write_text("version: 1\n")
     checkpoint.write_bytes(b"one")
     run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
@@ -132,7 +134,9 @@ def test_git_state_reports_commit_and_dirty_state_truthfully(tmp_path: Path) -> 
 
     assert len(clean["commit"]) == 40
     assert clean["dirty"] is False
-    assert dirty == {"commit": clean["commit"], "dirty": True}
+    assert dirty["commit"] == clean["commit"]
+    assert dirty["dirty"] is True
+    assert len(dirty["dirty_identity"]["unstaged_diff_sha256"]) == 64
 
 
 def test_atomic_json_write_is_canonical_and_round_trips(tmp_path: Path) -> None:
@@ -156,7 +160,7 @@ def test_provenance_rejects_duplicates_unsafe_ids_and_secret_identity_keys(
     tmp_path: Path,
 ) -> None:
     manifest = tmp_path / "manifest.csv"
-    manifest.write_text("sample_id\n")
+    _write_manifest(manifest, ["pcb1/a"])
     run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
 
     with pytest.raises(ValueError, match="duplicate support"):
@@ -176,7 +180,7 @@ def test_provenance_rejects_duplicates_unsafe_ids_and_secret_identity_keys(
 
 def test_build_provenance_requires_truthful_git_dirty_state(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.csv"
-    manifest.write_text("sample_id\n")
+    _write_manifest(manifest, ["pcb1/a"])
     run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
     with pytest.raises(ValueError, match="git_dirty"):
         build_provenance(run, manifest, ["pcb1/a"], "abc")
@@ -189,3 +193,20 @@ def test_support_count_must_match_run_pairing_dimension(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="k=2.*1 unique support"):
         build_provenance(run, manifest, ["pcb1/a"], "abc", git_dirty=False)
+
+
+def _write_manifest(path: Path, sample_ids: list[str]) -> None:
+    fields = ["sample_id", "category", "fold_id", "fold_split", "label"]
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for sample_id in sample_ids:
+            writer.writerow(
+                {
+                    "sample_id": sample_id,
+                    "category": "pcb1",
+                    "fold_id": "0",
+                    "fold_split": "dev",
+                    "label": "0",
+                }
+            )
