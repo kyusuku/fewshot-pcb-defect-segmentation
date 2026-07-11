@@ -46,6 +46,9 @@ def mask_confusion_metrics(prediction: np.ndarray, target: np.ndarray) -> dict[s
             "iou": 1.0,
             "pred_positive_pixels": 0.0,
             "gt_positive_pixels": 0.0,
+            "true_positive_pixels": 0.0,
+            "false_positive_pixels": 0.0,
+            "false_negative_pixels": 0.0,
         }
 
     precision = tp / (tp + fp) if tp + fp > 0.0 else 0.0
@@ -58,7 +61,57 @@ def mask_confusion_metrics(prediction: np.ndarray, target: np.ndarray) -> dict[s
         "iou": float(tp / union),
         "pred_positive_pixels": float(np.sum(prediction)),
         "gt_positive_pixels": float(np.sum(target)),
+        "true_positive_pixels": tp,
+        "false_positive_pixels": fp,
+        "false_negative_pixels": fn,
     }
+
+
+def summarize_binary_metrics(
+    rows: list[dict[str, str | float]],
+    prefix: str,
+) -> dict[str, float]:
+    """Summarize per-image metrics, aggregating pixels from exact counts."""
+
+    anomaly_rows = [row for row in rows if int(row["label"]) == 1]
+    aggregate_tp = sum(float(row["true_positive_pixels"]) for row in rows)
+    aggregate_fp = sum(float(row["false_positive_pixels"]) for row in rows)
+    aggregate_fn = sum(float(row["false_negative_pixels"]) for row in rows)
+    aggregate_precision = (
+        aggregate_tp / (aggregate_tp + aggregate_fp)
+        if aggregate_tp + aggregate_fp > 0.0
+        else 0.0
+    )
+    aggregate_recall = (
+        aggregate_tp / (aggregate_tp + aggregate_fn)
+        if aggregate_tp + aggregate_fn > 0.0
+        else 0.0
+    )
+    aggregate_f1 = (
+        2.0
+        * aggregate_precision
+        * aggregate_recall
+        / (aggregate_precision + aggregate_recall)
+        if aggregate_precision + aggregate_recall > 0.0
+        else 0.0
+    )
+    aggregate_iou = (
+        aggregate_tp / (aggregate_tp + aggregate_fp + aggregate_fn)
+        if aggregate_tp + aggregate_fp + aggregate_fn > 0.0
+        else 0.0
+    )
+    summary = {
+        f"{prefix}_aggregate_pixel_precision": float(aggregate_precision),
+        f"{prefix}_aggregate_pixel_recall": float(aggregate_recall),
+        f"{prefix}_aggregate_pixel_f1": float(aggregate_f1),
+        f"{prefix}_aggregate_pixel_iou": float(aggregate_iou),
+    }
+    for metric in ("precision", "recall", "f1", "iou"):
+        summary[f"{prefix}_mean_mask_{metric}"] = _mean_rows(rows, f"mask_{metric}")
+        summary[f"{prefix}_mean_anomaly_mask_{metric}"] = _mean_rows(
+            anomaly_rows, f"mask_{metric}"
+        )
+    return summary
 
 
 def evaluate_mask_rows(
@@ -168,6 +221,12 @@ def _mean(rows: list[dict[str, float]], key: str) -> float:
     if not rows:
         return math.nan
     return float(sum(row[key] for row in rows) / len(rows))
+
+
+def _mean_rows(rows: list[dict[str, str | float]], key: str) -> float:
+    if not rows:
+        return math.nan
+    return float(sum(float(row[key]) for row in rows) / len(rows))
 
 
 def _resize_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:

@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from evaluation.masks import mask_confusion_metrics, summarize_binary_metrics
 from utils.image import load_binary_mask
 
 
@@ -194,6 +195,9 @@ def evaluate_heatmap_rows(
         metrics["best_pixel_f1"] = threshold_metrics["best_f1"]
         metrics["best_pixel_iou"] = threshold_metrics["best_iou"]
         metrics["best_pixel_threshold"] = threshold_metrics["best_threshold"]
+        metrics["oracle_best_pixel_f1"] = threshold_metrics["best_f1"]
+        metrics["oracle_best_pixel_iou"] = threshold_metrics["best_iou"]
+        metrics["oracle_best_pixel_threshold"] = threshold_metrics["best_threshold"]
         metrics["num_pixel_thresholds"] = threshold_metrics["num_thresholds"]
     else:
         metrics["pixel_auroc"] = math.nan
@@ -201,9 +205,58 @@ def evaluate_heatmap_rows(
         metrics["best_pixel_f1"] = math.nan
         metrics["best_pixel_iou"] = math.nan
         metrics["best_pixel_threshold"] = math.nan
+        metrics["oracle_best_pixel_f1"] = math.nan
+        metrics["oracle_best_pixel_iou"] = math.nan
+        metrics["oracle_best_pixel_threshold"] = math.nan
         metrics["num_pixel_thresholds"] = 0.0
         metrics["num_pixels_evaluated"] = 0.0
     return metrics
+
+
+def evaluate_heatmap_rows_at_threshold(
+    rows: list[dict[str, str]],
+    threshold: float,
+) -> tuple[dict[str, float], list[dict[str, str | float]]]:
+    """Evaluate heatmaps as binary masks at one pre-calibrated threshold."""
+
+    per_image: list[dict[str, str | float]] = []
+    for row in rows:
+        heatmap_path = row.get("heatmap_path") or ""
+        if not heatmap_path:
+            continue
+        heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
+        label = int(row.get("label") or 0)
+        mask_path = row.get("mask_path") or ""
+        if mask_path:
+            target = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
+        elif label == 0:
+            target = np.zeros(heatmap.shape, dtype=np.uint8)
+        else:
+            raise ValueError("mask_path is required for anomalous heatmap rows")
+        if target.shape != heatmap.shape:
+            target = _resize_mask(target, heatmap.shape)
+
+        metrics = mask_confusion_metrics(heatmap >= threshold, target)
+        per_image.append(
+            {
+                "sample_id": row.get("sample_id", ""),
+                "category": row.get("category", ""),
+                "label": row.get("label", ""),
+                "threshold": float(threshold),
+                "mask_precision": metrics["precision"],
+                "mask_recall": metrics["recall"],
+                "mask_f1": metrics["f1"],
+                "mask_iou": metrics["iou"],
+                "pred_positive_pixels": metrics["pred_positive_pixels"],
+                "gt_positive_pixels": metrics["gt_positive_pixels"],
+                "true_positive_pixels": metrics["true_positive_pixels"],
+                "false_positive_pixels": metrics["false_positive_pixels"],
+                "false_negative_pixels": metrics["false_negative_pixels"],
+                "heatmap_path": heatmap_path,
+                "mask_path": mask_path,
+            }
+        )
+    return summarize_binary_metrics(per_image, prefix="calibrated"), per_image
 
 
 def resolve_score_row_paths(

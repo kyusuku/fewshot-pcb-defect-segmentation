@@ -95,6 +95,8 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
                     "2",
                     "--limit",
                     "1",
+                    "--query-fold-split",
+                    "test",
                     "--feature-backbone",
                     "color_patch",
                     "--image-size",
@@ -121,6 +123,7 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
         self.assertEqual(output_files, ["000_pcb1_anomaly_000.png"])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly_000")
+        self.assertEqual(rows[0]["fold_split"], "test")
         self.assertGreater(float(rows[0]["image_score"]), 0.0)
 
 

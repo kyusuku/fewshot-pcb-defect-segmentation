@@ -112,6 +112,21 @@ class EvaluationMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["aupro"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_f1"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
+        self.assertEqual(metrics["oracle_best_pixel_f1"], metrics["best_pixel_f1"])
+        self.assertEqual(metrics["oracle_best_pixel_iou"], metrics["best_pixel_iou"])
+        self.assertEqual(
+            metrics["oracle_best_pixel_threshold"], metrics["best_pixel_threshold"]
+        )
+
+    def test_heatmap_oracle_aliases_are_nan_without_pixel_data(self) -> None:
+        metrics = evaluate_heatmap_rows(
+            [{"sample_id": "normal", "label": "0", "image_score": "0.0"}]
+        )
+
+        self.assertTrue(np.isnan(metrics["best_pixel_f1"]))
+        self.assertTrue(np.isnan(metrics["oracle_best_pixel_f1"]))
+        self.assertTrue(np.isnan(metrics["oracle_best_pixel_iou"]))
+        self.assertTrue(np.isnan(metrics["oracle_best_pixel_threshold"]))
 
     def test_evaluate_heatmap_rows_can_sample_pixels_deterministically(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
