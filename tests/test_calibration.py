@@ -60,6 +60,25 @@ class NormalThresholdCalibrationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             fit_normal_threshold([{"label": "0", "heatmap_path": "unused.npy"}])
 
+    def test_validates_all_rows_before_loading_heatmaps(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            missing_heatmap = Path(tmpdir) / "missing.npy"
+            rows = [
+                {
+                    "label": "0",
+                    "fold_split": "val",
+                    "heatmap_path": str(missing_heatmap),
+                },
+                {
+                    "label": "1",
+                    "fold_split": "test",
+                    "heatmap_path": "unused.npy",
+                },
+            ]
+
+            with self.assertRaisesRegex(ValueError, "^normal validation$"):
+                fit_normal_threshold(rows)
+
     def test_json_round_trip_preserves_threshold(self) -> None:
         threshold = NormalThreshold(
             quantile=0.995,

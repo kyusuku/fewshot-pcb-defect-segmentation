@@ -46,14 +46,11 @@ def fit_normal_threshold(
     if not rows:
         raise ValueError("rows must not be empty")
 
-    heatmaps: list[np.ndarray] = []
     for row in rows:
-        if row.get("label") != "0":
-            raise ValueError("all calibration rows must have label 0")
-        if row.get("fold_split") != "val":
-            raise ValueError("all calibration rows must have fold_split val")
-        heatmaps.append(np.load(row["heatmap_path"]).ravel())
+        if row.get("label") != "0" or row.get("fold_split") != "val":
+            raise ValueError("normal validation")
 
+    heatmaps = [np.load(row["heatmap_path"]).ravel() for row in rows]
     pixels = np.concatenate(heatmaps)
     return NormalThreshold(
         quantile=float(quantile),
