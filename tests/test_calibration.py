@@ -156,6 +156,29 @@ class NormalThresholdCalibrationTest(unittest.TestCase):
 
         self.assertEqual(NormalThreshold.from_dict(payload), threshold)
 
+    def test_from_dict_rejects_invalid_calibration_integrity(self) -> None:
+        valid = {
+            "quantile": 0.995,
+            "threshold": 0.42,
+            "num_images": 3,
+            "num_pixels": 12,
+            "source_split": "val",
+        }
+        invalid_cases = [
+            ({"source_split": "test"}, "source_split must be 'val'"),
+            ({"quantile": 0.0}, r"quantile must be in \(0, 1\)"),
+            ({"quantile": 1.0}, r"quantile must be in \(0, 1\)"),
+            ({"threshold": float("nan")}, "threshold must be finite"),
+            ({"threshold": float("inf")}, "threshold must be finite"),
+            ({"num_images": 0}, "num_images must be positive"),
+            ({"num_pixels": 0}, "num_pixels must be positive"),
+        ]
+
+        for update, message in invalid_cases:
+            with self.subTest(update=update):
+                with self.assertRaisesRegex(ValueError, message):
+                    NormalThreshold.from_dict({**valid, **update})
+
     def test_rejects_invalid_quantiles(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             heatmap_path = Path(tmpdir) / "valid.npy"

@@ -100,6 +100,36 @@ class CalibratedHeatmapEvaluationTest(unittest.TestCase):
 
         self.assertEqual(summary["calibrated_aggregate_pixel_iou"], 1.0)
 
+    def test_requires_explicit_binary_label_with_row_context(self) -> None:
+        for label in (None, "", "normal", "2"):
+            row = {
+                "sample_id": "pcb1/bad-label",
+                "category": "pcb1",
+                "heatmap_path": "unused.npy",
+            }
+            if label is not None:
+                row["label"] = label
+            with self.subTest(label=label):
+                with self.assertRaises(ValueError) as caught:
+                    evaluate_heatmap_rows_at_threshold([row], threshold=0.5)
+                message = str(caught.exception)
+                self.assertIn("row 0", message)
+                self.assertIn("pcb1/bad-label", message)
+                self.assertIn("label", message)
+
+    def test_requires_nonempty_heatmap_path_with_row_context(self) -> None:
+        for heatmap_path in (None, ""):
+            row = {"sample_id": "pcb1/no-heatmap", "category": "pcb1", "label": "0"}
+            if heatmap_path is not None:
+                row["heatmap_path"] = heatmap_path
+            with self.subTest(heatmap_path=heatmap_path):
+                with self.assertRaises(ValueError) as caught:
+                    evaluate_heatmap_rows_at_threshold([row], threshold=0.5)
+                message = str(caught.exception)
+                self.assertIn("row 0", message)
+                self.assertIn("pcb1/no-heatmap", message)
+                self.assertIn("heatmap_path", message)
+
 
 class CalibrationScriptTest(unittest.TestCase):
     def test_calibration_cli_writes_explicit_normal_validation_threshold(self) -> None:
@@ -213,6 +243,9 @@ class EvaluateHeatmapsCalibrationScriptTest(unittest.TestCase):
 
         self.assertEqual(metrics["calibration_quantile"], 0.995)
         self.assertEqual(metrics["calibration_threshold"], 0.5)
+        self.assertEqual(metrics["calibration_source_split"], "val")
+        self.assertEqual(metrics["calibration_num_images"], 2)
+        self.assertEqual(metrics["calibration_num_pixels"], 8)
         self.assertEqual(metrics["calibrated_aggregate_pixel_f1"], 1.0)
         self.assertEqual(len(rows), 1)
         self.assertEqual(float(rows[0]["threshold"]), 0.5)
@@ -277,6 +310,45 @@ class EvaluateHeatmapsCalibrationScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("--per-image-csv requires --calibration-json", result.stderr)
+
+    def test_cli_rejects_invalid_calibration_json_integrity(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        invalid_cases = [
+            ({"source_split": "test"}, "source_split must be 'val'"),
+            ({"quantile": 0.0}, "quantile must be in (0, 1)"),
+            ({"threshold": float("nan")}, "threshold must be finite"),
+            ({"threshold": float("inf")}, "threshold must be finite"),
+            ({"num_images": 0}, "num_images must be positive"),
+            ({"num_pixels": 0}, "num_pixels must be positive"),
+        ]
+        for update, expected in invalid_cases:
+            with self.subTest(update=update), tempfile.TemporaryDirectory() as tmpdir:
+                root = Path(tmpdir)
+                scores_csv, _ = _write_perfect_scores_fixture(root)
+                calibration_json = root / "calibration.json"
+                payload = {
+                    "quantile": 0.995,
+                    "threshold": 0.5,
+                    "num_images": 2,
+                    "num_pixels": 8,
+                    "source_split": "val",
+                    **update,
+                }
+                calibration_json.write_text(json.dumps(payload))
+
+                result = _run_script(
+                    repo_root,
+                    "evaluate_heatmaps.py",
+                    "--scores-csv",
+                    str(scores_csv),
+                    "--output-json",
+                    str(root / "metrics.json"),
+                    "--calibration-json",
+                    str(calibration_json),
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stderr)
 
 
 def _write_perfect_scores_fixture(root: Path) -> tuple[Path, Path]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import random
 import sys
 from pathlib import Path
@@ -188,7 +189,10 @@ def interleave_query_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def write_scores_csv(rows: list[dict[str, str]], output_path: str | Path) -> Path:
+    """Write paths relative to scores.csv so results are independent of caller cwd."""
+
     output_path = Path(output_path)
+    base_dir = output_path.parent.resolve()
     fieldnames = [
         "sample_id",
         "category",
@@ -200,10 +204,18 @@ def write_scores_csv(rows: list[dict[str, str]], output_path: str | Path) -> Pat
         "heatmap_path",
         "debug_path",
     ]
+    portable_rows = []
+    for row in rows:
+        portable = dict(row)
+        for key in ("image_path", "mask_path", "heatmap_path", "debug_path"):
+            value = portable.get(key) or ""
+            if value:
+                portable[key] = os.path.relpath(Path(value).resolve(), start=base_dir)
+        portable_rows.append(portable)
     with output_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(portable_rows)
     return output_path
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,14 @@ from PIL import Image
 
 from evaluation.masks import mask_confusion_metrics, summarize_binary_metrics
 from utils.image import load_binary_mask
+
+
+@dataclass(frozen=True)
+class _HeatmapRowInfo:
+    row: dict[str, str]
+    path: str
+    offset: int
+    size: int
 
 
 def binary_roc_auc(labels: np.ndarray, scores: np.ndarray) -> float:
@@ -161,36 +170,51 @@ def evaluate_heatmap_rows(
     """Evaluate image-level scores and pixel-level heatmaps from score CSV rows."""
 
     image_metrics = summarize_image_scores(rows)
+    row_infos, total_pixels, thresholds = _inspect_heatmap_rows(rows, max_thresholds=256)
+    selected_indices = _sample_global_indices(total_pixels, max_pixels=max_pixels, seed=seed)
     pixel_labels: list[np.ndarray] = []
     pixel_scores: list[np.ndarray] = []
-    heatmap_masks: list[np.ndarray] = []
-    heatmap_scores: list[np.ndarray] = []
-    for row in rows:
-        heatmap_path = row.get("heatmap_path") or ""
-        if not heatmap_path:
-            continue
-        heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
-        mask_path = row.get("mask_path") or ""
-        if mask_path:
-            mask = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
-        else:
-            mask = np.zeros(heatmap.shape, dtype=np.uint8)
-        if mask.shape != heatmap.shape:
-            mask = _resize_mask(mask, heatmap.shape)
-        heatmap_masks.append(mask)
-        heatmap_scores.append(heatmap)
-        pixel_labels.append(mask.ravel())
-        pixel_scores.append(heatmap.ravel())
+    false_positive_counts = np.zeros(thresholds.shape, dtype=np.float64)
+    region_overlap_sums = np.zeros(thresholds.shape, dtype=np.float64)
+    num_negative_pixels = 0
+    num_regions = 0
+    for info in row_infos:
+        heatmap = np.load(info.path).astype(np.float32, copy=False)
+        mask = _load_evaluation_target(info.row, heatmap.shape)
+        selected_start = int(np.searchsorted(selected_indices, info.offset, side="left"))
+        selected_end = int(
+            np.searchsorted(selected_indices, info.offset + info.size, side="left")
+        )
+        local_indices = selected_indices[selected_start:selected_end] - info.offset
+        if local_indices.size:
+            pixel_labels.append(mask.ravel()[local_indices])
+            pixel_scores.append(heatmap.ravel()[local_indices])
+
+        image_negative_pixels, image_regions = _accumulate_streaming_pro_image(
+            heatmap=heatmap,
+            mask=mask,
+            thresholds=thresholds,
+            false_positive_counts=false_positive_counts,
+            region_overlap_sums=region_overlap_sums,
+        )
+        num_negative_pixels += image_negative_pixels
+        num_regions += image_regions
+        del heatmap, mask
 
     metrics = dict(image_metrics)
-    metrics["num_pixel_images"] = float(len(pixel_scores))
+    metrics["num_pixel_images"] = float(len(row_infos))
     if pixel_scores:
         labels = np.concatenate(pixel_labels, axis=0)
         scores = np.concatenate(pixel_scores, axis=0)
-        labels, scores = sample_pixels(labels, scores, max_pixels=max_pixels, seed=seed)
         metrics["num_pixels_evaluated"] = float(scores.shape[0])
         metrics["pixel_auroc"] = binary_roc_auc(labels, scores)
-        metrics["aupro"] = average_pro_score(heatmap_masks, heatmap_scores)
+        metrics["aupro"] = _streaming_average_pro_score(
+            thresholds=thresholds,
+            false_positive_counts=false_positive_counts,
+            region_overlap_sums=region_overlap_sums,
+            num_negative_pixels=num_negative_pixels,
+            num_regions=num_regions,
+        )
         threshold_metrics = best_f1_iou(labels, scores)
         metrics["best_pixel_f1"] = threshold_metrics["best_f1"]
         metrics["best_pixel_iou"] = threshold_metrics["best_iou"]
@@ -219,20 +243,26 @@ def evaluate_heatmap_rows_at_threshold(
 ) -> tuple[dict[str, float], list[dict[str, str | float]]]:
     """Evaluate heatmaps as binary masks at one pre-calibrated threshold."""
 
+    for row_index, row in enumerate(rows):
+        context = f"row {row_index} sample_id={row.get('sample_id', '')!r}"
+        label = row.get("label")
+        if label not in {"0", "1"}:
+            raise ValueError(f"{context} must have label exactly '0' or '1'; got {label!r}")
+        if not (row.get("heatmap_path") or "").strip():
+            raise ValueError(f"{context} must have a nonempty heatmap_path")
+        if label == "1" and not (row.get("mask_path") or "").strip():
+            raise ValueError(f"{context} must have mask_path for an anomalous row")
+
     per_image: list[dict[str, str | float]] = []
     for row in rows:
-        heatmap_path = row.get("heatmap_path") or ""
-        if not heatmap_path:
-            continue
+        heatmap_path = row["heatmap_path"]
         heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
-        label = int(row.get("label") or 0)
+        label = row["label"]
         mask_path = row.get("mask_path") or ""
-        if label == 0:
+        if label == "0":
             target = np.zeros(heatmap.shape, dtype=np.uint8)
-        elif mask_path:
-            target = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
         else:
-            raise ValueError("mask_path is required for anomalous heatmap rows")
+            target = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
         if target.shape != heatmap.shape:
             target = _resize_mask(target, heatmap.shape)
 
@@ -265,7 +295,8 @@ def resolve_score_row_paths(
 ) -> list[dict[str, str]]:
     """Resolve relative artifact paths against the score CSV directory when needed."""
 
-    base_dir = Path(base_dir)
+    base_dir = Path(base_dir).resolve()
+    project_root = Path(__file__).resolve().parents[2]
     resolved_rows = []
     for row in rows:
         resolved = dict(row)
@@ -274,24 +305,170 @@ def resolve_score_row_paths(
             if not value:
                 continue
             path = Path(value)
-            if not path.is_absolute() and not path.exists():
-                resolved[key] = str(base_dir / path)
+            if path.is_absolute():
+                continue
+            csv_relative = base_dir / path
+            legacy_repo_relative = project_root / path
+            resolved_path = csv_relative
+            if not csv_relative.exists() and legacy_repo_relative.exists():
+                resolved_path = legacy_repo_relative
+            resolved[key] = str(resolved_path)
         resolved_rows.append(resolved)
     return resolved_rows
 
 
-def metrics_to_jsonable(metrics: dict[str, float]) -> dict[str, float | int | None]:
+def metrics_to_jsonable(
+    metrics: dict[str, float | int | str],
+) -> dict[str, float | int | str | None]:
     """Convert NaN values to null-friendly values for strict JSON consumers."""
 
-    jsonable: dict[str, float | int | None] = {}
+    jsonable: dict[str, float | int | str | None] = {}
     for key, value in metrics.items():
-        if key.startswith("num_"):
+        if isinstance(value, str):
+            jsonable[key] = value
+        elif isinstance(value, int):
+            jsonable[key] = value
+        elif key.startswith("num_"):
             jsonable[key] = int(value)
         elif isinstance(value, float) and math.isnan(value):
             jsonable[key] = None
         else:
             jsonable[key] = float(value)
     return jsonable
+
+
+def _inspect_heatmap_rows(
+    rows: list[dict[str, str]],
+    max_thresholds: int,
+) -> tuple[list[_HeatmapRowInfo], int, np.ndarray]:
+    """Inspect map metadata and discover bounded AUPRO threshold candidates."""
+
+    infos: list[_HeatmapRowInfo] = []
+    total_pixels = 0
+    unique_scores: set[float] | None = set()
+    global_min = math.inf
+    global_max = -math.inf
+    for row in rows:
+        heatmap_path = row.get("heatmap_path") or ""
+        if not heatmap_path:
+            continue
+        heatmap = np.load(heatmap_path, mmap_mode="r")
+        if heatmap.ndim != 2 or heatmap.size == 0:
+            raise ValueError(
+                f"heatmap at {heatmap_path!r} must be a nonempty 2-D array; "
+                f"got shape {heatmap.shape}"
+            )
+        current_min = float(np.min(heatmap))
+        current_max = float(np.max(heatmap))
+        if not math.isfinite(current_min) or not math.isfinite(current_max):
+            raise ValueError(f"heatmap at {heatmap_path!r} must contain only finite values")
+        global_min = min(global_min, current_min)
+        global_max = max(global_max, current_max)
+        if unique_scores is not None:
+            flattened = heatmap.reshape(-1)
+            chunk_size = max_thresholds + 1
+            for start in range(0, flattened.size, chunk_size):
+                unique_scores.update(
+                    float(value) for value in np.unique(flattened[start : start + chunk_size])
+                )
+                if len(unique_scores) > max_thresholds:
+                    unique_scores = None
+                    break
+        size = int(heatmap.size)
+        infos.append(
+            _HeatmapRowInfo(
+                row=row,
+                path=heatmap_path,
+                offset=total_pixels,
+                size=size,
+            )
+        )
+        total_pixels += size
+
+    if not infos:
+        thresholds = np.asarray([], dtype=np.float64)
+    elif unique_scores is not None:
+        thresholds = np.asarray(sorted(unique_scores, reverse=True), dtype=np.float64)
+    else:
+        thresholds = np.linspace(global_max, global_min, num=max_thresholds)
+    return infos, total_pixels, thresholds
+
+
+def _sample_global_indices(
+    total_pixels: int,
+    max_pixels: int | None,
+    seed: int,
+) -> np.ndarray:
+    if max_pixels is None or max_pixels <= 0 or total_pixels <= max_pixels:
+        return np.arange(total_pixels, dtype=np.int64)
+    rng = np.random.default_rng(seed)
+    return np.sort(rng.choice(total_pixels, size=max_pixels, replace=False))
+
+
+def _load_evaluation_target(row: dict[str, str], shape: tuple[int, int]) -> np.ndarray:
+    mask_path = row.get("mask_path") or ""
+    if mask_path:
+        mask = load_binary_mask(mask_path, size=(shape[1], shape[0]))
+    else:
+        mask = np.zeros(shape, dtype=np.uint8)
+    if mask.shape != shape:
+        mask = _resize_mask(mask, shape)
+    return mask
+
+
+def _streaming_average_pro_score(
+    thresholds: np.ndarray,
+    false_positive_counts: np.ndarray,
+    region_overlap_sums: np.ndarray,
+    num_negative_pixels: int,
+    num_regions: int,
+    max_fpr: float = 0.3,
+) -> float:
+    if num_regions == 0 or num_negative_pixels == 0:
+        return math.nan
+
+    fpr_to_pro: dict[float, float] = {}
+    for false_positives, overlap_sum in zip(false_positive_counts, region_overlap_sums):
+        fpr = float(false_positives) / float(num_negative_pixels)
+        pro = float(overlap_sum) / float(num_regions)
+        fpr_to_pro[fpr] = max(pro, fpr_to_pro.get(fpr, 0.0))
+
+    points = sorted(fpr_to_pro.items())
+    if not points or points[0][0] > 0.0:
+        points.insert(0, (0.0, 0.0))
+    clipped = [(fpr, pro) for fpr, pro in points if fpr <= max_fpr]
+    if not clipped or clipped[0][0] > 0.0:
+        clipped.insert(0, (0.0, 0.0))
+    if clipped[-1][0] < max_fpr:
+        clipped.append((max_fpr, _interpolate_pro(points, max_fpr)))
+
+    area = 0.0
+    for (x1, y1), (x2, y2) in zip(clipped, clipped[1:]):
+        area += (x2 - x1) * (y1 + y2) / 2.0
+    return float(area / max_fpr)
+
+
+def _accumulate_streaming_pro_image(
+    heatmap: np.ndarray,
+    mask: np.ndarray,
+    thresholds: np.ndarray,
+    false_positive_counts: np.ndarray,
+    region_overlap_sums: np.ndarray,
+) -> tuple[int, int]:
+    """Accumulate PRO statistics while retaining only one image's arrays."""
+
+    target = mask.astype(bool)
+    negative_scores = np.sort(heatmap[~target])
+    false_positive_counts += negative_scores.size - np.searchsorted(
+        negative_scores, thresholds, side="left"
+    )
+    regions = _connected_components(target)
+    for region in regions:
+        region_scores = np.sort(heatmap[region])
+        region_overlap_sums += (
+            region_scores.size - np.searchsorted(region_scores, thresholds, side="left")
+        ) / float(region_scores.size)
+    return int(negative_scores.size), len(regions)
 
 
 def sample_pixels(

@@ -77,30 +77,41 @@ def summarize_binary_metrics(
     aggregate_tp = sum(float(row["true_positive_pixels"]) for row in rows)
     aggregate_fp = sum(float(row["false_positive_pixels"]) for row in rows)
     aggregate_fn = sum(float(row["false_negative_pixels"]) for row in rows)
-    aggregate_precision = (
-        aggregate_tp / (aggregate_tp + aggregate_fp)
-        if aggregate_tp + aggregate_fp > 0.0
-        else 0.0
-    )
-    aggregate_recall = (
-        aggregate_tp / (aggregate_tp + aggregate_fn)
-        if aggregate_tp + aggregate_fn > 0.0
-        else 0.0
-    )
-    aggregate_f1 = (
-        2.0
-        * aggregate_precision
-        * aggregate_recall
-        / (aggregate_precision + aggregate_recall)
-        if aggregate_precision + aggregate_recall > 0.0
-        else 0.0
-    )
-    aggregate_iou = (
-        aggregate_tp / (aggregate_tp + aggregate_fp + aggregate_fn)
-        if aggregate_tp + aggregate_fp + aggregate_fn > 0.0
-        else 0.0
-    )
+    if rows:
+        aggregate_precision = (
+            aggregate_tp / (aggregate_tp + aggregate_fp)
+            if aggregate_tp + aggregate_fp > 0.0
+            else 0.0
+        )
+        aggregate_recall = (
+            aggregate_tp / (aggregate_tp + aggregate_fn)
+            if aggregate_tp + aggregate_fn > 0.0
+            else 0.0
+        )
+        aggregate_f1 = (
+            2.0
+            * aggregate_precision
+            * aggregate_recall
+            / (aggregate_precision + aggregate_recall)
+            if aggregate_precision + aggregate_recall > 0.0
+            else 0.0
+        )
+        aggregate_iou = (
+            aggregate_tp / (aggregate_tp + aggregate_fp + aggregate_fn)
+            if aggregate_tp + aggregate_fp + aggregate_fn > 0.0
+            else 0.0
+        )
+    else:
+        aggregate_precision = math.nan
+        aggregate_recall = math.nan
+        aggregate_f1 = math.nan
+        aggregate_iou = math.nan
     summary = {
+        f"{prefix}_num_images": float(len(rows)),
+        f"{prefix}_num_anomaly_images": float(len(anomaly_rows)),
+        f"{prefix}_aggregate_true_positive_pixels": float(aggregate_tp),
+        f"{prefix}_aggregate_false_positive_pixels": float(aggregate_fp),
+        f"{prefix}_aggregate_false_negative_pixels": float(aggregate_fn),
         f"{prefix}_aggregate_pixel_precision": float(aggregate_precision),
         f"{prefix}_aggregate_pixel_recall": float(aggregate_recall),
         f"{prefix}_aggregate_pixel_f1": float(aggregate_f1),

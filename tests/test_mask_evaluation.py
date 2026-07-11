@@ -72,6 +72,23 @@ class MaskEvaluationTest(unittest.TestCase):
         self.assertEqual(summary["calibrated_mean_anomaly_mask_f1"], 0.5)
         self.assertEqual(summary["calibrated_mean_mask_precision"], 0.5)
         self.assertEqual(summary["calibrated_mean_mask_recall"], 0.5)
+        self.assertEqual(summary["calibrated_num_images"], 2.0)
+        self.assertEqual(summary["calibrated_num_anomaly_images"], 2.0)
+        self.assertEqual(summary["calibrated_aggregate_true_positive_pixels"], 1.0)
+        self.assertEqual(summary["calibrated_aggregate_false_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_negative_pixels"], 3.0)
+
+    def test_binary_summary_uses_nan_performance_for_no_rows(self) -> None:
+        summary = summarize_binary_metrics([], prefix="calibrated")
+
+        self.assertEqual(summary["calibrated_num_images"], 0.0)
+        self.assertEqual(summary["calibrated_num_anomaly_images"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_true_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_negative_pixels"], 0.0)
+        for key, value in summary.items():
+            if "precision" in key or "recall" in key or "f1" in key or "iou" in key:
+                self.assertTrue(np.isnan(value), msg=key)
 
     def test_evaluate_mask_rows_summarizes_all_and_anomaly_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import subprocess
 import sys
 import tempfile
@@ -115,16 +116,107 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             output_files = sorted(path.name for path in output_dir.glob("*.png"))
-            rows = _read_csv(output_dir / "scores.csv")
-            self.assertTrue(Path(rows[0]["heatmap_path"]).is_file())
-            self.assertTrue(Path(rows[0]["image_path"]).is_file())
-            self.assertTrue(Path(rows[0]["mask_path"]).is_file())
+            scores_path = output_dir / "scores.csv"
+            rows = _read_csv(scores_path)
+            self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["image_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+            self.assertTrue((scores_path.parent / rows[0]["heatmap_path"]).is_file())
+            self.assertTrue((scores_path.parent / rows[0]["image_path"]).is_file())
+            self.assertTrue((scores_path.parent / rows[0]["mask_path"]).is_file())
 
         self.assertEqual(output_files, ["000_pcb1_anomaly_000.png"])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly_000")
         self.assertEqual(rows[0]["fold_split"], "test")
         self.assertGreater(float(rows[0]["image_score"]), 0.0)
+
+    def test_portable_scores_work_for_calibration_and_evaluation_from_other_cwd(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            generation_cwd = root / "generation"
+            consumer_cwd = root / "consumer"
+            generation_cwd.mkdir()
+            consumer_cwd.mkdir()
+            fixture = create_synthetic_debug_datasets(root / "fixtures")
+            manifest_path = root / "visa_pcb_folds.csv"
+            _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+
+            baseline = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                    "--manifest",
+                    str(manifest_path),
+                    "--fold-id",
+                    "0",
+                    "--category",
+                    "pcb1",
+                    "--k",
+                    "2",
+                    "--limit",
+                    "1",
+                    "--query-fold-split",
+                    "val",
+                    "--feature-backbone",
+                    "color_patch",
+                    "--image-size",
+                    "56",
+                    "--patch-size",
+                    "14",
+                    "--output-dir",
+                    "portable_outputs",
+                ],
+                check=False,
+                cwd=generation_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(baseline.returncode, 0, msg=baseline.stderr)
+            scores_path = generation_cwd / "portable_outputs" / "scores.csv"
+            calibration_path = root / "calibration.json"
+            calibration = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "calibrate_heatmaps.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--quantile",
+                    "0.75",
+                    "--output-json",
+                    str(calibration_path),
+                ],
+                check=False,
+                cwd=consumer_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(calibration.returncode, 0, msg=calibration.stderr)
+            metrics_path = root / "metrics.json"
+            evaluation = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "evaluate_heatmaps.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--output-json",
+                    str(metrics_path),
+                    "--calibration-json",
+                    str(calibration_path),
+                ],
+                check=False,
+                cwd=consumer_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(evaluation.returncode, 0, msg=evaluation.stderr)
+            metrics = json.loads(metrics_path.read_text())
+
+        self.assertEqual(metrics["calibration_source_split"], "val")
 
 
 def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
@@ -182,6 +274,24 @@ def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
             "metadata_json": "{}",
             "fold_id": "0",
             "fold_split": "test",
+        }
+    )
+    rows.append(
+        {
+            "dataset": "visa_pcb",
+            "category": "pcb1",
+            "sample_id": "pcb1/val_normal_000",
+            "split": "train",
+            "image_path": str(
+                visa_root / "pcb1" / "train" / "normal" / "pcb1_train_normal_000.png"
+            ),
+            "label": "0",
+            "mask_path": "",
+            "box_path": "",
+            "template_path": "",
+            "metadata_json": "{}",
+            "fold_id": "0",
+            "fold_split": "val",
         }
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -75,6 +75,9 @@ def main() -> None:
         metrics.update(calibrated_metrics)
         metrics["calibration_quantile"] = calibration.quantile
         metrics["calibration_threshold"] = calibration.threshold
+        metrics["calibration_source_split"] = calibration.source_split
+        metrics["calibration_num_images"] = calibration.num_images
+        metrics["calibration_num_pixels"] = calibration.num_pixels
         if args.per_image_csv:
             write_per_image_csv(per_image, args.per_image_csv)
     jsonable = metrics_to_jsonable(metrics)

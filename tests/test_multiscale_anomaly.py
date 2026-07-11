@@ -116,8 +116,9 @@ class MultiScaleBaselineScriptTest(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
-            rows = _read_csv(output_dir / "scores.csv")
-            heatmap = np.load(rows[0]["heatmap_path"])
+            scores_path = output_dir / "scores.csv"
+            rows = _read_csv(scores_path)
+            heatmap = np.load(scores_path.parent / rows[0]["heatmap_path"])
 
         self.assertEqual(heatmap.shape, (64, 64))
         self.assertGreater(float(heatmap.max()), 0.0)

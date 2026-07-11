@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 from PIL import Image
@@ -153,6 +154,37 @@ class EvaluationMetricsTest(unittest.TestCase):
         self.assertEqual(metrics_a["num_pixels_evaluated"], 10.0)
         self.assertEqual(metrics_a["pixel_auroc"], metrics_b["pixel_auroc"])
 
+    def test_row_evaluator_never_concatenates_more_than_sample_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            rows = _write_medium_heatmap_rows(root)
+            original_concatenate = np.concatenate
+
+            def bounded_concatenate(arrays, *args, **kwargs):
+                arrays = list(arrays)
+                retained = sum(np.asarray(array).size for array in arrays)
+                self.assertLessEqual(retained, 17)
+                return original_concatenate(arrays, *args, **kwargs)
+
+            with mock.patch("evaluation.metrics.np.concatenate", side_effect=bounded_concatenate):
+                metrics_a = evaluate_heatmap_rows(rows, max_pixels=17, seed=19)
+                metrics_b = evaluate_heatmap_rows(rows, max_pixels=17, seed=19)
+
+        self.assertEqual(metrics_a["num_pixels_evaluated"], 17.0)
+        self.assertEqual(metrics_a["pixel_auroc"], metrics_b["pixel_auroc"])
+        self.assertEqual(metrics_a["best_pixel_f1"], metrics_b["best_pixel_f1"])
+
+    def test_row_evaluator_does_not_use_all_map_aupro_api(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rows = _write_medium_heatmap_rows(Path(tmpdir))
+            with mock.patch(
+                "evaluation.metrics.average_pro_score",
+                side_effect=AssertionError("all-map AUPRO must not be used"),
+            ):
+                metrics = evaluate_heatmap_rows(rows, max_pixels=17, seed=19)
+
+        self.assertTrue(np.isfinite(metrics["aupro"]))
+
     def test_summarize_image_scores_handles_single_class_auc_as_nan(self) -> None:
         metrics = summarize_image_scores(
             [
@@ -235,6 +267,29 @@ class EvaluateHeatmapsScriptTest(unittest.TestCase):
         self.assertEqual(metrics["num_images"], 1)
         self.assertAlmostEqual(metrics["aupro"], 1.0)
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
+
+
+def _write_medium_heatmap_rows(root: Path) -> list[dict[str, str]]:
+    rows = []
+    for index in range(3):
+        heatmap_path = root / f"heatmap_{index}.npy"
+        mask_path = root / f"mask_{index}.png"
+        heatmap = np.linspace(0.0, 1.0, num=32 * 32, dtype=np.float32).reshape(32, 32)
+        heatmap = np.roll(heatmap, shift=index * 17, axis=None)
+        mask = np.zeros((32, 32), dtype=np.uint8)
+        mask[16:, :] = 255
+        np.save(heatmap_path, heatmap)
+        Image.fromarray(mask, mode="L").save(mask_path)
+        rows.append(
+            {
+                "sample_id": f"sample-{index}",
+                "label": "1",
+                "image_score": str(float(heatmap.max())),
+                "heatmap_path": str(heatmap_path),
+                "mask_path": str(mask_path),
+            }
+        )
+    return rows
 
 
 if __name__ == "__main__":

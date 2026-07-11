@@ -26,12 +26,27 @@ class NormalThreshold:
 
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> NormalThreshold:
+        quantile = float(payload["quantile"])
+        threshold = float(payload["threshold"])
+        num_images = int(payload["num_images"])
+        num_pixels = int(payload["num_pixels"])
+        source_split = str(payload["source_split"])
+        if source_split != "val":
+            raise ValueError("source_split must be 'val'")
+        if not np.isfinite(quantile) or not 0.0 < quantile < 1.0:
+            raise ValueError("quantile must be in (0, 1)")
+        if not np.isfinite(threshold):
+            raise ValueError("threshold must be finite")
+        if num_images <= 0:
+            raise ValueError("num_images must be positive")
+        if num_pixels <= 0:
+            raise ValueError("num_pixels must be positive")
         return cls(
-            quantile=float(payload["quantile"]),
-            threshold=float(payload["threshold"]),
-            num_images=int(payload["num_images"]),
-            num_pixels=int(payload["num_pixels"]),
-            source_split=str(payload["source_split"]),
+            quantile=quantile,
+            threshold=threshold,
+            num_images=num_images,
+            num_pixels=num_pixels,
+            source_split=source_split,
         )
 
 
