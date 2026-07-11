@@ -15,6 +15,7 @@ from experiments.provenance import (
     validate_resume_identity,
 )
 from experiments.spec import (
+    ReferencedArtifact,
     SAM2_ONLY_OUTPUT_REFERENCES,
     expand_matrix,
     load_experiment_config,
@@ -195,7 +196,16 @@ def test_manifest_requires_visa_pcb_dataset(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.parametrize("unsafe", ["file:///tmp/private", "~", "~user/data"])
+@pytest.mark.parametrize(
+    "unsafe",
+    [
+        "file:///tmp/private",
+        "FiLe:/tmp/private",
+        "FILE:relative-private",
+        "~",
+        "~user/data",
+    ],
+)
 def test_local_uri_and_home_shortcuts_are_rejected(tmp_path: Path, unsafe: str) -> None:
     config = load_experiment_config(CONFIG_ROOT / "arxiv_primary.yaml")
     config["manifest"] = unsafe
@@ -203,6 +213,40 @@ def test_local_uri_and_home_shortcuts_are_rejected(tmp_path: Path, unsafe: str) 
     path.write_text(yaml.safe_dump(config, sort_keys=False))
     with pytest.raises(ValueError, match="public path|local URI|home"):
         load_experiment_config(path)
+
+
+def test_required_reference_rejects_header_only_and_duplicate_header_csv(
+    tmp_path: Path,
+) -> None:
+    run_root = tmp_path / "run"
+    test_dir = run_root / "test"
+    test_dir.mkdir(parents=True)
+    reference = ReferencedArtifact("test/scores.csv", "heatmap_path")
+    scores = test_dir / "scores.csv"
+
+    scores.write_text("sample_id,heatmap_path\n")
+    with pytest.raises(ValueError, match="zero rows|required index"):
+        resolve_referenced_artifacts(run_root, reference)
+
+    scores.write_text("sample_id,heatmap_path,heatmap_path\na,x.npy,x.npy\n")
+    with pytest.raises(ValueError, match="duplicate CSV columns"):
+        resolve_referenced_artifacts(run_root, reference)
+
+
+def test_referenced_artifact_cannot_escape_base_through_symlink(tmp_path: Path) -> None:
+    run_root = tmp_path / "run"
+    test_dir = run_root / "test"
+    test_dir.mkdir(parents=True)
+    outside = tmp_path / "private.npy"
+    outside.write_bytes(b"private")
+    (test_dir / "escaped.npy").symlink_to(outside)
+    (test_dir / "scores.csv").write_text(
+        "sample_id,heatmap_path\npcb1/a,escaped.npy\n"
+    )
+    reference = ReferencedArtifact("test/scores.csv", "heatmap_path")
+
+    with pytest.raises(ValueError, match="outside declared csv_parent base"):
+        resolve_referenced_artifacts(run_root, reference)
 
 
 def _build_complete_record(root: Path) -> dict[str, object]:

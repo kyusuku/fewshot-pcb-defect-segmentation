@@ -776,7 +776,7 @@ def _validate_relative_path(value: object, field_name: str) -> None:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{field_name} must be a non-empty POSIX relative path")
     _validate_ascii_text(value, field_name)
-    if value.lower().startswith("file://"):
+    if value.lower().startswith("file:"):
         raise ValueError(f"{field_name} must not be a local URI")
     if value.startswith("~"):
         raise ValueError(f"{field_name} must not use a home path")
@@ -816,7 +816,7 @@ def _validate_safe_identity_json(value: object, context: str) -> None:
         if (
             value in {".", ".."}
             or value.startswith(("/", "//", "~"))
-            or value.lower().startswith("file://")
+            or value.lower().startswith("file:")
             or _WINDOWS_ABSOLUTE_RE.match(value)
         ):
             label = "path traversal" if value in {".", ".."} else "absolute/private path"

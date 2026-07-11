@@ -396,15 +396,21 @@ def resolve_referenced_artifacts(
     if not isinstance(reference, ReferencedArtifact):
         raise TypeError("reference must be a ReferencedArtifact")
     root = Path(run_root).resolve()
-    csv_path = root / reference.csv_path
+    csv_path = (root / reference.csv_path).resolve()
+    _require_within_base(csv_path, root, "referenced artifact CSV", "run_root")
     with csv_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
-        if reader.fieldnames is None or reference.path_column not in reader.fieldnames:
+        headers = reader.fieldnames
+        if headers is None or reference.path_column not in headers:
             raise ValueError(
                 f"{reference.csv_path} is missing referenced column "
                 f"{reference.path_column!r}"
             )
+        if len(headers) != len(set(headers)):
+            raise ValueError(f"{reference.csv_path} has duplicate CSV columns")
         rows = list(reader)
+    if reference.required_per_row and not rows:
+        raise ValueError(f"{reference.csv_path} required index has zero rows")
     resolved: list[dict[str, str]] = []
     for index, row in enumerate(rows):
         value = (row.get(reference.path_column) or "").strip()
@@ -417,6 +423,12 @@ def resolve_referenced_artifacts(
         _validate_public_artifact_string(value, f"{reference.path_column} row {index}")
         base = csv_path.parent if reference.path_scope == "csv_parent" else root
         artifact = (base / value).resolve()
+        _require_within_base(
+            artifact,
+            base,
+            f"{reference.path_column} row {index}",
+            reference.path_scope,
+        )
         if not artifact.is_file():
             raise ValueError(
                 f"referenced artifact does not exist for {reference.path_column} row {index}"
@@ -426,6 +438,13 @@ def resolve_referenced_artifacts(
     if len(paths) != len(set(paths)):
         raise ValueError("referenced artifact CSV contains duplicate output paths")
     return resolved
+
+
+def _require_within_base(path: Path, base: Path, context: str, scope: str) -> None:
+    try:
+        path.relative_to(base.resolve())
+    except ValueError as exc:
+        raise ValueError(f"{context} resolves outside declared {scope} base") from exc
 
 
 def compute_effective_execution_sha256(provenance: Mapping[str, object]) -> str:
@@ -590,7 +609,7 @@ def _validate_identity_scalar(value: object, context: str) -> None:
         if (
             value in {".", ".."}
             or value.startswith(("/", "//", "~"))
-            or value.lower().startswith("file://")
+            or value.lower().startswith("file:")
             or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
             or "\\" in value
         ):
@@ -607,7 +626,7 @@ def _validate_public_artifact_string(value: str, context: str) -> None:
     _validate_ascii_text(value, context)
     if (
         value.startswith(("/", "//", "~"))
-        or value.lower().startswith("file://")
+        or value.lower().startswith("file:")
         or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
         or "\\" in value
     ):
