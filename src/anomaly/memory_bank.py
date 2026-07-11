@@ -15,8 +15,13 @@ def build_memory_bank(
 
     if not feature_maps:
         raise ValueError("feature_maps must contain at least one support image")
-    patches = [feature_map.flatten() for feature_map in feature_maps]
+    patches = [
+        feature_map.flatten()[feature_map.valid_patch_mask().reshape(-1)]
+        for feature_map in feature_maps
+    ]
     memory_bank = np.concatenate(patches, axis=0).astype(np.float32, copy=False)
+    if memory_bank.shape[0] == 0:
+        raise ValueError("feature_maps contain no valid unpadded support patches")
     return l2_normalize(memory_bank) if normalize else memory_bank
 
 

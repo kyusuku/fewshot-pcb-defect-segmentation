@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from features.dinov2 import PatchFeatureMap
 from utils.image import load_binary_mask, load_rgb_image, zeros_mask
 
 
@@ -35,6 +36,30 @@ def resize_heatmap_to_image(
     if width <= 0 or height <= 0:
         raise ValueError(f"Expected positive image size, got {image_size}")
     return _resize_float_bilinear(heatmap, output_shape=(height, width))
+
+
+def project_patch_heatmap_to_source(
+    patch_heatmap: np.ndarray,
+    feature_map: PatchFeatureMap,
+) -> np.ndarray:
+    """Unpad a patch heatmap in prepared coordinates, then restore source geometry."""
+
+    valid = feature_map.valid_patch_mask()
+    valid_rows = np.flatnonzero(valid.any(axis=1))
+    valid_columns = np.flatnonzero(valid.any(axis=0))
+    if valid_rows.size == 0 or valid_columns.size == 0:
+        raise ValueError("feature map has no patch centers inside its content_box")
+    content_patches = patch_heatmap[
+        valid_rows[0] : valid_rows[-1] + 1,
+        valid_columns[0] : valid_columns[-1] + 1,
+    ]
+    x1, y1, x2, y2 = feature_map.content_box
+    content = resize_heatmap_to_image(
+        content_patches,
+        (x2 - x1, y2 - y1),
+        normalize=False,
+    )
+    return resize_heatmap_to_image(content, feature_map.source_size, normalize=False)
 
 
 def _resize_float_bilinear(heatmap: np.ndarray, output_shape: tuple[int, int]) -> np.ndarray:

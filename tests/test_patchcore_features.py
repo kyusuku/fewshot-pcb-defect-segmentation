@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gc
 import subprocess
 import sys
+import weakref
 from pathlib import Path
 from unittest import mock
 
@@ -9,11 +11,11 @@ import numpy as np
 import pytest
 from PIL import Image
 
+import scripts.run_patchcore_baseline as patchcore_script
 from anomaly.memory_bank import select_greedy_coreset
 from features.dinov2 import build_feature_extractor
 from features.patchcore import PatchCoreFeatureExtractor
 from scripts.run_dinov2_baseline import parse_args, prepare_memory_bank
-from scripts.run_patchcore_baseline import _append_default
 
 
 class _FakeBackbone:
@@ -38,6 +40,8 @@ def test_combines_layer2_and_upsampled_layer3() -> None:
 
     assert result.features.shape == (8, 8, 10)
     assert result.image_size == (64, 64)
+    assert result.source_size == (48, 32)
+    assert result.content_box == (0, 10, 64, 53)
     assert result.patch_size == 8
     assert result.features.dtype == np.float32
     assert np.isfinite(result.features).all()
@@ -151,22 +155,21 @@ def test_prepare_memory_bank_applies_coreset_only_to_patchcore() -> None:
     assert dino_provenance["memory_bank_size_used"] == 8
 
 
-def test_compatibility_cli_appends_patchcore_defaults_without_overriding_user_values() -> None:
-    argv = ["run_patchcore_baseline.py", "--image-size", "320"]
+@pytest.mark.parametrize(
+    "image_size_arguments",
+    [("--image-size", "320"), ("--image-size=320",)],
+)
+def test_compatibility_defaults_respect_both_argument_syntaxes(image_size_arguments) -> None:
+    argv = ["run_patchcore_baseline.py", *image_size_arguments]
+    original_argv = list(argv)
     with mock.patch.object(sys, "argv", argv):
-        _append_default("--feature-backbone", "patchcore_wrn50")
-        _append_default("--image-size", "512")
-        _append_default("--patch-size", "8")
+        args = parse_args(argument_defaults=patchcore_script.PATCHCORE_ARGUMENT_DEFAULTS)
 
-    assert argv == [
-        "run_patchcore_baseline.py",
-        "--image-size",
-        "320",
-        "--feature-backbone",
-        "patchcore_wrn50",
-        "--patch-size",
-        "8",
-    ]
+    assert argv == original_argv
+    assert args.feature_backbone == "patchcore_wrn50"
+    assert args.image_size == 320
+    assert args.patch_size == 8
+    assert args.output_dir == Path("outputs/patchcore_baseline")
 
 
 def test_compatibility_cli_help_is_network_free_and_lists_shared_arguments() -> None:
@@ -197,3 +200,21 @@ def test_shared_runner_keeps_dino_and_coreset_defaults() -> None:
     assert args.patch_size == 14
     assert args.coreset_ratio == 0.01
     assert args.coreset_projection_dim == 64
+
+
+def test_patchcore_selection_does_not_retain_full_memory_bank() -> None:
+    bank = np.arange(120, dtype=np.float32).reshape(40, 3)
+    bank_reference = weakref.ref(bank)
+
+    selected, _ = prepare_memory_bank(
+        bank,
+        feature_backbone="patchcore_wrn50",
+        coreset_ratio=0.1,
+        coreset_seed=4880,
+        coreset_projection_dim=5,
+    )
+    del bank
+    gc.collect()
+
+    assert selected.shape == (4, 3)
+    assert bank_reference() is None

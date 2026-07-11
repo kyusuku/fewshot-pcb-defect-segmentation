@@ -9,7 +9,7 @@ from features.dinov2 import (
     PatchFeatureMap,
     _image_to_normalized_tensor,
     _resolve_device,
-    resize_and_pad_square,
+    resize_and_pad_square_with_content_box,
 )
 
 
@@ -47,7 +47,8 @@ class PatchCoreFeatureExtractor:
         import torch
         import torch.nn.functional as functional
 
-        prepared = resize_and_pad_square(image.convert("RGB"), self.image_size)
+        source = image.convert("RGB")
+        prepared, content_box = resize_and_pad_square_with_content_box(source, self.image_size)
         tensor = _image_to_normalized_tensor(prepared, torch).to(self.device)
         with torch.no_grad():
             output = self.backbone(tensor)
@@ -70,4 +71,6 @@ class PatchCoreFeatureExtractor:
             features=array,
             image_size=prepared.size,
             patch_size=self.patch_size,
+            source_size=source.size,
+            content_box=content_box,
         )

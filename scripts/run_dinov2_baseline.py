@@ -26,7 +26,10 @@ from utils.image import load_rgb_image
 from utils.visualize import safe_filename
 
 
-def parse_args(description: str | None = None) -> argparse.Namespace:
+def parse_args(
+    description: str | None = None,
+    argument_defaults: dict[str, object] | None = None,
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=description or __doc__)
     parser.add_argument("--manifest", type=Path, default=Path("data/manifests/visa_pcb_folds.csv"))
     parser.add_argument("--fold-id", type=int, default=0)
@@ -69,11 +72,16 @@ def parse_args(description: str | None = None) -> argparse.Namespace:
         action="store_true",
         help="Disable L2 feature normalization.",
     )
+    if argument_defaults:
+        parser.set_defaults(**argument_defaults)
     return parser.parse_args()
 
 
-def main(description: str | None = None) -> None:
-    args = parse_args(description=description)
+def main(
+    description: str | None = None,
+    argument_defaults: dict[str, object] | None = None,
+) -> None:
+    args = parse_args(description=description, argument_defaults=argument_defaults)
     rows = read_manifest_rows(args.manifest)
     support_rows, query_rows = select_rows(
         rows=rows,
@@ -102,6 +110,7 @@ def main(description: str | None = None) -> None:
         for row in support_rows
     ]
     full_memory_bank = build_memory_bank(support_features, normalize=normalize)
+    del support_features
     memory_bank, memory_bank_provenance = prepare_memory_bank(
         full_memory_bank,
         feature_backbone=args.feature_backbone,
@@ -109,6 +118,7 @@ def main(description: str | None = None) -> None:
         coreset_seed=args.seed,
         coreset_projection_dim=args.coreset_projection_dim,
     )
+    del full_memory_bank
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "memory_bank_provenance.json").write_text(
         json.dumps(memory_bank_provenance, indent=2, sort_keys=True) + "\n"

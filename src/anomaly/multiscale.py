@@ -7,7 +7,7 @@ from collections.abc import Iterable
 import numpy as np
 from PIL import Image
 
-from anomaly.heatmap import resize_heatmap_to_image
+from anomaly.heatmap import project_patch_heatmap_to_source
 from anomaly.memory_bank import score_patch_features
 from features.dinov2 import PatchFeatureExtractor
 
@@ -103,12 +103,17 @@ def _score_image(
     normalize_features: bool,
 ) -> np.ndarray:
     feature_map = extractor.extract(image)
+    if feature_map.source_size != image.size:
+        raise ValueError(
+            "feature map source_size does not match the image being scored: "
+            f"{feature_map.source_size} != {image.size}"
+        )
     patch_heatmap = score_patch_features(
         feature_map,
         memory_bank,
         normalize=normalize_features,
     )
-    return resize_heatmap_to_image(patch_heatmap, image.size, normalize=False)
+    return project_patch_heatmap_to_source(patch_heatmap, feature_map)
 
 
 def _axis_positions(length: int, window: int, step: int) -> list[int]:
