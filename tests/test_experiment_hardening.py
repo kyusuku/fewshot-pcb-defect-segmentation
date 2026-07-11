@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import csv
 import json
 import subprocess
@@ -10,6 +11,7 @@ import yaml
 
 from experiments.provenance import (
     build_provenance,
+    compute_effective_execution_sha256,
     sha256_file,
     validate_resume_identity,
     validate_support_manifest,
@@ -151,7 +153,7 @@ def test_dependencies_declare_referenced_artifacts_and_expected_identity() -> No
         csv_path="test/scores.csv",
         path_column="heatmap_path",
         required_per_row=True,
-        path_scope="run_root",
+        path_scope="csv_parent",
         checksum="sha256_file",
     )
 
@@ -163,7 +165,7 @@ def test_dependencies_declare_referenced_artifacts_and_expected_identity() -> No
     )
     raw_reference = fusion.dependencies[1].referenced_artifacts[0]
     assert raw_reference.csv_path == "test/mask_scores.csv"
-    assert raw_reference.path_column == "raw_mask_path"
+    assert raw_reference.path_column == "sam2_mask_path"
     assert raw_reference.checksum == "sha256_file"
 
 
@@ -282,7 +284,7 @@ def test_config_file_must_equal_supplied_canonical_config(tmp_path: Path) -> Non
             RunSpec("dinov2_single", "pcb1", 0, 1, 4880),
             manifest,
             ["pcb1/a"],
-            "abc",
+            "a" * 40,
             git_dirty=False,
             config_path=config_path,
             config={"name": "different"},
@@ -307,25 +309,25 @@ def test_same_run_id_with_different_effective_identity_is_not_resumable(
         original,
         manifest,
         ["pcb1/a"],
-        "abc",
+        "a" * 40,
         git_dirty=False,
         config_path=config_path,
         config=config,
         library_names=(),
     )
     assert original.run_id == changed.run_id
-    with pytest.raises(ValueError, match="run-spec identity"):
+    expected = copy.deepcopy(record)
+    expected["run_spec"] = changed.to_dict()
+    expected["run_spec_sha256"] = changed.identity_sha256
+    expected_hash = compute_effective_execution_sha256(expected)
+    with pytest.raises(ValueError, match="effective execution identity"):
         validate_resume_identity(
             record,
-            run_spec=changed,
-            config_sha256=record["experiment_config"]["canonical_sha256"],
-            dependency_identities={},
+            expected_effective_execution_sha256=expected_hash,
         )
     validate_resume_identity(
         record,
-        run_spec=original,
-        config_sha256=record["experiment_config"]["canonical_sha256"],
-        dependency_identities={},
+        expected_effective_execution_sha256=record["effective_execution_sha256"],
     )
 
 
@@ -343,6 +345,7 @@ def _validate_rows(rows: list[dict[str, str]], support_ids: list[str]) -> None:
 
 def _support_row(sample_id: str, **updates: str) -> dict[str, str]:
     row = {
+        "dataset": "visa_pcb",
         "sample_id": sample_id,
         "category": "pcb1",
         "fold_id": "0",
@@ -354,7 +357,7 @@ def _support_row(sample_id: str, **updates: str) -> dict[str, str]:
 
 
 def _write_manifest(path: Path, rows: list[dict[str, str]]) -> Path:
-    fields = ["sample_id", "category", "fold_id", "fold_split", "label"]
+    fields = ["dataset", "sample_id", "category", "fold_id", "fold_split", "label"]
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()

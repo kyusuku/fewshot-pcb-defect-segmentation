@@ -50,7 +50,7 @@ def test_provenance_is_canonical_complete_and_does_not_leak_absolute_paths(
         run_spec=run,
         manifest_path=manifest,
         support_ids=["pcb1/0002", "pcb1/0001"],
-        git_commit="abc123",
+        git_commit="a" * 40,
         git_dirty=False,
         config_path=config_path,
         config=config,
@@ -61,8 +61,8 @@ def test_provenance_is_canonical_complete_and_does_not_leak_absolute_paths(
     )
 
     assert record["support_ids"] == ["pcb1/0001", "pcb1/0002"]
-    assert record["git"] == {"commit": "abc123", "dirty": False}
-    assert record["git_commit"] == "abc123"
+    assert record["git"] == {"commit": "a" * 40, "dirty": False}
+    assert record["git_commit"] == "a" * 40
     assert record["git_dirty"] is False
     assert record["run_spec"] == run.to_dict()
     assert record["overrides"] == run.overrides
@@ -95,7 +95,7 @@ def test_provenance_hashes_change_with_config_checkpoint_and_cache_identity(
             run,
             manifest,
             ["pcb1/0001"],
-            "abc123",
+            "a" * 40,
             git_dirty=False,
             config_path=config_path,
             config={"version": int(config_path.read_text().split()[-1])},
@@ -164,15 +164,15 @@ def test_provenance_rejects_duplicates_unsafe_ids_and_secret_identity_keys(
     run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
 
     with pytest.raises(ValueError, match="duplicate support"):
-        build_provenance(run, manifest, ["pcb1/a", "pcb1/a"], "abc", git_dirty=False)
+        build_provenance(run, manifest, ["pcb1/a", "pcb1/a"], "a" * 40, git_dirty=False)
     with pytest.raises(ValueError, match="support ID"):
-        build_provenance(run, manifest, ["../private"], "abc", git_dirty=False)
+        build_provenance(run, manifest, ["../private"], "a" * 40, git_dirty=False)
     with pytest.raises(ValueError, match="sensitive"):
         build_provenance(
             run,
             manifest,
             ["pcb1/a"],
-            "abc",
+            "a" * 40,
             git_dirty=False,
             cache_identity={"api_token": "do-not-store"},
         )
@@ -183,7 +183,7 @@ def test_build_provenance_requires_truthful_git_dirty_state(tmp_path: Path) -> N
     _write_manifest(manifest, ["pcb1/a"])
     run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
     with pytest.raises(ValueError, match="git_dirty"):
-        build_provenance(run, manifest, ["pcb1/a"], "abc")
+        build_provenance(run, manifest, ["pcb1/a"], "a" * 40)
 
 
 def test_support_count_must_match_run_pairing_dimension(tmp_path: Path) -> None:
@@ -192,17 +192,18 @@ def test_support_count_must_match_run_pairing_dimension(tmp_path: Path) -> None:
     run = RunSpec("dinov2_single", "pcb1", 0, 2, 4880)
 
     with pytest.raises(ValueError, match="k=2.*1 unique support"):
-        build_provenance(run, manifest, ["pcb1/a"], "abc", git_dirty=False)
+        build_provenance(run, manifest, ["pcb1/a"], "a" * 40, git_dirty=False)
 
 
 def _write_manifest(path: Path, sample_ids: list[str]) -> None:
-    fields = ["sample_id", "category", "fold_id", "fold_split", "label"]
+    fields = ["dataset", "sample_id", "category", "fold_id", "fold_split", "label"]
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for sample_id in sample_ids:
             writer.writerow(
                 {
+                    "dataset": "visa_pcb",
                     "sample_id": sample_id,
                     "category": "pcb1",
                     "fold_id": "0",

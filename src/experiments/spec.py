@@ -65,7 +65,6 @@ _FROZEN_CONFIG_SHA256 = {
     "arxiv_smoke": "2467bab225c1c9cb0a50bc928cb45a5b9fcf8fc3ef79661a5cec84bab7069f28",
 }
 
-
 class _UniqueKeySafeLoader(yaml.SafeLoader):
     """Safe YAML loader that fails rather than silently replacing duplicate keys."""
 
@@ -110,7 +109,7 @@ class ReferencedArtifact:
     csv_path: str
     path_column: str
     required_per_row: bool = True
-    path_scope: str = "run_root"
+    path_scope: str = "csv_parent"
     checksum: str = "sha256_file"
 
     def __post_init__(self) -> None:
@@ -119,8 +118,8 @@ class ReferencedArtifact:
             raise ValueError(f"invalid referenced artifact path column: {self.path_column!r}")
         if not isinstance(self.required_per_row, bool):
             raise ValueError("referenced artifact required_per_row must be boolean")
-        if self.path_scope != "run_root":
-            raise ValueError("referenced artifact path_scope must be run_root")
+        if self.path_scope not in {"csv_parent", "run_root"}:
+            raise ValueError("referenced artifact path_scope must be csv_parent or run_root")
         if self.checksum != "sha256_file":
             raise ValueError("referenced artifact checksum must be sha256_file")
 
@@ -406,6 +405,7 @@ def _primary_dependencies(
         ReferencedArtifact(
             csv_path="test/scores.csv",
             path_column="heatmap_path",
+            path_scope="csv_parent",
         ),
     )
     if method == "dinov2_single_sam2":
@@ -440,11 +440,12 @@ def _primary_dependencies(
             ),
             RunDependency(
                 masks.run_id,
-                ("test/mask_scores.csv", "test/raw_masks"),
+                ("test/mask_scores.csv",),
                 (
                     ReferencedArtifact(
                         csv_path="test/mask_scores.csv",
-                        path_column="raw_mask_path",
+                        path_column="sam2_mask_path",
+                        path_scope="csv_parent",
                     ),
                 ),
                 masks.identity_sha256,
@@ -775,6 +776,10 @@ def _validate_relative_path(value: object, field_name: str) -> None:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{field_name} must be a non-empty POSIX relative path")
     _validate_ascii_text(value, field_name)
+    if value.lower().startswith("file://"):
+        raise ValueError(f"{field_name} must not be a local URI")
+    if value.startswith("~"):
+        raise ValueError(f"{field_name} must not use a home path")
     if "\\" in value or _WINDOWS_ABSOLUTE_RE.match(value) or value.startswith("//"):
         raise ValueError(f"{field_name} must be a POSIX relative public path")
     path = PurePosixPath(value)
@@ -782,7 +787,7 @@ def _validate_relative_path(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a relative public path")
     if ".." in path.parts:
         raise ValueError(f"{field_name} must not contain path traversal")
-    if not path.parts or path.parts[0].startswith("~"):
+    if not path.parts:
         raise ValueError(f"{field_name} must be a normalized relative public path")
     if path.as_posix() != value or any(part in {"", "."} for part in path.parts):
         raise ValueError(f"{field_name} must be a normalized relative public path")
@@ -810,7 +815,8 @@ def _validate_safe_identity_json(value: object, context: str) -> None:
         _validate_ascii_text(value, context)
         if (
             value in {".", ".."}
-            or value.startswith(("/", "//", "~/"))
+            or value.startswith(("/", "//", "~"))
+            or value.lower().startswith("file://")
             or _WINDOWS_ABSOLUTE_RE.match(value)
         ):
             label = "path traversal" if value in {".", ".."} else "absolute/private path"
@@ -920,3 +926,17 @@ def _canonical_json(value: object, context: str = "value") -> str:
         )
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{context} must contain finite JSON values: {exc}") from exc
+
+
+SAM2_ONLY_OUTPUT_REFERENCES = (
+    ReferencedArtifact(
+        csv_path="test/mask_scores.csv",
+        path_column="pred_mask_path",
+        path_scope="csv_parent",
+    ),
+    ReferencedArtifact(
+        csv_path="test/mask_scores.csv",
+        path_column="heatmap_path",
+        path_scope="csv_parent",
+    ),
+)

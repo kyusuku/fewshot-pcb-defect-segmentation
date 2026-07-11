@@ -14,11 +14,12 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Mapping, Sequence
 
-from experiments.spec import RunSpec, load_yaml_mapping
+from experiments.spec import ReferencedArtifact, RunSpec, load_yaml_mapping
 
 
 DEFAULT_LIBRARIES = ("numpy", "Pillow", "PyYAML", "torch", "torchvision")
 _SENSITIVE_FRAGMENTS = ("secret", "token", "password", "api_key", "credential")
+_SHA256_CHARACTERS = frozenset("0123456789abcdef")
 
 
 def sha256_file(path: str | Path) -> str:
@@ -145,6 +146,18 @@ def build_provenance(
     cache = _mapping_identity(cache_identity or {}, "cache_identity")
     artifacts = _mapping_identity(artifact_identities or {}, "artifact_identities")
     libraries = _library_versions(library_names)
+    environment = {
+        "python": {
+            "implementation": platform.python_implementation(),
+            "version": platform.python_version(),
+        },
+        "platform": {
+            "machine": platform.machine(),
+            "release": platform.release(),
+            "system": platform.system(),
+        },
+        "libraries": libraries,
+    }
     overrides = run_spec.overrides
     dependency_identities = {
         dependency.run_id: dependency.expected_run_spec_sha256
@@ -170,25 +183,14 @@ def build_provenance(
         "git_dirty": git["dirty"],
         "python": platform.python_version(),
         "platform": platform.platform(),
-        "environment": {
-            "python": {
-                "implementation": platform.python_implementation(),
-                "version": platform.python_version(),
-            },
-            "platform": {
-                "machine": platform.machine(),
-                "release": platform.release(),
-                "system": platform.system(),
-            },
-            "libraries": libraries,
-        },
+        "environment": environment,
         "experiment_config": experiment_config,
         "checkpoints": checkpoints,
         "model_configs": model_configs,
         "cache_identity": cache,
         "artifact_identities": artifacts,
     }
-    # This final serialization gate also prevents an extension from adding NaN.
+    record["effective_execution_sha256"] = compute_effective_execution_sha256(record)
     canonical_json(record)
     return record
 
@@ -206,12 +208,7 @@ def _resolve_git_state(
         return _enforce_dirty_policy(observed, allow_dirty, repo_root)
     if commit is None or dirty is None:
         raise ValueError("git_commit and git_dirty must be supplied together")
-    if (
-        not isinstance(commit, str)
-        or not commit
-        or any(character.isspace() for character in commit)
-    ):
-        raise ValueError("git_commit must be a non-empty token")
+    _validate_git_commit(commit)
     if not isinstance(dirty, bool):
         raise ValueError("git_dirty must be a boolean")
     supplied = {"commit": commit, "dirty": dirty}
@@ -287,7 +284,7 @@ def _config_identity(
     _validate_identity_mapping(config, "experiment_config")
     canonical_content = json.loads(canonical_json(dict(config)))
     file_content = load_yaml_mapping(path)
-    if file_content != canonical_content:
+    if canonical_json(file_content) != canonical_json(canonical_content):
         raise ValueError("experiment config file does not match supplied config")
     file_identity = _file_identity(path, root)
     return {
@@ -346,7 +343,7 @@ def validate_support_manifest(
             raise ValueError("manifest must have a CSV header")
         if len(headers) != len(set(headers)):
             raise ValueError("manifest must not contain duplicate CSV columns")
-        required = {"sample_id", "category", "fold_id", "fold_split", "label"}
+        required = {"dataset", "sample_id", "category", "fold_id", "fold_split", "label"}
         missing = sorted(required - set(headers))
         if missing:
             raise ValueError(f"manifest is missing support-validation columns: {missing}")
@@ -361,6 +358,8 @@ def validate_support_manifest(
                 f"support ID {support_id!r} must exist exactly once for fold {run_spec.fold_id}"
             )
         row = matching_fold[0]
+        if row.get("dataset") != "visa_pcb":
+            raise ValueError(f"support ID {support_id!r} must have dataset=visa_pcb")
         if row.get("category") != run_spec.category:
             raise ValueError(
                 f"support ID {support_id!r} category does not match {run_spec.category}"
@@ -388,27 +387,175 @@ def _validate_support_ids(support_ids: Sequence[str]) -> list[str]:
     return sorted(normalized)
 
 
+def resolve_referenced_artifacts(
+    run_root: str | Path,
+    reference: ReferencedArtifact,
+) -> list[dict[str, str]]:
+    """Resolve and hash every file declared by a writer-owned CSV reference."""
+
+    if not isinstance(reference, ReferencedArtifact):
+        raise TypeError("reference must be a ReferencedArtifact")
+    root = Path(run_root).resolve()
+    csv_path = root / reference.csv_path
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None or reference.path_column not in reader.fieldnames:
+            raise ValueError(
+                f"{reference.csv_path} is missing referenced column "
+                f"{reference.path_column!r}"
+            )
+        rows = list(reader)
+    resolved: list[dict[str, str]] = []
+    for index, row in enumerate(rows):
+        value = (row.get(reference.path_column) or "").strip()
+        if not value:
+            if reference.required_per_row:
+                raise ValueError(
+                    f"{reference.csv_path} row {index} requires {reference.path_column}"
+                )
+            continue
+        _validate_public_artifact_string(value, f"{reference.path_column} row {index}")
+        base = csv_path.parent if reference.path_scope == "csv_parent" else root
+        artifact = (base / value).resolve()
+        if not artifact.is_file():
+            raise ValueError(
+                f"referenced artifact does not exist for {reference.path_column} row {index}"
+            )
+        resolved.append({"path": str(artifact), "sha256": sha256_file(artifact)})
+    paths = [identity["path"] for identity in resolved]
+    if len(paths) != len(set(paths)):
+        raise ValueError("referenced artifact CSV contains duplicate output paths")
+    return resolved
+
+
+def compute_effective_execution_sha256(provenance: Mapping[str, object]) -> str:
+    """Hash every recorded input that can affect experiment outputs."""
+
+    if not isinstance(provenance, Mapping):
+        raise TypeError("provenance must be a mapping")
+    _validate_effective_hash_inputs(provenance)
+    fields = (
+        "run_spec_sha256",
+        "experiment_config",
+        "manifest",
+        "support_ids",
+        "support_ids_sha256",
+        "git",
+        "dependency_identities",
+        "dependency_identities_sha256",
+        "checkpoints",
+        "model_configs",
+        "cache_identity",
+        "artifact_identities",
+        "environment",
+        "python",
+        "platform",
+    )
+    missing = [field for field in fields if field not in provenance]
+    if missing:
+        raise ValueError(f"effective execution identity is missing fields: {missing}")
+    return sha256_json({field: provenance[field] for field in fields})
+
+
 def validate_resume_identity(
     provenance: Mapping[str, object],
     *,
-    run_spec: RunSpec,
-    config_sha256: str,
-    dependency_identities: Mapping[str, str | None],
+    expected_effective_execution_sha256: str,
 ) -> None:
-    """Reject resume unless every effective identity matches the requested run."""
+    """Reject resume unless the full effective execution identity matches."""
 
-    if provenance.get("run_id") != run_spec.run_id:
-        raise ValueError("resume provenance run_id does not match requested run")
-    if provenance.get("run_spec_sha256") != run_spec.identity_sha256:
-        raise ValueError("resume provenance run-spec identity does not match requested run")
-    config_record = provenance.get("experiment_config")
-    if not isinstance(config_record, Mapping):
-        raise ValueError("resume provenance is missing experiment config identity")
-    if config_record.get("canonical_sha256") != config_sha256:
-        raise ValueError("resume provenance experiment config identity does not match")
-    normalized_dependencies = dict(sorted(dependency_identities.items()))
-    if provenance.get("dependency_identities") != normalized_dependencies:
-        raise ValueError("resume provenance dependency identities do not match")
+    _validate_sha256(
+        expected_effective_execution_sha256,
+        "expected effective execution identity",
+    )
+    observed = compute_effective_execution_sha256(provenance)
+    stored = provenance.get("effective_execution_sha256")
+    _validate_sha256(stored, "stored effective execution identity")
+    if stored != observed:
+        raise ValueError("stored effective execution identity is internally inconsistent")
+    if observed != expected_effective_execution_sha256:
+        raise ValueError("effective execution identity does not match requested run")
+
+
+def _validate_effective_hash_inputs(provenance: Mapping[str, object]) -> None:
+    _validate_sha256(provenance.get("run_spec_sha256"), "run_spec")
+    run_spec = provenance.get("run_spec")
+    if not isinstance(run_spec, Mapping) or sha256_json(run_spec) != provenance.get(
+        "run_spec_sha256"
+    ):
+        raise ValueError("run_spec SHA-256 does not match canonical run_spec")
+    manifest = _required_mapping(provenance.get("manifest"), "manifest")
+    _validate_sha256(manifest.get("sha256"), "manifest")
+    support_ids = provenance.get("support_ids")
+    if not isinstance(support_ids, list) or support_ids != sorted(support_ids):
+        raise ValueError("support_ids must be a sorted list")
+    _validate_sha256(provenance.get("support_ids_sha256"), "support IDs")
+    if sha256_json(support_ids) != provenance.get("support_ids_sha256"):
+        raise ValueError("support IDs SHA-256 does not match support_ids")
+    config = _required_mapping(provenance.get("experiment_config"), "experiment config")
+    _validate_sha256(config.get("sha256"), "experiment config file")
+    _validate_sha256(config.get("canonical_sha256"), "canonical experiment config")
+    if sha256_json(config.get("canonical")) != config.get("canonical_sha256"):
+        raise ValueError("canonical experiment config SHA-256 does not match content")
+    dependencies = _required_mapping(
+        provenance.get("dependency_identities"), "dependency identities"
+    )
+    for run_id, identity in dependencies.items():
+        _validate_sha256(identity, f"dependency {run_id}")
+    _validate_sha256(
+        provenance.get("dependency_identities_sha256"), "dependency identities"
+    )
+    if sha256_json(dependencies) != provenance.get("dependency_identities_sha256"):
+        raise ValueError("dependency identities SHA-256 does not match content")
+    git = _required_mapping(provenance.get("git"), "git")
+    _validate_git_commit(git.get("commit"))
+    if not isinstance(git.get("dirty"), bool):
+        raise ValueError("git dirty state must be boolean")
+    if git["dirty"]:
+        dirty = _required_mapping(git.get("dirty_identity"), "git dirty identity")
+        _validate_sha256(dirty.get("staged_diff_sha256"), "staged git diff")
+        _validate_sha256(dirty.get("unstaged_diff_sha256"), "unstaged git diff")
+        untracked = dirty.get("untracked")
+        if not isinstance(untracked, list):
+            raise ValueError("git dirty untracked identity must be a list")
+        for index, identity in enumerate(untracked):
+            item = _required_mapping(identity, f"untracked identity {index}")
+            _validate_sha256(item.get("sha256"), f"untracked identity {index}")
+    for field_name in ("checkpoints", "model_configs"):
+        identities = _required_mapping(provenance.get(field_name), field_name)
+        for name, identity in identities.items():
+            item = _required_mapping(identity, f"{field_name}.{name}")
+            _validate_sha256(item.get("sha256"), f"{field_name}.{name}")
+    for field_name in ("cache_identity", "artifact_identities"):
+        identity = _required_mapping(provenance.get(field_name), field_name)
+        if identity:
+            _validate_sha256(identity.get("sha256"), field_name)
+            if sha256_json(identity.get("canonical")) != identity.get("sha256"):
+                raise ValueError(f"{field_name} SHA-256 does not match canonical content")
+    _required_mapping(provenance.get("environment"), "environment")
+    for field_name in ("python", "platform"):
+        if not isinstance(provenance.get(field_name), str) or not provenance[field_name]:
+            raise ValueError(f"{field_name} runtime identity must be a non-empty string")
+
+
+def _required_mapping(value: object, context: str) -> Mapping[str, object]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{context} must be a mapping")
+    return value
+
+
+def _validate_sha256(value: object, context: str) -> None:
+    if not isinstance(value, str) or len(value) != 64 or any(
+        character not in _SHA256_CHARACTERS for character in value
+    ):
+        raise ValueError(f"{context} must be a lowercase 64-character SHA-256")
+
+
+def _validate_git_commit(value: object) -> None:
+    if not isinstance(value, str) or len(value) not in {40, 64} or any(
+        character not in _SHA256_CHARACTERS for character in value
+    ):
+        raise ValueError("git_commit must be a lowercase 40- or 64-character hash")
 
 
 def _validate_identity_mapping(payload: Mapping[str, object], context: str) -> None:
@@ -442,7 +589,8 @@ def _validate_identity_scalar(value: object, context: str) -> None:
         _validate_ascii_text(value, context)
         if (
             value in {".", ".."}
-            or value.startswith(("/", "//", "~/"))
+            or value.startswith(("/", "//", "~"))
+            or value.lower().startswith("file://")
             or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
             or "\\" in value
         ):
@@ -458,7 +606,8 @@ def _validate_public_artifact_string(value: str, context: str) -> None:
         raise ValueError(f"{context} must be a non-empty string")
     _validate_ascii_text(value, context)
     if (
-        value.startswith(("/", "//", "~/"))
+        value.startswith(("/", "//", "~"))
+        or value.lower().startswith("file://")
         or (len(value) >= 3 and value[0].isalpha() and value[1:3] in {":/", ":\\"})
         or "\\" in value
     ):

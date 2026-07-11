@@ -10,7 +10,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from scripts.run_sam2_baseline import build_grid_prompt_regions, prompt_shape_for_image
+from scripts.run_sam2_baseline import (
+    build_grid_prompt_regions,
+    prompt_shape_for_image,
+    select_query_rows,
+)
 
 
 class SAM2OnlyBaselinePromptTest(unittest.TestCase):
@@ -36,8 +40,46 @@ class SAM2OnlyBaselinePromptTest(unittest.TestCase):
         self.assertEqual(regions[0].area, 12)
         self.assertEqual(regions[0].score, 1.0)
 
+    def test_none_limit_selects_all_queries(self) -> None:
+        rows = [
+            {
+                "dataset": "visa_pcb",
+                "category": "pcb1",
+                "sample_id": f"pcb1/{index}",
+                "label": str(index % 2),
+                "fold_id": "0",
+                "fold_split": "test",
+            }
+            for index in range(3)
+        ]
+        selected = select_query_rows(rows, 0, "pcb1", "test", limit=None)
+        self.assertEqual(len(selected), 3)
+
 
 class SAM2OnlyBaselineScriptTest(unittest.TestCase):
+    def test_cli_supports_all_and_rejects_nonpositive_limit(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        help_result = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "run_sam2_baseline.py"), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        invalid_result = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts" / "run_sam2_baseline.py"),
+                "--limit",
+                "0",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(help_result.returncode, 0)
+        self.assertIn("--all", help_result.stdout)
+        self.assertNotEqual(invalid_result.returncode, 0)
+        self.assertIn("positive", invalid_result.stderr)
     def test_script_writes_mask_scores_without_support_images_or_heatmaps(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -64,8 +106,7 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
                     "pcb1",
                     "--query-fold-split",
                     "test",
-                    "--limit",
-                    "1",
+                    "--all",
                     "--prompt-longest-side",
                     "12",
                     "--grid-size",
@@ -84,8 +125,8 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             rows = _read_csv(output_dir / "mask_scores.csv")
-            pred_mask_path = Path(rows[0]["pred_mask_path"])
-            heatmap_path = Path(rows[0]["heatmap_path"])
+            pred_mask_path = output_dir / rows[0]["pred_mask_path"]
+            heatmap_path = output_dir / rows[0]["heatmap_path"]
             pred_mask = np.asarray(Image.open(pred_mask_path).convert("L")) > 0
             heatmap = np.load(heatmap_path)
 
@@ -95,7 +136,7 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["label"], "1")
         self.assertEqual(rows[0]["num_regions"], "1")
         self.assertEqual(rows[0]["num_masks"], "1")
-        self.assertEqual(rows[0]["mask_path"], str(mask_path))
+        self.assertEqual(rows[0]["mask_path"], "../mask.png")
         self.assertEqual(pred_mask.shape, (8, 12))
         self.assertEqual(int(pred_mask.sum()), 96)
         self.assertEqual(heatmap.shape, (8, 12))

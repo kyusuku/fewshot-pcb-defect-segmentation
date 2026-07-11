@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 from pathlib import Path
 
@@ -27,7 +28,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path, default=Path("data/manifests/visa_pcb_folds.csv"))
     parser.add_argument("--fold-id", type=int, default=0)
     parser.add_argument("--category", default="pcb1")
-    parser.add_argument("--limit", type=int, default=8, help="Number of query images to process.")
+    limit_group = parser.add_mutually_exclusive_group()
+    limit_group.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=8,
+        help="Positive number of query images to process (default: 8).",
+    )
+    limit_group.add_argument(
+        "--all",
+        dest="limit",
+        action="store_const",
+        const=None,
+        help="Process the full selected query split.",
+    )
     parser.add_argument("--query-fold-split", default="test", choices=("test", "val", "dev"))
     parser.add_argument(
         "--prompt-longest-side",
@@ -132,7 +146,7 @@ def select_query_rows(
     fold_id: int,
     category: str,
     query_fold_split: str,
-    limit: int,
+    limit: int | None,
 ) -> list[dict[str, str]]:
     fold_value = str(fold_id)
     query_rows = [
@@ -146,7 +160,14 @@ def select_query_rows(
     query_rows = sorted(query_rows, key=lambda row: (row.get("label", ""), row["sample_id"]))
     if query_fold_split == "test":
         query_rows = interleave_query_rows(query_rows)
-    return query_rows[:limit]
+    return query_rows if limit is None else query_rows[:limit]
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return parsed
 
 
 def interleave_query_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -261,6 +282,7 @@ def save_debug_panel(image: Image.Image, mask: np.ndarray, output_path: str | Pa
 
 def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Path:
     output_path = Path(output_path)
+    base_dir = output_path.parent.resolve()
     fieldnames = [
         "sample_id",
         "category",
@@ -273,10 +295,18 @@ def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Pa
         "heatmap_path",
         "debug_path",
     ]
+    portable_rows = []
+    for row in rows:
+        portable = dict(row)
+        for key in ("mask_path", "pred_mask_path", "heatmap_path", "debug_path"):
+            value = portable.get(key) or ""
+            if value:
+                portable[key] = os.path.relpath(Path(value).resolve(), start=base_dir)
+        portable_rows.append(portable)
     with output_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(portable_rows)
     return output_path
 
 

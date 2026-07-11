@@ -71,7 +71,7 @@ def test_ablation_dependencies_are_machine_readable() -> None:
         "dinov2_multi__pcb1__fold0__k4__seed4880",
         "dinov2_multi_sam2__pcb1__fold0__k4__seed4880",
     ]
-    assert "test/raw_masks" in fusion.dependencies[1].artifacts
+    assert fusion.dependencies[1].artifacts == ("test/mask_scores.csv",)
 
 
 @pytest.mark.parametrize(
