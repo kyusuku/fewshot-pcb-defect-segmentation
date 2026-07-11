@@ -25,16 +25,39 @@ class PatchFeatureMap:
     content_box: tuple[int, int, int, int] | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.features, np.ndarray):
+            raise ValueError("features must be a numpy float32 array")
         if self.features.ndim != 3:
             raise ValueError(f"features must be [grid_h, grid_w, dim], got {self.features.shape}")
-        width, height = self.image_size
-        if width <= 0 or height <= 0:
-            raise ValueError("image_size must contain positive dimensions")
+        if self.features.dtype != np.float32:
+            raise ValueError("features must have dtype float32")
+        if any(dimension <= 0 for dimension in self.features.shape):
+            raise ValueError("features must have a non-empty grid and feature dimension")
+        if not np.isfinite(self.features).all():
+            raise ValueError("features must contain only finite values")
+        if not isinstance(self.patch_size, int) or isinstance(self.patch_size, bool):
+            raise ValueError("patch_size must be a positive integer")
+        if self.patch_size <= 0:
+            raise ValueError("patch_size must be a positive integer")
 
-        source_size = self.source_size or self.image_size
-        if source_size[0] <= 0 or source_size[1] <= 0:
-            raise ValueError("source_size must contain positive dimensions")
-        content_box = self.content_box or (0, 0, width, height)
+        width, height = _positive_integer_tuple(self.image_size, "image_size", 2)
+        if width % self.patch_size or height % self.patch_size:
+            raise ValueError("image_size must be divisible by patch_size")
+        expected_grid = (height // self.patch_size, width // self.patch_size)
+        if self.features.shape[:2] != expected_grid:
+            raise ValueError(
+                "feature grid is inconsistent with image_size and patch_size: "
+                f"{self.features.shape[:2]} != {expected_grid}"
+            )
+
+        source_size = self.image_size if self.source_size is None else self.source_size
+        source_size = _positive_integer_tuple(source_size, "source_size", 2)
+        content_box = (
+            (0, 0, width, height)
+            if self.content_box is None
+            else self.content_box
+        )
+        content_box = _integer_tuple(content_box, "content_box", 4)
         x1, y1, x2, y2 = content_box
         if not (0 <= x1 < x2 <= width and 0 <= y1 < y2 <= height):
             raise ValueError("content_box must be non-empty and inside image_size")
@@ -211,3 +234,18 @@ def _image_to_normalized_tensor(image: Image.Image, torch_module):
     array = (array - mean) / std
     array = np.transpose(array, (2, 0, 1))[None, ...]
     return torch_module.from_numpy(array)
+
+
+def _integer_tuple(value, name: str, length: int) -> tuple[int, ...]:
+    if not isinstance(value, (tuple, list)) or len(value) != length:
+        raise ValueError(f"{name} must contain exactly {length} integers")
+    if any(not isinstance(item, int) or isinstance(item, bool) for item in value):
+        raise ValueError(f"{name} must contain exactly {length} integers")
+    return tuple(value)
+
+
+def _positive_integer_tuple(value, name: str, length: int) -> tuple[int, ...]:
+    result = _integer_tuple(value, name, length)
+    if any(item <= 0 for item in result):
+        raise ValueError(f"{name} must contain positive integer dimensions")
+    return result

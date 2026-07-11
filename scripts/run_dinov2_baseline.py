@@ -24,8 +24,9 @@ from anomaly.memory_bank import build_memory_bank, select_greedy_coreset
 from anomaly.multiscale import compute_anomaly_heatmap, parse_crop_sizes
 from features.cache import (
     FeatureCache,
-    extractor_source_revision,
-    feature_cache_key,
+    FeatureCacheIdentity,
+    extractor_revision_digest,
+    extractor_revision_identity,
     sha256_file,
 )
 from features.dinov2 import build_feature_extractor
@@ -124,7 +125,8 @@ def main(
     normalize = not args.no_normalize
     crop_sizes = parse_crop_sizes(args.crop_sizes)
     feature_cache = FeatureCache(args.feature_cache_dir) if args.feature_cache_dir else None
-    source_revision = extractor_source_revision(extractor) if feature_cache else ""
+    extractor_identity = extractor_revision_identity(extractor)
+    source_revision = extractor_revision_digest(extractor_identity)
     extractor_image_size = int(getattr(extractor, "image_size", args.image_size))
     extractor_patch_size = int(extractor.patch_size)
     support_features = []
@@ -132,7 +134,7 @@ def main(
         image = load_rgb_image(row["image_path"])
         cache_key = None
         if feature_cache:
-            cache_key = _row_feature_cache_key(
+            cache_key = _row_feature_cache_identity(
                 row=row,
                 image_sha256=sha256_file(row["image_path"]),
                 source_revision=source_revision,
@@ -159,10 +161,12 @@ def main(
         {
             "feature_cache_enabled": feature_cache is not None,
             "extractor_source_revision": source_revision,
+            "extractor_identity": extractor_identity,
         }
     )
     del full_memory_bank
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    _remove_previous_debug_panels(args.output_dir)
     (args.output_dir / "memory_bank_provenance.json").write_text(
         json.dumps(memory_bank_provenance, indent=2, sort_keys=True) + "\n"
     )
@@ -174,7 +178,7 @@ def main(
         if feature_cache:
             image_sha256 = sha256_file(row["image_path"])
             cache_key_for_view = partial(
-                _row_feature_cache_key,
+                _row_feature_cache_identity,
                 row=row,
                 image_sha256=image_sha256,
                 source_revision=source_revision,
@@ -235,7 +239,7 @@ def read_manifest_rows(path: str | Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _row_feature_cache_key(
+def _row_feature_cache_identity(
     view: str,
     *,
     row: dict[str, str],
@@ -245,16 +249,49 @@ def _row_feature_cache_key(
     image_size: int,
     patch_size: int,
     view_prefix: str = "",
-) -> str:
-    return feature_cache_key(
+) -> FeatureCacheIdentity:
+    full_view = f"{view_prefix}{view}"
+    return FeatureCacheIdentity(
         sample_id=row["sample_id"],
         image_sha256=image_sha256,
         extractor_revision=source_revision,
         backbone=feature_backbone,
         image_size=image_size,
         patch_size=patch_size,
-        view=f"{view_prefix}{view}",
+        view=full_view,
+        source_size=_view_source_size(view),
     )
+
+
+def _view_source_size(view: str) -> tuple[int, int]:
+    try:
+        x1, y1, x2, y2 = (int(value) for value in view.rsplit(":", 1)[1].split(","))
+    except (IndexError, ValueError) as exc:
+        raise ValueError(f"cache view does not contain exact geometry: {view!r}") from exc
+    if not (0 <= x1 < x2 and 0 <= y1 < y2):
+        raise ValueError(f"cache view has invalid geometry: {view!r}")
+    return (x2 - x1, y2 - y1)
+
+
+def _remove_previous_debug_panels(output_dir: Path) -> None:
+    """Remove only debug panels referenced by the previous runner scores file."""
+
+    scores_path = output_dir / "scores.csv"
+    if not scores_path.is_file():
+        return
+    output_root = output_dir.resolve()
+    for row in read_manifest_rows(scores_path):
+        debug_value = row.get("debug_path") or ""
+        if not debug_value:
+            continue
+        debug_path = Path(debug_value)
+        candidate = (
+            debug_path.resolve()
+            if debug_path.is_absolute()
+            else (output_dir / debug_path).resolve()
+        )
+        if candidate.is_relative_to(output_root) and candidate.suffix.lower() == ".png":
+            candidate.unlink(missing_ok=True)
 
 
 def _nonnegative_int(value: str) -> int:
@@ -270,7 +307,7 @@ def prepare_memory_bank(
     coreset_ratio: float,
     coreset_seed: int,
     coreset_projection_dim: int,
-) -> tuple[np.ndarray, dict[str, str | int | float | bool]]:
+) -> tuple[np.ndarray, dict[str, object]]:
     """Apply PatchCore compression and return auditable bank provenance."""
 
     full_size = int(memory_bank.shape[0])

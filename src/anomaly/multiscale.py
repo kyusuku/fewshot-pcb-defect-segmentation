@@ -9,7 +9,7 @@ from PIL import Image
 
 from anomaly.heatmap import project_patch_heatmap_to_source
 from anomaly.memory_bank import score_patch_features
-from features.cache import FeatureCache
+from features.cache import FeatureCache, FeatureCacheReference
 from features.dinov2 import PatchFeatureExtractor
 
 
@@ -53,7 +53,7 @@ def compute_anomaly_heatmap(
     fusion: str = "max",
     normalize_features: bool = True,
     feature_cache: FeatureCache | None = None,
-    cache_key_for_view: Callable[[str], str] | None = None,
+    cache_key_for_view: Callable[[str], FeatureCacheReference] | None = None,
 ) -> np.ndarray:
     """Compute a full-resolution anomaly heatmap with optional local crops."""
 
@@ -117,7 +117,7 @@ def _score_image(
     memory_bank: np.ndarray,
     normalize_features: bool,
     feature_cache: FeatureCache | None,
-    cache_key: str | None,
+    cache_key: FeatureCacheReference | None,
 ) -> np.ndarray:
     if feature_cache is None:
         feature_map = extractor.extract(image)

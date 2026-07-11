@@ -142,6 +142,19 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             provenance["memory_bank_size_used"],
             provenance["memory_bank_size_full"],
         )
+        self.assertEqual(len(provenance["extractor_source_revision"]), 64)
+        self.assertEqual(
+            set(provenance["extractor_identity"]["runtime"]),
+            {
+                "numpy",
+                "pillow",
+                "python",
+                "torch",
+                "torch_cuda",
+                "torch_cudnn",
+                "torchvision",
+            },
+        )
 
     def test_debug_limit_one_keeps_all_heatmaps_and_bounds_panels(self) -> None:
         rows, png_names = _run_debug_limit_fixture(debug_limit=1)
@@ -159,6 +172,65 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
         self.assertTrue(all(row["heatmap_path"] for row in rows))
         self.assertTrue(all(row["debug_path"] == "" for row in rows))
         self.assertEqual(png_names, [])
+
+    def test_lower_debug_limit_removes_only_prior_score_referenced_panels(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            fixture = create_synthetic_debug_datasets(root / "fixtures")
+            manifest_path = root / "visa_pcb_folds.csv"
+            _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+            output_dir = root / "outputs"
+            base_command = [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--manifest",
+                str(manifest_path),
+                "--k",
+                "2",
+                "--limit",
+                "2",
+                "--feature-backbone",
+                "color_patch",
+                "--image-size",
+                "56",
+                "--patch-size",
+                "14",
+                "--output-dir",
+                str(output_dir),
+            ]
+            first = subprocess.run(
+                [*base_command, "--debug-limit", "2"],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(first.returncode, 0, msg=first.stderr)
+            first_rows = _read_csv(output_dir / "scores.csv")
+            prior_debug_paths = [output_dir / row["debug_path"] for row in first_rows]
+            self.assertTrue(all(path.is_file() for path in prior_debug_paths))
+            unrelated = output_dir / "keep-user-panel.png"
+            unrelated.write_bytes(b"keep")
+
+            second = subprocess.run(
+                [*base_command, "--debug-limit", "0"],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(second.returncode, 0, msg=second.stderr)
+            second_rows = _read_csv(output_dir / "scores.csv")
+
+            self.assertTrue(all(not path.exists() for path in prior_debug_paths))
+            self.assertTrue(unrelated.is_file())
+            self.assertTrue(all(row["debug_path"] == "" for row in second_rows))
+            self.assertTrue(
+                all((output_dir / row["heatmap_path"]).is_file() for row in second_rows)
+            )
 
     def test_portable_scores_work_for_calibration_and_evaluation_from_other_cwd(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
