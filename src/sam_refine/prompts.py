@@ -23,9 +23,14 @@ def heatmap_to_prompt_regions(
     percentile: float = 95.0,
     min_area: int = 8,
     max_regions: int = 8,
+    point_mode: str = "anomaly_max",
 ) -> list[PromptRegion]:
     """Extract connected high-score regions from a heatmap."""
 
+    if point_mode not in {"anomaly_max", "box_center"}:
+        raise ValueError(
+            "point_mode must be one of 'anomaly_max' or 'box_center'"
+        )
     heatmap = np.asarray(heatmap, dtype=np.float32)
     if heatmap.ndim != 2:
         raise ValueError("heatmap must be a 2D array")
@@ -53,10 +58,19 @@ def heatmap_to_prompt_regions(
             y2 = int(ys.max()) + 1
             local_scores = heatmap[ys, xs]
             score = float(local_scores.max())
+            if point_mode == "box_center":
+                point_xy = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
+            else:
+                max_indices = np.flatnonzero(local_scores == score)
+                max_index = min(
+                    max_indices,
+                    key=lambda index: (int(ys[index]), int(xs[index])),
+                )
+                point_xy = (float(xs[max_index]), float(ys[max_index]))
             regions.append(
                 PromptRegion(
                     box_xyxy=(x1, y1, x2, y2),
-                    point_xy=((x1 + x2) / 2.0, (y1 + y2) / 2.0),
+                    point_xy=point_xy,
                     area=int(len(pixels)),
                     score=score,
                 )

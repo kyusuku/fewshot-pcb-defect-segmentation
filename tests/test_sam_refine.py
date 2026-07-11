@@ -31,8 +31,61 @@ class PromptGenerationTest(unittest.TestCase):
 
         self.assertEqual(len(regions), 2)
         self.assertEqual(regions[0].box_xyxy, (2, 3, 5, 6))
-        self.assertEqual(regions[0].point_xy, (3.5, 4.5))
+        self.assertEqual(regions[0].point_xy, (2.0, 3.0))
         self.assertGreater(regions[0].score, regions[1].score)
+
+    def test_anomaly_max_point_uses_off_center_component_maximum(self) -> None:
+        heatmap = np.zeros((6, 7), dtype=np.float32)
+        heatmap[1:5, 2:6] = 0.6
+        heatmap[4, 5] = 1.0
+
+        regions = heatmap_to_prompt_regions(heatmap, threshold=0.5, min_area=1)
+
+        self.assertEqual(regions[0].point_xy, (5.0, 4.0))
+
+    def test_anomaly_max_point_stays_inside_irregular_component(self) -> None:
+        heatmap = np.zeros((5, 5), dtype=np.float32)
+        heatmap[0:4, 0] = 0.6
+        heatmap[3, 0:4] = 0.6
+        heatmap[3, 3] = 1.0
+
+        regions = heatmap_to_prompt_regions(heatmap, threshold=0.5, min_area=1)
+
+        point_x, point_y = regions[0].point_xy
+        self.assertEqual(regions[0].box_xyxy, (0, 0, 4, 4))
+        self.assertEqual(regions[0].point_xy, (3.0, 3.0))
+        self.assertGreaterEqual(heatmap[int(point_y), int(point_x)], 0.5)
+        self.assertNotEqual(regions[0].point_xy, (2.0, 2.0))
+
+    def test_anomaly_max_ties_use_topmost_then_leftmost_pixel(self) -> None:
+        heatmap = np.zeros((4, 5), dtype=np.float32)
+        heatmap[1:3, 1:4] = 0.6
+        heatmap[1, 3] = 1.0
+        heatmap[2, 1] = 1.0
+
+        regions = heatmap_to_prompt_regions(heatmap, threshold=0.5, min_area=1)
+
+        self.assertEqual(regions[0].point_xy, (3.0, 1.0))
+
+    def test_box_center_mode_preserves_legacy_point(self) -> None:
+        heatmap = np.zeros((10, 10), dtype=np.float32)
+        heatmap[3:6, 2:5] = 0.9
+
+        regions = heatmap_to_prompt_regions(
+            heatmap,
+            threshold=0.5,
+            min_area=1,
+            point_mode="box_center",
+        )
+
+        self.assertEqual(regions[0].point_xy, (3.5, 4.5))
+
+    def test_invalid_point_mode_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "point_mode"):
+            heatmap_to_prompt_regions(
+                np.ones((2, 2), dtype=np.float32),
+                point_mode="centroid",
+            )
 
 
 class FallbackMaskRefinerTest(unittest.TestCase):
@@ -80,6 +133,7 @@ class SAM2MaskRefinerTest(unittest.TestCase):
         refiner = SAM2MaskRefiner(
             checkpoint_path="weights/fake.pt",
             model_config="configs/fake.yaml",
+            prompt_mode="point_box",
         )
         refiner._predictor = predictor
 
@@ -107,6 +161,57 @@ class SAM2MaskRefinerTest(unittest.TestCase):
         self.assertEqual(int(predictions[0].mask.sum()), 9)
         self.assertGreater(predictions[0].score, 0.0)
         self.assertEqual(predictions[0].source, "sam2")
+
+    def test_point_prompt_mode_omits_box(self) -> None:
+        image, heatmap, region = _sam2_prompt_fixture()
+        predictor = _FakeSAM2Predictor()
+        refiner = SAM2MaskRefiner(
+            checkpoint_path="weights/fake.pt",
+            model_config="configs/fake.yaml",
+            prompt_mode="point",
+        )
+        refiner._predictor = predictor
+
+        refiner.refine(image=image, heatmap=heatmap, regions=[region])
+
+        call = predictor.calls[0]
+        self.assertIsNone(call["box"])
+        np.testing.assert_allclose(
+            call["point_coords"],
+            np.asarray([[7.0, 13.5]], dtype=np.float32),
+        )
+        np.testing.assert_array_equal(
+            call["point_labels"],
+            np.asarray([1], dtype=np.int32),
+        )
+
+    def test_box_prompt_mode_omits_point_coordinates_and_labels(self) -> None:
+        image, heatmap, region = _sam2_prompt_fixture()
+        predictor = _FakeSAM2Predictor()
+        refiner = SAM2MaskRefiner(
+            checkpoint_path="weights/fake.pt",
+            model_config="configs/fake.yaml",
+            prompt_mode="box",
+        )
+        refiner._predictor = predictor
+
+        refiner.refine(image=image, heatmap=heatmap, regions=[region])
+
+        call = predictor.calls[0]
+        np.testing.assert_allclose(
+            call["box"],
+            np.asarray([4.0, 9.0, 10.0, 18.0], dtype=np.float32),
+        )
+        self.assertIsNone(call["point_coords"])
+        self.assertIsNone(call["point_labels"])
+
+    def test_invalid_prompt_mode_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "prompt_mode"):
+            SAM2MaskRefiner(
+                checkpoint_path="weights/fake.pt",
+                model_config="configs/fake.yaml",
+                prompt_mode="center",
+            )
 
     def test_sam2_refiner_prefers_anomaly_aligned_mask_over_larger_sam2_mask(self) -> None:
         image = Image.new("RGB", (20, 30), (0, 0, 0))
@@ -245,6 +350,19 @@ class MaskRefinementScriptTest(unittest.TestCase):
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _sam2_prompt_fixture() -> tuple[Image.Image, np.ndarray, PromptRegion]:
+    image = Image.new("RGB", (20, 30), (0, 0, 0))
+    heatmap = np.zeros((10, 10), dtype=np.float32)
+    heatmap[3:6, 2:5] = 1.0
+    region = PromptRegion(
+        box_xyxy=(2, 3, 5, 6),
+        point_xy=(3.5, 4.5),
+        area=9,
+        score=0.9,
+    )
+    return image, heatmap, region
 
 
 class _FakeSAM2Predictor:
