@@ -46,11 +46,19 @@ def fit_normal_threshold(
     if not rows:
         raise ValueError("rows must not be empty")
 
-    for row in rows:
-        if row.get("label") != "0" or row.get("fold_split") != "val":
-            raise ValueError("normal validation")
+    for row_index, row in enumerate(rows):
+        label = row.get("label")
+        fold_split = row.get("fold_split")
+        if label != "0" or fold_split != "val":
+            raise ValueError(
+                f"row {row_index} is not normal validation data: "
+                f"label={label!r}, fold_split={fold_split!r}"
+            )
 
-    heatmaps = [np.load(row["heatmap_path"]).ravel() for row in rows]
+    heatmaps = [
+        _load_heatmap(row_index=row_index, path=row["heatmap_path"])
+        for row_index, row in enumerate(rows)
+    ]
     pixels = np.concatenate(heatmaps)
     return NormalThreshold(
         quantile=float(quantile),
@@ -58,3 +66,15 @@ def fit_normal_threshold(
         num_images=len(rows),
         num_pixels=int(pixels.size),
     )
+
+
+def _load_heatmap(row_index: int, path: str) -> np.ndarray:
+    heatmap = np.load(path)
+    context = f"heatmap row {row_index} at {path!r}"
+    if heatmap.ndim != 2:
+        raise ValueError(f"{context} must be exactly 2-D; got shape {heatmap.shape}")
+    if heatmap.size == 0:
+        raise ValueError(f"{context} must be non-empty")
+    if not np.isfinite(heatmap).all():
+        raise ValueError(f"{context} must contain only finite values")
+    return heatmap.ravel()

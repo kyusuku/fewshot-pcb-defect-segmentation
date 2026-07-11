@@ -53,12 +53,19 @@ class NormalThresholdCalibrationTest(unittest.TestCase):
         ]
 
         for row in invalid_rows:
-            with self.subTest(row=row), self.assertRaises(ValueError):
-                fit_normal_threshold([row])
+            with self.subTest(row=row):
+                with self.assertRaises(ValueError) as caught:
+                    fit_normal_threshold([row])
+                message = str(caught.exception)
+                self.assertIn("row 0", message)
+                self.assertIn(f"label={row['label']!r}", message)
+                self.assertIn(f"fold_split={row['fold_split']!r}", message)
 
     def test_rejects_missing_fold_split(self) -> None:
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as caught:
             fit_normal_threshold([{"label": "0", "heatmap_path": "unused.npy"}])
+        self.assertIn("row 0", str(caught.exception))
+        self.assertIn("fold_split=None", str(caught.exception))
 
     def test_validates_all_rows_before_loading_heatmaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -76,8 +83,66 @@ class NormalThresholdCalibrationTest(unittest.TestCase):
                 },
             ]
 
-            with self.assertRaisesRegex(ValueError, "^normal validation$"):
+            with self.assertRaises(ValueError) as caught:
                 fit_normal_threshold(rows)
+            message = str(caught.exception)
+            self.assertIn("row 1", message)
+            self.assertIn("label='1'", message)
+            self.assertIn("fold_split='test'", message)
+
+    def test_rejects_empty_2d_heatmap_with_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            heatmap_path = Path(tmpdir) / "empty.npy"
+            np.save(heatmap_path, np.empty((0, 2), dtype=np.float32))
+            row = {
+                "label": "0",
+                "fold_split": "val",
+                "heatmap_path": str(heatmap_path),
+            }
+
+            with self.assertRaises(ValueError) as caught:
+                fit_normal_threshold([row])
+
+            message = str(caught.exception)
+            self.assertIn("row 0", message)
+            self.assertIn(str(heatmap_path), message)
+            self.assertIn("non-empty", message)
+
+    def test_rejects_non_finite_heatmap_with_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            heatmap_path = Path(tmpdir) / "non_finite.npy"
+            np.save(heatmap_path, np.array([[0.0, np.nan]], dtype=np.float32))
+            row = {
+                "label": "0",
+                "fold_split": "val",
+                "heatmap_path": str(heatmap_path),
+            }
+
+            with self.assertRaises(ValueError) as caught:
+                fit_normal_threshold([row])
+
+            message = str(caught.exception)
+            self.assertIn("row 0", message)
+            self.assertIn(str(heatmap_path), message)
+            self.assertIn("finite", message)
+
+    def test_rejects_3d_heatmap_with_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            heatmap_path = Path(tmpdir) / "three_dimensional.npy"
+            np.save(heatmap_path, np.zeros((1, 2, 2), dtype=np.float32))
+            row = {
+                "label": "0",
+                "fold_split": "val",
+                "heatmap_path": str(heatmap_path),
+            }
+
+            with self.assertRaises(ValueError) as caught:
+                fit_normal_threshold([row])
+
+            message = str(caught.exception)
+            self.assertIn("row 0", message)
+            self.assertIn(str(heatmap_path), message)
+            self.assertIn("2-D", message)
 
     def test_json_round_trip_preserves_threshold(self) -> None:
         threshold = NormalThreshold(
@@ -92,9 +157,21 @@ class NormalThresholdCalibrationTest(unittest.TestCase):
         self.assertEqual(NormalThreshold.from_dict(payload), threshold)
 
     def test_rejects_invalid_quantiles(self) -> None:
-        for quantile in (-0.1, 0.0, 1.0, 1.1):
-            with self.subTest(quantile=quantile), self.assertRaises(ValueError):
-                fit_normal_threshold([], quantile=quantile)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            heatmap_path = Path(tmpdir) / "valid.npy"
+            np.save(heatmap_path, np.array([[0.0, 1.0]], dtype=np.float32))
+            rows = [
+                {
+                    "label": "0",
+                    "fold_split": "val",
+                    "heatmap_path": str(heatmap_path),
+                }
+            ]
+
+            for quantile in (-0.1, 0.0, 1.0, 1.1):
+                with self.subTest(quantile=quantile):
+                    with self.assertRaisesRegex(ValueError, "quantile"):
+                        fit_normal_threshold(rows, quantile=quantile)
 
     def test_rejects_empty_rows(self) -> None:
         with self.assertRaises(ValueError):
