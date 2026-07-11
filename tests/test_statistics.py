@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
+
+import numpy as np
 
 from evaluation.statistics import bootstrap_mean_ci, paired_bootstrap_delta
 
@@ -29,6 +32,34 @@ class BootstrapStatisticsTest(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_seeded_nonconstant_interval_matches_numerical_regression(self) -> None:
+        result = bootstrap_mean_ci(
+            [0.1, 0.4, 0.9, 1.6],
+            confidence=0.8,
+            samples=12,
+            seed=42,
+        )
+
+        self.assertEqual(result, {"mean": 0.75, "ci_low": 0.675, "ci_high": 1.125})
+
+    def test_resampling_uses_bounded_batches_without_changing_results(self) -> None:
+        values = [0.1, 0.2, 0.4, 0.8]
+        samples = 513
+        expected = bootstrap_mean_ci(values, samples=samples, seed=29)
+        recording_rng = mock.Mock(wraps=np.random.default_rng(29))
+
+        with mock.patch(
+            "evaluation.statistics.np.random.default_rng",
+            return_value=recording_rng,
+        ):
+            result = bootstrap_mean_ci(values, samples=samples, seed=29)
+
+        requested_sizes = [call.kwargs["size"] for call in recording_rng.integers.call_args_list]
+        self.assertEqual(result, expected)
+        self.assertEqual(sum(size[0] for size in requested_sizes), samples)
+        self.assertGreater(len(requested_sizes), 1)
+        self.assertLessEqual(max(size[0] for size in requested_sizes), 256)
+
     def test_mismatched_paired_lengths_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "same length"):
             paired_bootstrap_delta([0.1, 0.2], [0.3])
@@ -48,6 +79,12 @@ class BootstrapStatisticsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "finite"):
             paired_bootstrap_delta([0.1, 0.2], [0.2, float("nan")])
 
+    def test_nested_inputs_are_rejected_as_not_one_dimensional(self) -> None:
+        with self.assertRaisesRegex(ValueError, "one-dimensional"):
+            bootstrap_mean_ci([[0.1, 0.2], [0.3, 0.4]])
+        with self.assertRaisesRegex(ValueError, "one-dimensional"):
+            paired_bootstrap_delta([[0.1, 0.2]], [[0.2, 0.3]])
+
     def test_confidence_outside_open_unit_interval_is_rejected(self) -> None:
         for confidence in [0.0, 1.0, -0.1, 1.1, float("nan")]:
             with self.subTest(confidence=confidence):
@@ -63,6 +100,12 @@ class BootstrapStatisticsTest(unittest.TestCase):
                     bootstrap_mean_ci([0.1], samples=samples)
                 with self.assertRaisesRegex(ValueError, "samples"):
                     paired_bootstrap_delta([0.1], [0.2], samples=samples)
+
+    def test_boolean_sample_counts_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "samples"):
+            bootstrap_mean_ci([0.1], samples=True)
+        with self.assertRaisesRegex(ValueError, "samples"):
+            paired_bootstrap_delta([0.1], [0.2], samples=True)
 
     def test_paired_resampling_retains_pairing(self) -> None:
         result = paired_bootstrap_delta(
