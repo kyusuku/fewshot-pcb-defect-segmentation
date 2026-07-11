@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import subprocess
 import sys
@@ -354,6 +355,10 @@ class MaskRefinementScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["prompt_mode"], "point_box")
         self.assertEqual(rows[0]["point_mode"], "anomaly_max")
         self.assertEqual(rows[0]["proposal_threshold"], "0.50000000")
+        self.assertEqual(float(rows[0]["sam2_prompt_threshold"]), 0.5)
+        self.assertEqual(rows[0]["sam2_calibration_sha256"], "")
+        self.assertEqual(rows[0]["selected_source"], "sam2")
+        self.assertEqual(rows[0]["calibration_mismatch_override"], "0")
         self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["sam2_mask_path"]).is_absolute())
@@ -413,6 +418,9 @@ class MaskRefinementScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["mask_output"], "intersection")
         self.assertEqual(rows[0]["prompt_mode"], "box")
         self.assertEqual(rows[0]["point_mode"], "box_center")
+        self.assertEqual(rows[0]["selected_source"], "intersection")
+        self.assertEqual(float(rows[0]["sam2_prompt_threshold"]), 0.8)
+        self.assertEqual(rows[0]["sam2_calibration_sha256"], "")
         self.assertEqual(rows[0]["anomaly_pixels"], "8.00000000")
         self.assertEqual(rows[0]["sam2_pixels"], "9.00000000")
         self.assertEqual(rows[0]["intersection_pixels"], "8.00000000")
@@ -441,6 +449,9 @@ class MaskRefinementScriptTest(unittest.TestCase):
                     }
                 )
             )
+            expected_calibration_sha256 = hashlib.sha256(
+                calibration_path.read_bytes()
+            ).hexdigest()
 
             result = subprocess.run(
                 [
@@ -483,6 +494,55 @@ class MaskRefinementScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["calibration_source_split"], "val")
         self.assertEqual(rows[0]["calibration_num_images"], "3")
         self.assertEqual(rows[0]["calibration_num_pixels"], "300")
+        self.assertEqual(
+            rows[0]["sam2_calibration_sha256"],
+            expected_calibration_sha256,
+        )
+        self.assertEqual(float(rows[0]["sam2_prompt_threshold"]), 0.8)
+
+    def test_script_rejects_invalid_heatmaps_with_row_and_path_context(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        invalid_cases = [
+            (np.array([[np.nan]], dtype=np.float32), "finite"),
+            (np.array([[np.inf]], dtype=np.float32), "finite"),
+            (np.array([[-np.inf]], dtype=np.float32), "finite"),
+            (np.zeros((1, 1, 1), dtype=np.float32), "2-D"),
+            (np.empty((0, 1), dtype=np.float32), "non-empty"),
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            for index, (heatmap, expected) in enumerate(invalid_cases):
+                with self.subTest(expected=expected, index=index):
+                    case_dir = root / str(index)
+                    case_dir.mkdir()
+                    _, heatmap_path, _, scores_path = _write_refinement_fixture(case_dir)
+                    np.save(heatmap_path, heatmap)
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(repo_root / "scripts" / "run_mask_refinement.py"),
+                            "--scores-csv",
+                            str(scores_path),
+                            "--output-dir",
+                            str(case_dir / "output"),
+                            "--threshold",
+                            "0.5",
+                            "--refiner",
+                            "fallback",
+                            "--min-area",
+                            "1",
+                        ],
+                        check=False,
+                        cwd=repo_root,
+                        env={"PYTHONPATH": str(repo_root / "src")},
+                        capture_output=True,
+                        text=True,
+                    )
+
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("row 0", result.stderr)
+                    self.assertIn("heatmap.npy", result.stderr)
+                    self.assertIn(expected, result.stderr)
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:

@@ -70,6 +70,33 @@ def fuse_masks(
     return anomaly
 
 
+def fusion_source(
+    anomaly_mask,
+    sam2_mask,
+    mode: str,
+    min_iou: float = 0.25,
+    max_expansion: float = 2.0,
+) -> str:
+    """Describe which mask source a fusion policy selected."""
+
+    fuse_masks(
+        anomaly_mask,
+        sam2_mask,
+        mode=mode,
+        min_iou=min_iou,
+        max_expansion=max_expansion,
+    )
+    if mode != "selective":
+        return mode
+    features = agreement_features(anomaly_mask, sam2_mask)
+    if (
+        features["mask_iou"] >= min_iou
+        and features["sam2_to_anomaly_area_ratio"] <= max_expansion
+    ):
+        return "intersection"
+    return "anomaly_fallback"
+
+
 def _prepare_masks(anomaly_mask, sam2_mask) -> tuple[np.ndarray, np.ndarray]:
     anomaly = np.asarray(anomaly_mask)
     sam2 = np.asarray(sam2_mask)
@@ -77,4 +104,8 @@ def _prepare_masks(anomaly_mask, sam2_mask) -> tuple[np.ndarray, np.ndarray]:
         raise ValueError("anomaly_mask and sam2_mask must be 2-D arrays")
     if anomaly.shape != sam2.shape:
         raise ValueError("anomaly_mask and sam2_mask must have identical shapes")
+    if np.issubdtype(anomaly.dtype, np.number) and not np.isfinite(anomaly).all():
+        raise ValueError("anomaly_mask must contain only finite values")
+    if np.issubdtype(sam2.dtype, np.number) and not np.isfinite(sam2).all():
+        raise ValueError("sam2_mask must contain only finite values")
     return (anomaly > 0).astype(np.uint8), (sam2 > 0).astype(np.uint8)

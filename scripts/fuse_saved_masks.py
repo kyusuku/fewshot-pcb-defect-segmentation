@@ -16,18 +16,19 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from evaluation.masks import resolve_mask_row_paths
-from sam_refine.fusion import agreement_features, fuse_masks
-from utils.image import load_binary_mask, load_rgb_image
-from utils.visualize import safe_filename
-
-from run_mask_refinement import (
+from sam_refine.artifacts import (
     anomaly_mask_from_heatmap,
     calibration_fields,
-    load_calibration,
+    format_float,
+    load_calibration_artifact,
+    load_validated_heatmap,
     save_mask,
     save_refinement_debug,
     write_mask_scores,
 )
+from sam_refine.fusion import agreement_features, fuse_masks, fusion_source
+from utils.image import load_binary_mask, load_rgb_image
+from utils.visualize import safe_filename
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,16 +43,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--selective-min-iou", type=float, default=0.25)
     parser.add_argument("--selective-max-expansion", type=float, default=2.0)
+    parser.add_argument("--allow-calibration-mismatch", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    calibration = load_calibration(args.calibration_json)
-    if calibration is None:  # pragma: no cover - argparse always supplies it.
+    calibration_artifact = load_calibration_artifact(args.calibration_json)
+    if calibration_artifact is None:  # pragma: no cover - argparse always supplies it.
         raise RuntimeError("--calibration-json is required")
+    calibration = calibration_artifact.threshold
     rows = read_rows(args.mask_scores_csv)
+    if not rows:
+        raise ValueError("mask scores CSV must contain at least one row")
     _validate_required_fields(rows)
+    _validate_calibration_identity(
+        rows,
+        threshold=calibration.threshold,
+        sha256=calibration_artifact.sha256,
+        allow_mismatch=args.allow_calibration_mismatch,
+    )
     rows = resolve_mask_row_paths(rows, base_dir=args.mask_scores_csv.parent)
     fuse_masks(
         np.zeros((1, 1), dtype=np.uint8),
@@ -66,10 +77,23 @@ def main() -> None:
     for index, row in enumerate(rows):
         heatmap_path = _required_existing_path(row, index, "heatmap_path")
         sam2_mask_path = _required_existing_path(row, index, "sam2_mask_path")
-        heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
+        heatmap = load_validated_heatmap(
+            heatmap_path,
+            context=(
+                f"heatmap row {index} sample_id={row.get('sample_id', '')!r} "
+                f"at {heatmap_path!r}"
+            ),
+        )
         anomaly_mask = anomaly_mask_from_heatmap(heatmap, calibration.threshold)
         sam2_mask = load_binary_mask(sam2_mask_path)
         pred_mask = fuse_masks(
+            anomaly_mask,
+            sam2_mask,
+            mode=args.mask_output,
+            min_iou=args.selective_min_iou,
+            max_expansion=args.selective_max_expansion,
+        )
+        selected_source = fusion_source(
             anomaly_mask,
             sam2_mask,
             mode=args.mask_output,
@@ -97,8 +121,12 @@ def main() -> None:
         updated.update(
             {
                 "mask_output": args.mask_output,
+                "selected_source": selected_source,
                 "proposal_threshold": f"{calibration.threshold:.8f}",
-                **{key: _format_float(value) for key, value in agreement.items()},
+                "calibration_mismatch_override": (
+                    "1" if args.allow_calibration_mismatch else "0"
+                ),
+                **{key: format_float(value) for key, value in agreement.items()},
                 "selective_min_iou": f"{args.selective_min_iou:.8f}",
                 "selective_max_expansion": f"{args.selective_max_expansion:.8f}",
                 "pred_mask_path": str(pred_mask_path),
@@ -125,6 +153,39 @@ def _validate_required_fields(rows: list[dict[str, str]]) -> None:
                 raise ValueError(f"row {index} must have a nonempty {field}")
 
 
+def _validate_calibration_identity(
+    rows: list[dict[str, str]],
+    threshold: float,
+    sha256: str,
+    allow_mismatch: bool,
+) -> None:
+    if allow_mismatch:
+        return
+    for index, row in enumerate(rows):
+        stored_threshold = (row.get("sam2_prompt_threshold") or "").strip()
+        stored_sha256 = (row.get("sam2_calibration_sha256") or "").strip()
+        if not stored_threshold:
+            raise ValueError(f"row {index} must have sam2_prompt_threshold")
+        if not stored_sha256:
+            raise ValueError(f"row {index} must have sam2_calibration_sha256")
+        try:
+            parsed_threshold = float(stored_threshold)
+        except ValueError as exc:
+            raise ValueError(
+                f"row {index} has invalid sam2_prompt_threshold: {stored_threshold!r}"
+            ) from exc
+        if not np.isfinite(parsed_threshold) or parsed_threshold != threshold:
+            raise ValueError(
+                f"row {index} sam2_prompt_threshold {stored_threshold!r} does not "
+                f"match supplied calibration threshold {threshold!r}"
+            )
+        if stored_sha256 != sha256:
+            raise ValueError(
+                f"row {index} sam2_calibration_sha256 {stored_sha256!r} does not "
+                f"match supplied calibration SHA-256 {sha256!r}"
+            )
+
+
 def _required_existing_path(row: dict[str, str], index: int, field: str) -> str:
     value = row.get(field) or ""
     if not value:
@@ -132,10 +193,6 @@ def _required_existing_path(row: dict[str, str], index: int, field: str) -> str:
     if not Path(value).is_file():
         raise FileNotFoundError(f"row {index} {field} does not exist: {value}")
     return value
-
-
-def _format_float(value: float) -> str:
-    return "inf" if np.isinf(value) else f"{value:.8f}"
 
 
 if __name__ == "__main__":
