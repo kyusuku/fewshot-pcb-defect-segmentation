@@ -5,10 +5,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import random
 import sys
 from pathlib import Path
+
+import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -16,15 +19,15 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from anomaly.heatmap import save_heatmap_debug_panel
-from anomaly.memory_bank import build_memory_bank
+from anomaly.memory_bank import build_memory_bank, select_greedy_coreset
 from anomaly.multiscale import compute_anomaly_heatmap, parse_crop_sizes
 from features.dinov2 import build_feature_extractor
 from utils.image import load_rgb_image
 from utils.visualize import safe_filename
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+def parse_args(description: str | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=description or __doc__)
     parser.add_argument("--manifest", type=Path, default=Path("data/manifests/visa_pcb_folds.csv"))
     parser.add_argument("--fold-id", type=int, default=0)
     parser.add_argument("--category", default="pcb1")
@@ -41,6 +44,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patch-size", type=int, default=14)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--seed", type=int, default=4880)
+    parser.add_argument(
+        "--coreset-ratio",
+        type=float,
+        default=0.01,
+        help="PatchCore memory-bank retention ratio; ignored by other backbones.",
+    )
+    parser.add_argument(
+        "--coreset-projection-dim",
+        type=int,
+        default=64,
+        help="PatchCore random-projection dimension; ignored by other backbones.",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/dinov2_baseline_debug"))
     parser.add_argument(
         "--crop-sizes",
@@ -57,8 +72,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def main(description: str | None = None) -> None:
+    args = parse_args(description=description)
     rows = read_manifest_rows(args.manifest)
     support_rows, query_rows = select_rows(
         rows=rows,
@@ -86,8 +101,18 @@ def main() -> None:
         extractor.extract(load_rgb_image(row["image_path"]))
         for row in support_rows
     ]
-    memory_bank = build_memory_bank(support_features, normalize=normalize)
+    full_memory_bank = build_memory_bank(support_features, normalize=normalize)
+    memory_bank, memory_bank_provenance = prepare_memory_bank(
+        full_memory_bank,
+        feature_backbone=args.feature_backbone,
+        coreset_ratio=args.coreset_ratio,
+        coreset_seed=args.seed,
+        coreset_projection_dim=args.coreset_projection_dim,
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    (args.output_dir / "memory_bank_provenance.json").write_text(
+        json.dumps(memory_bank_provenance, indent=2, sort_keys=True) + "\n"
+    )
 
     score_rows = []
     for rank, row in enumerate(query_rows):
@@ -137,6 +162,37 @@ def main() -> None:
 def read_manifest_rows(path: str | Path) -> list[dict[str, str]]:
     with Path(path).open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def prepare_memory_bank(
+    memory_bank: np.ndarray,
+    feature_backbone: str,
+    coreset_ratio: float,
+    coreset_seed: int,
+    coreset_projection_dim: int,
+) -> tuple[np.ndarray, dict[str, str | int | float | bool]]:
+    """Apply PatchCore compression and return auditable bank provenance."""
+
+    full_size = int(memory_bank.shape[0])
+    coreset_applied = feature_backbone == "patchcore_wrn50"
+    selected = memory_bank
+    if coreset_applied:
+        selected = select_greedy_coreset(
+            memory_bank,
+            ratio=coreset_ratio,
+            seed=coreset_seed,
+            projection_dim=coreset_projection_dim,
+        )
+    provenance: dict[str, str | int | float | bool] = {
+        "feature_backbone": feature_backbone,
+        "memory_bank_size_full": full_size,
+        "memory_bank_size_used": int(selected.shape[0]),
+        "coreset_applied": coreset_applied,
+        "coreset_ratio": coreset_ratio,
+        "coreset_projection_dim": coreset_projection_dim,
+        "coreset_seed": coreset_seed,
+    }
+    return selected, provenance
 
 
 def select_rows(
@@ -220,8 +276,6 @@ def write_scores_csv(rows: list[dict[str, str]], output_path: str | Path) -> Pat
 
 
 def np_save_heatmap(path: str | Path, heatmap) -> Path:
-    import numpy as np
-
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path, heatmap.astype(np.float32, copy=False))

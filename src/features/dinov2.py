@@ -113,6 +113,10 @@ def build_feature_extractor(
     patch_size: int = 14,
     device: str = "auto",
 ) -> PatchFeatureExtractor:
+    if feature_backbone == "patchcore_wrn50":
+        from features.patchcore import PatchCoreFeatureExtractor
+
+        return PatchCoreFeatureExtractor(image_size=image_size, device=device)
     if feature_backbone == "color_patch":
         return ColorPatchFeatureExtractor(image_size=image_size, patch_size=patch_size)
     return DINOv2PatchFeatureExtractor(

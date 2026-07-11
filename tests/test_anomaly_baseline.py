@@ -118,6 +118,9 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             output_files = sorted(path.name for path in output_dir.glob("*.png"))
             scores_path = output_dir / "scores.csv"
             rows = _read_csv(scores_path)
+            provenance = json.loads(
+                (output_dir / "memory_bank_provenance.json").read_text()
+            )
             self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
             self.assertFalse(Path(rows[0]["image_path"]).is_absolute())
             self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
@@ -130,6 +133,15 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly_000")
         self.assertEqual(rows[0]["fold_split"], "test")
         self.assertGreater(float(rows[0]["image_score"]), 0.0)
+        self.assertEqual(provenance["feature_backbone"], "color_patch")
+        self.assertFalse(provenance["coreset_applied"])
+        self.assertEqual(provenance["coreset_ratio"], 0.01)
+        self.assertEqual(provenance["coreset_projection_dim"], 64)
+        self.assertEqual(provenance["coreset_seed"], 4880)
+        self.assertEqual(
+            provenance["memory_bank_size_used"],
+            provenance["memory_bank_size_full"],
+        )
 
     def test_portable_scores_work_for_calibration_and_evaluation_from_other_cwd(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
