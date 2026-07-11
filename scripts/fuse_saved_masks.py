@@ -26,7 +26,7 @@ from sam_refine.artifacts import (
     save_refinement_debug,
     write_mask_scores,
 )
-from sam_refine.fusion import agreement_features, fuse_masks, fusion_source
+from sam_refine.fusion import fuse_masks, fuse_masks_with_metadata
 from utils.image import load_binary_mask, load_rgb_image
 from utils.visualize import safe_filename
 
@@ -57,6 +57,7 @@ def main() -> None:
     if not rows:
         raise ValueError("mask scores CSV must contain at least one row")
     _validate_required_fields(rows)
+    _validate_sam2_source_identity(rows)
     _validate_calibration_identity(
         rows,
         threshold=calibration.threshold,
@@ -86,21 +87,13 @@ def main() -> None:
         )
         anomaly_mask = anomaly_mask_from_heatmap(heatmap, calibration.threshold)
         sam2_mask = load_binary_mask(sam2_mask_path)
-        pred_mask = fuse_masks(
+        pred_mask, selected_source, agreement = fuse_masks_with_metadata(
             anomaly_mask,
             sam2_mask,
             mode=args.mask_output,
             min_iou=args.selective_min_iou,
             max_expansion=args.selective_max_expansion,
         )
-        selected_source = fusion_source(
-            anomaly_mask,
-            sam2_mask,
-            mode=args.mask_output,
-            min_iou=args.selective_min_iou,
-            max_expansion=args.selective_max_expansion,
-        )
-        agreement = agreement_features(anomaly_mask, sam2_mask)
         output_stem = f"{index:03d}_{safe_filename(row.get('sample_id', 'sample'))}"
         pred_mask_path = args.output_dir / f"{output_stem}_pred_mask.png"
         save_mask(pred_mask, pred_mask_path)
@@ -183,6 +176,39 @@ def _validate_calibration_identity(
             raise ValueError(
                 f"row {index} sam2_calibration_sha256 {stored_sha256!r} does not "
                 f"match supplied calibration SHA-256 {sha256!r}"
+            )
+
+
+def _validate_sam2_source_identity(rows: list[dict[str, str]]) -> None:
+    expected_model_identity: tuple[str, str] | None = None
+    for index, row in enumerate(rows):
+        refiner = (row.get("refiner") or "").strip()
+        raw_mask_source = (row.get("raw_mask_source") or "").strip()
+        model_config = (row.get("sam2_model_config") or "").strip()
+        checkpoint_sha256 = (row.get("sam2_checkpoint_sha256") or "").strip()
+        if not refiner:
+            raise ValueError(f"row {index} must have refiner provenance")
+        if not raw_mask_source:
+            raise ValueError(f"row {index} must have raw_mask_source provenance")
+        if refiner != "sam2" or raw_mask_source != "sam2":
+            raise ValueError(
+                f"row {index} raw_mask_source must be 'sam2' for offline SAM2 fusion; "
+                f"got refiner={refiner!r}, raw_mask_source={raw_mask_source!r}"
+            )
+        if not model_config:
+            raise ValueError(f"row {index} must have sam2_model_config")
+        if len(checkpoint_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in checkpoint_sha256
+        ):
+            raise ValueError(
+                f"row {index} must have a lowercase SHA-256 sam2_checkpoint_sha256"
+            )
+        model_identity = (model_config, checkpoint_sha256)
+        if expected_model_identity is None:
+            expected_model_identity = model_identity
+        elif model_identity != expected_model_identity:
+            raise ValueError(
+                f"row {index} SAM2 model identity does not match earlier rows"
             )
 
 

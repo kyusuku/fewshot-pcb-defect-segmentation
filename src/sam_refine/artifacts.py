@@ -19,6 +19,10 @@ MASK_SCORE_FIELDS = [
     "sample_id",
     "category",
     "label",
+    "refiner",
+    "raw_mask_source",
+    "sam2_model_config",
+    "sam2_checkpoint_sha256",
     "image_path",
     "mask_path",
     "num_regions",
@@ -76,6 +80,33 @@ def load_calibration_artifact(path: str | Path | None) -> CalibrationArtifact | 
         threshold=threshold,
         sha256=hashlib.sha256(payload).hexdigest(),
     )
+
+
+def raw_mask_provenance(
+    refiner: str,
+    sam2_model_config: str,
+    sam2_checkpoint: str | Path,
+) -> dict[str, str]:
+    if refiner == "fallback":
+        return {
+            "refiner": "fallback",
+            "raw_mask_source": "fallback",
+            "sam2_model_config": "",
+            "sam2_checkpoint_sha256": "",
+        }
+    if refiner != "sam2":
+        raise ValueError("refiner must be 'fallback' or 'sam2'")
+    if not sam2_model_config:
+        raise ValueError("sam2_model_config is required for SAM2 provenance")
+    checkpoint_path = Path(sam2_checkpoint)
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"SAM2 checkpoint does not exist: {checkpoint_path}")
+    return {
+        "refiner": "sam2",
+        "raw_mask_source": "sam2",
+        "sam2_model_config": sam2_model_config,
+        "sam2_checkpoint_sha256": _sha256_file(checkpoint_path),
+    }
 
 
 def load_validated_heatmap(path: str | Path, context: str) -> np.ndarray:
@@ -189,3 +220,11 @@ def _resize_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     image = Image.fromarray((mask > 0).astype(np.uint8) * 255, mode="L")
     image = image.resize((width, height), Image.Resampling.NEAREST)
     return (np.asarray(image) > 0).astype(np.uint8)
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

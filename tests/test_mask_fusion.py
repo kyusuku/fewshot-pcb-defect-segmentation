@@ -159,6 +159,10 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                     "sample_id",
                     "category",
                     "label",
+                    "refiner",
+                    "raw_mask_source",
+                    "sam2_model_config",
+                    "sam2_checkpoint_sha256",
                     "sam2_mask_path",
                     "heatmap_path",
                     "sam2_prompt_threshold",
@@ -169,6 +173,12 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                         "sample_id": "pcb1/anomaly",
                         "category": "pcb1",
                         "label": "1",
+                        "refiner": "sam2",
+                        "raw_mask_source": "sam2",
+                        "sam2_model_config": "sam2_hiera_s.yaml",
+                        "sam2_checkpoint_sha256": hashlib.sha256(
+                            b"fake-sam2-checkpoint"
+                        ).hexdigest(),
                         "sam2_mask_path": "raw.png",
                         "heatmap_path": "heatmap.npy",
                         "sam2_prompt_threshold": "0.50000000",
@@ -211,6 +221,9 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["sam2_prompt_threshold"], "0.50000000")
         self.assertEqual(rows[0]["sam2_calibration_sha256"], calibration_sha256)
         self.assertEqual(rows[0]["calibration_mismatch_override"], "0")
+        self.assertEqual(rows[0]["raw_mask_source"], "sam2")
+        self.assertEqual(rows[0]["refiner"], "sam2")
+        self.assertEqual(rows[0]["sam2_model_config"], "sam2_hiera_s.yaml")
         self.assertEqual(rows[0]["intersection_pixels"], "4.00000000")
         self.assertFalse(Path(rows[0]["sam2_mask_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
@@ -296,15 +309,14 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                     self.assertIn("heatmap.npy", result.stderr)
                     self.assertIn(expected, result.stderr)
 
-    def test_offline_rejects_threshold_and_hash_identity_mismatches(self) -> None:
+    def test_fallback_raw_mask_cannot_silently_enter_sam2_fusion(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
-            threshold_dir = root / "threshold"
-            source_scores_path = _write_refinement_source_fixture(threshold_dir)
-            raw_calibration_path = threshold_dir / "raw_calibration.json"
-            raw_calibration_path.write_bytes(_calibration_bytes(threshold=0.8))
-            raw_output_dir = threshold_dir / "raw"
+            source_scores_path = _write_refinement_source_fixture(root)
+            calibration_path = root / "calibration.json"
+            calibration_path.write_bytes(_calibration_bytes(threshold=0.5))
+            raw_output_dir = root / "raw"
             raw_result = subprocess.run(
                 [
                     sys.executable,
@@ -314,7 +326,7 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                     "--output-dir",
                     str(raw_output_dir),
                     "--calibration-json",
-                    str(raw_calibration_path),
+                    str(calibration_path),
                     "--refiner",
                     "fallback",
                     "--min-area",
@@ -327,11 +339,98 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(raw_result.returncode, 0, msg=raw_result.stderr)
-            supplied_calibration_path = threshold_dir / "supplied_calibration.json"
-            supplied_calibration_path.write_bytes(_calibration_bytes(threshold=0.5))
-            threshold_result = _run_offline_fusion(
+
+            result = _run_offline_fusion(
                 repo_root,
                 raw_output_dir / "mask_scores.csv",
+                calibration_path,
+                root / "fused",
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("row 0", result.stderr)
+        self.assertIn("raw_mask_source", result.stderr)
+        self.assertIn("fallback", result.stderr)
+
+    def test_missing_or_mismatched_sam2_source_provenance_is_rejected(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            missing_scores, calibration_path = _write_offline_fixture(
+                root / "missing",
+                heatmap=np.ones((2, 2), dtype=np.float32),
+                include_source=False,
+            )
+            missing = _run_offline_fusion(
+                repo_root,
+                missing_scores,
+                calibration_path,
+                root / "missing_output",
+            )
+
+            mismatch_scores, calibration_path = _write_offline_fixture(
+                root / "mismatch",
+                heatmap=np.ones((2, 2), dtype=np.float32),
+                refiner="sam2",
+                raw_mask_source="fallback",
+            )
+            mismatch = _run_offline_fusion(
+                repo_root,
+                mismatch_scores,
+                calibration_path,
+                root / "mismatch_output",
+            )
+
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("refiner", missing.stderr)
+        self.assertNotEqual(mismatch.returncode, 0)
+        self.assertIn("raw_mask_source", mismatch.stderr)
+
+    def test_mismatched_sam2_model_identity_across_rows_is_rejected(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            scores_path, calibration_path = _write_offline_fixture(
+                root,
+                heatmap=np.ones((2, 2), dtype=np.float32),
+            )
+            rows = _read_csv(scores_path)
+            rows.append(
+                {
+                    **rows[0],
+                    "sample_id": "pcb1/anomaly_2",
+                    "sam2_model_config": "sam2_hiera_l.yaml",
+                }
+            )
+            _write_csv(scores_path, list(rows[0]), rows)
+
+            result = _run_offline_fusion(
+                repo_root,
+                scores_path,
+                calibration_path,
+                root / "output",
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("row 1", result.stderr)
+        self.assertIn("SAM2 model identity", result.stderr)
+
+    def test_offline_rejects_threshold_and_hash_identity_mismatches(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            threshold_dir = root / "threshold"
+            raw_calibration_bytes = _calibration_bytes(threshold=0.8)
+            scores_path, supplied_calibration_path = _write_offline_fixture(
+                threshold_dir,
+                heatmap=np.ones((2, 2), dtype=np.float32),
+                calibration_threshold=0.5,
+                identity_threshold=0.8,
+                identity_sha256=hashlib.sha256(raw_calibration_bytes).hexdigest(),
+            )
+            threshold_result = _run_offline_fusion(
+                repo_root,
+                scores_path,
                 supplied_calibration_path,
                 threshold_dir / "output",
             )
@@ -483,6 +582,9 @@ def _write_offline_fixture(
     identity_threshold: float | None = None,
     identity_sha256: str | None = None,
     include_identity: bool = True,
+    include_source: bool = True,
+    refiner: str = "sam2",
+    raw_mask_source: str = "sam2",
 ) -> tuple[Path, Path]:
     root.mkdir(parents=True, exist_ok=True)
     np.save(root / "heatmap.npy", heatmap)
@@ -496,6 +598,17 @@ def _write_offline_fixture(
         "sam2_mask_path": "raw.png",
         "heatmap_path": "heatmap.npy",
     }
+    if include_source:
+        row.update(
+            {
+                "refiner": refiner,
+                "raw_mask_source": raw_mask_source,
+                "sam2_model_config": "sam2_hiera_s.yaml",
+                "sam2_checkpoint_sha256": hashlib.sha256(
+                    b"fake-sam2-checkpoint"
+                ).hexdigest(),
+            }
+        )
     if include_identity:
         stored_threshold = (
             calibration_threshold if identity_threshold is None else identity_threshold

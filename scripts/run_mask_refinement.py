@@ -24,11 +24,12 @@ from sam_refine.artifacts import (
     format_float,
     load_calibration_artifact,
     load_validated_heatmap,
+    raw_mask_provenance,
     save_mask,
     save_refinement_debug,
     write_mask_scores,
 )
-from sam_refine.fusion import agreement_features, fuse_masks, fusion_source
+from sam_refine.fusion import fuse_masks, fuse_masks_with_metadata
 from sam_refine.prompts import heatmap_to_prompt_regions
 from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
 from utils.image import load_rgb_image
@@ -81,6 +82,11 @@ def main() -> None:
     calibration = (
         calibration_artifact.threshold if calibration_artifact is not None else None
     )
+    raw_provenance = raw_mask_provenance(
+        refiner=args.refiner,
+        sam2_model_config=args.sam2_model_config,
+        sam2_checkpoint=args.sam2_checkpoint,
+    )
     rows = read_score_rows(args.scores_csv)
     rows = resolve_score_row_paths(rows, base_dir=args.scores_csv.parent)
     refiner = build_refiner(args)
@@ -123,21 +129,13 @@ def main() -> None:
             [prediction.mask for prediction in predictions],
             shape=heatmap.shape,
         )
-        pred_mask = fuse_masks(
+        pred_mask, selected_source, agreement = fuse_masks_with_metadata(
             anomaly_mask,
             sam2_mask,
             mode=args.mask_output,
             min_iou=args.selective_min_iou,
             max_expansion=args.selective_max_expansion,
         )
-        selected_source = fusion_source(
-            anomaly_mask,
-            sam2_mask,
-            mode=args.mask_output,
-            min_iou=args.selective_min_iou,
-            max_expansion=args.selective_max_expansion,
-        )
-        agreement = agreement_features(anomaly_mask, sam2_mask)
         output_stem = f"{index:03d}_{safe_filename(row['sample_id'])}"
         sam2_mask_path = args.output_dir / f"{output_stem}_sam2_mask.png"
         pred_mask_path = args.output_dir / f"{output_stem}_pred_mask.png"
@@ -151,6 +149,7 @@ def main() -> None:
                 "sample_id": row["sample_id"],
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                **raw_provenance,
                 "image_path": row.get("image_path", ""),
                 "mask_path": row.get("mask_path", ""),
                 "num_regions": str(len(regions)),

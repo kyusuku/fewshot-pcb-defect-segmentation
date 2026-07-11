@@ -14,8 +14,21 @@ def agreement_features(anomaly_mask, sam2_mask) -> dict[str, float]:
     """Summarize overlap and relative area for two binary masks."""
 
     anomaly, sam2 = _prepare_masks(anomaly_mask, sam2_mask)
-    intersection_pixels = float(np.sum((anomaly > 0) & (sam2 > 0)))
-    union_pixels = float(np.sum((anomaly > 0) | (sam2 > 0)))
+    return _agreement_features_binary(anomaly, sam2)
+
+
+def _agreement_features_binary(
+    anomaly: np.ndarray,
+    sam2: np.ndarray,
+    intersection: np.ndarray | None = None,
+    union: np.ndarray | None = None,
+) -> dict[str, float]:
+    if intersection is None:
+        intersection = anomaly & sam2
+    if union is None:
+        union = anomaly | sam2
+    intersection_pixels = float(np.sum(intersection))
+    union_pixels = float(np.sum(union))
     anomaly_pixels = float(np.sum(anomaly))
     sam2_pixels = float(np.sum(sam2))
     mask_iou = intersection_pixels / union_pixels if union_pixels else 1.0
@@ -42,6 +55,25 @@ def fuse_masks(
 ) -> np.ndarray:
     """Return one binary mask according to the requested fusion policy."""
 
+    mask, _, _ = fuse_masks_with_metadata(
+        anomaly_mask,
+        sam2_mask,
+        mode=mode,
+        min_iou=min_iou,
+        max_expansion=max_expansion,
+    )
+    return mask
+
+
+def fuse_masks_with_metadata(
+    anomaly_mask,
+    sam2_mask,
+    mode: str,
+    min_iou: float = 0.25,
+    max_expansion: float = 2.0,
+) -> tuple[np.ndarray, str, dict[str, float]]:
+    """Fuse once and return the mask, selected source, and agreement features."""
+
     if mode not in _FUSION_MODES:
         raise ValueError(f"mode must be one of {sorted(_FUSION_MODES)}")
     if not np.isfinite(min_iou) or not 0.0 <= min_iou <= 1.0:
@@ -50,24 +82,30 @@ def fuse_masks(
         raise ValueError("max_expansion must be positive and finite")
 
     anomaly, sam2 = _prepare_masks(anomaly_mask, sam2_mask)
-    if mode == "anomaly":
-        return anomaly
-    if mode == "sam2":
-        return sam2
-
     intersection = (anomaly & sam2).astype(np.uint8, copy=False)
-    if mode == "intersection":
-        return intersection
-    if mode == "union":
-        return (anomaly | sam2).astype(np.uint8, copy=False)
+    union = (anomaly | sam2).astype(np.uint8, copy=False)
+    features = _agreement_features_binary(
+        anomaly,
+        sam2,
+        intersection=intersection,
+        union=union,
+    )
+    if mode == "anomaly":
+        return anomaly, "anomaly", features
+    if mode == "sam2":
+        return sam2, "sam2", features
 
-    features = agreement_features(anomaly, sam2)
+    if mode == "intersection":
+        return intersection, "intersection", features
+    if mode == "union":
+        return union, "union", features
+
     if (
         features["mask_iou"] >= min_iou
         and features["sam2_to_anomaly_area_ratio"] <= max_expansion
     ):
-        return intersection
-    return anomaly
+        return intersection, "intersection", features
+    return anomaly, "anomaly_fallback", features
 
 
 def fusion_source(
@@ -79,22 +117,14 @@ def fusion_source(
 ) -> str:
     """Describe which mask source a fusion policy selected."""
 
-    fuse_masks(
+    _, source, _ = fuse_masks_with_metadata(
         anomaly_mask,
         sam2_mask,
         mode=mode,
         min_iou=min_iou,
         max_expansion=max_expansion,
     )
-    if mode != "selective":
-        return mode
-    features = agreement_features(anomaly_mask, sam2_mask)
-    if (
-        features["mask_iou"] >= min_iou
-        and features["sam2_to_anomaly_area_ratio"] <= max_expansion
-    ):
-        return "intersection"
-    return "anomaly_fallback"
+    return source
 
 
 def _prepare_masks(anomaly_mask, sam2_mask) -> tuple[np.ndarray, np.ndarray]:

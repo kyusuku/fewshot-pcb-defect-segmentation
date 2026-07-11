@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+import sam_refine.artifacts as artifacts
 from sam_refine.prompts import PromptRegion, heatmap_to_prompt_regions
 from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
 from scripts.run_mask_refinement import build_refiner
@@ -359,10 +360,33 @@ class MaskRefinementScriptTest(unittest.TestCase):
         self.assertEqual(rows[0]["sam2_calibration_sha256"], "")
         self.assertEqual(rows[0]["selected_source"], "sam2")
         self.assertEqual(rows[0]["calibration_mismatch_override"], "0")
+        self.assertEqual(rows[0]["refiner"], "fallback")
+        self.assertEqual(rows[0]["raw_mask_source"], "fallback")
+        self.assertEqual(rows[0]["sam2_model_config"], "")
+        self.assertEqual(rows[0]["sam2_checkpoint_sha256"], "")
         self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["sam2_mask_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["pred_mask_path"]).is_absolute())
+
+    def test_sam2_raw_mask_provenance_hashes_checkpoint_and_records_model_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            checkpoint_path = Path(tmpdir) / "sam2.pt"
+            checkpoint_path.write_bytes(b"fake-sam2-checkpoint")
+
+            provenance = artifacts.raw_mask_provenance(
+                refiner="sam2",
+                sam2_model_config="sam2_hiera_s.yaml",
+                sam2_checkpoint=checkpoint_path,
+            )
+
+        self.assertEqual(provenance["refiner"], "sam2")
+        self.assertEqual(provenance["raw_mask_source"], "sam2")
+        self.assertEqual(provenance["sam2_model_config"], "sam2_hiera_s.yaml")
+        self.assertEqual(
+            provenance["sam2_checkpoint_sha256"],
+            hashlib.sha256(b"fake-sam2-checkpoint").hexdigest(),
+        )
 
     def test_intersection_saves_raw_sam2_and_selected_mask_with_stable_fields(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
