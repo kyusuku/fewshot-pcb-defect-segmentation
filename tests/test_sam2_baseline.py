@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 
 from scripts.run_sam2_baseline import (
+    _optional_fraction,
     build_grid_prompt_regions,
     prompt_shape_for_image,
     select_query_rows,
@@ -18,6 +19,10 @@ from scripts.run_sam2_baseline import (
 
 
 class SAM2OnlyBaselinePromptTest(unittest.TestCase):
+    def test_optional_fraction_accepts_explicit_none(self) -> None:
+        self.assertIsNone(_optional_fraction("none"))
+        self.assertEqual(_optional_fraction("0.25"), 0.25)
+
     def test_prompt_shape_preserves_image_aspect_ratio(self) -> None:
         self.assertEqual(prompt_shape_for_image((640, 320), longest_side=64), (32, 64))
         self.assertEqual(prompt_shape_for_image((320, 640), longest_side=64), (64, 32))

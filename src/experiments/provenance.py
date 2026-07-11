@@ -189,6 +189,7 @@ def build_provenance(
         "model_configs": model_configs,
         "cache_identity": cache,
         "artifact_identities": artifacts,
+        "execution": {},
     }
     record["effective_execution_sha256"] = compute_effective_execution_sha256(record)
     canonical_json(record)
@@ -469,6 +470,7 @@ def compute_effective_execution_sha256(provenance: Mapping[str, object]) -> str:
         "environment",
         "python",
         "platform",
+        "execution",
     )
     missing = [field for field in fields if field not in provenance]
     if missing:
@@ -498,6 +500,9 @@ def validate_resume_identity(
 
 def _validate_effective_hash_inputs(provenance: Mapping[str, object]) -> None:
     _validate_sha256(provenance.get("run_spec_sha256"), "run_spec")
+    execution = provenance.get("execution")
+    if not isinstance(execution, Mapping):
+        raise ValueError("execution identity must be a mapping")
     run_spec = provenance.get("run_spec")
     if not isinstance(run_spec, Mapping) or sha256_json(run_spec) != provenance.get(
         "run_spec_sha256"

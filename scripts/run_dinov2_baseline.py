@@ -48,7 +48,20 @@ def parse_args(
         default=5,
         help="Few-shot normal support images per category.",
     )
-    parser.add_argument("--limit", type=int, default=8, help="Number of query images to score.")
+    limit_group = parser.add_mutually_exclusive_group()
+    limit_group.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=8,
+        help="Positive number of query images to score (default: 8).",
+    )
+    limit_group.add_argument(
+        "--all",
+        dest="limit",
+        action="store_const",
+        const=None,
+        help="Process the full selected query split.",
+    )
     parser.add_argument("--query-fold-split", default="test", choices=("test", "val", "dev"))
     parser.add_argument("--feature-backbone", default="dinov2_vits14")
     parser.add_argument("--image-size", type=int, default=518)
@@ -67,6 +80,11 @@ def parse_args(
         default=64,
         help="PatchCore random-projection dimension; ignored by other backbones.",
     )
+    parser.add_argument("--patchcore-weights", choices=("IMAGENET1K_V2",), default="IMAGENET1K_V2")
+    parser.add_argument("--patchcore-source", choices=("torchvision",), default="torchvision")
+    parser.add_argument("--patchcore-layers", choices=("layer2,layer3",), default="layer2,layer3")
+    parser.add_argument("--feature-normalization", choices=("imagenet",), default="imagenet")
+    parser.add_argument("--coreset-seed-policy", choices=("run_seed",), default="run_seed")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/dinov2_baseline_debug"))
     parser.add_argument(
         "--crop-sizes",
@@ -301,6 +319,13 @@ def _nonnegative_int(value: str) -> int:
     return parsed
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return parsed
+
+
 def prepare_memory_bank(
     memory_bank: np.ndarray,
     feature_backbone: str,
@@ -338,7 +363,7 @@ def select_rows(
     category: str,
     k: int,
     query_fold_split: str,
-    limit: int,
+    limit: int | None,
     seed: int,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     fold_value = str(fold_id)
@@ -363,7 +388,7 @@ def select_rows(
     query_rows = sorted(query_rows, key=lambda row: (row["label"], row["sample_id"]))
     if query_fold_split == "test":
         query_rows = interleave_query_rows(query_rows)
-    return support_rows, query_rows[:limit]
+    return support_rows, query_rows if limit is None else query_rows[:limit]
 
 
 def interleave_query_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:

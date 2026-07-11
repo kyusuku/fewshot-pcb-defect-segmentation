@@ -58,6 +58,43 @@ class MemoryBankTest(unittest.TestCase):
 
 
 class DINOv2BaselineScriptTest(unittest.TestCase):
+    def test_cli_supports_all_and_rejects_nonpositive_limit(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        help_result = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "run_dinov2_baseline.py"), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        invalid_result = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--limit",
+                "0",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(help_result.returncode, 0)
+        self.assertIn("--all", help_result.stdout)
+        self.assertNotEqual(invalid_result.returncode, 0)
+        self.assertIn("positive", invalid_result.stderr)
+
+    def test_none_limit_selects_all_query_rows(self) -> None:
+        rows = _tiny_manifest_rows_for_selection()
+        _, query_rows = select_rows(
+            rows=rows,
+            fold_id=0,
+            category="pcb1",
+            k=2,
+            query_fold_split="test",
+            limit=None,
+            seed=4880,
+        )
+        self.assertEqual(len(query_rows), 4)
+
     def test_select_rows_interleaves_test_normals_and_anomalies_for_small_limits(self) -> None:
         rows = _tiny_manifest_rows_for_selection()
 

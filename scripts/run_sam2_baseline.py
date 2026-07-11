@@ -63,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sam2-model-config", default="")
     parser.add_argument(
         "--max-mask-area-fraction",
-        type=float,
+        type=_optional_fraction,
         default=None,
         help="Reject SAM2 mask candidates covering more than this image fraction.",
     )
@@ -167,6 +167,15 @@ def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return parsed
+
+
+def _optional_fraction(value: str) -> float | None:
+    if value.lower() == "none":
+        return None
+    parsed = float(value)
+    if not 0.0 < parsed <= 1.0:
+        raise argparse.ArgumentTypeError("fraction must be in (0, 1] or 'none'")
     return parsed
 
 
