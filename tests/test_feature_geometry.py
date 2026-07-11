@@ -5,6 +5,7 @@ from unittest import mock
 import numpy as np
 from PIL import Image
 
+from anomaly.heatmap import project_patch_heatmap_to_source, resize_heatmap_to_image
 from anomaly.memory_bank import build_memory_bank
 from anomaly.multiscale import compute_anomaly_heatmap
 from features.dinov2 import (
@@ -176,3 +177,26 @@ def test_legacy_feature_map_treats_entire_prepared_frame_as_content() -> None:
     assert feature_map.source_size == (30, 20)
     assert feature_map.content_box == (0, 0, 30, 20)
     assert feature_map.valid_patch_mask().all()
+
+
+def test_full_frame_projection_matches_historical_single_resize() -> None:
+    patch_heatmap = np.array(
+        [[0.0, 2.0, 1.0], [4.0, 1.0, 3.0]],
+        dtype=np.float32,
+    )
+    feature_map = PatchFeatureMap(
+        features=patch_heatmap[..., None],
+        image_size=(30, 20),
+        patch_size=10,
+        source_size=(80, 60),
+        content_box=(0, 0, 30, 20),
+    )
+
+    projected = project_patch_heatmap_to_source(patch_heatmap, feature_map)
+    historical = resize_heatmap_to_image(
+        patch_heatmap,
+        feature_map.source_size,
+        normalize=False,
+    )
+
+    np.testing.assert_array_equal(projected, historical)
