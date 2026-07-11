@@ -42,6 +42,7 @@ _REQUIRED_FIELDS = {
 }
 _THREAD_LOCKS: dict[str, threading.Lock] = {}
 _THREAD_LOCKS_GUARD = threading.Lock()
+_UNSUPPORTED_CONFIG = object()
 
 
 class FeatureCacheError(RuntimeError):
@@ -102,7 +103,7 @@ class FeatureCacheIdentity:
         return hashlib.sha256(self.canonical_json.encode("utf-8")).hexdigest()
 
 
-FeatureCacheReference: TypeAlias = str | FeatureCacheIdentity
+FeatureCacheReference: TypeAlias = FeatureCacheIdentity
 
 
 def feature_cache_key(
@@ -143,7 +144,7 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def numerical_runtime_identity() -> dict[str, str | None]:
+def numerical_runtime_identity() -> dict[str, Any]:
     """Return versions of libraries and backends that can alter numerical output."""
 
     import torch
@@ -157,6 +158,9 @@ def numerical_runtime_identity() -> dict[str, str | None]:
         "pillow": str(PIL.__version__),
         "torch_cuda": str(torch.version.cuda) if torch.version.cuda is not None else None,
         "torch_cudnn": str(cudnn_version) if cudnn_version is not None else None,
+        "hardware": _hardware_identity(torch),
+        "torch_cuda_matmul_allow_tf32": bool(torch.backends.cuda.matmul.allow_tf32),
+        "torch_cudnn_allow_tf32": bool(torch.backends.cudnn.allow_tf32),
     }
 
 
@@ -224,6 +228,12 @@ class FeatureCache:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
+        root_digest = hashlib.sha256(str(self.root.resolve()).encode("utf-8")).hexdigest()
+        self.lock_root = (
+            Path(tempfile.gettempdir())
+            / "pcb-defect-feature-cache-locks"
+            / root_digest
+        )
 
     def path_for_key(self, key: str) -> Path:
         _validate_cache_key(key)
@@ -310,10 +320,14 @@ class FeatureCache:
     @contextmanager
     def _key_lock(self, key: str):
         self.root.mkdir(parents=True, exist_ok=True)
+        self.lock_root.mkdir(parents=True, exist_ok=True)
         with _THREAD_LOCKS_GUARD:
-            thread_lock = _THREAD_LOCKS.setdefault(str(self.root.resolve() / key), threading.Lock())
+            thread_lock = _THREAD_LOCKS.setdefault(
+                str(self.lock_root / key),
+                threading.Lock(),
+            )
         with thread_lock:
-            lock_path = self.root / f".{key}.lock"
+            lock_path = self.lock_root / f"{key}.lock"
             with lock_path.open("a+b") as lock_handle:
                 if fcntl is not None:
                     fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
@@ -360,19 +374,16 @@ class FeatureCache:
 
 def _reference_parts(
     reference: FeatureCacheReference,
-) -> tuple[str, str, FeatureCacheIdentity | None]:
-    if isinstance(reference, FeatureCacheIdentity):
-        return reference.key, reference.canonical_json, reference
-    _validate_cache_key(reference)
-    return reference, _canonical_json({"cache_key": reference}), None
+) -> tuple[str, str, FeatureCacheIdentity]:
+    if not isinstance(reference, FeatureCacheIdentity):
+        raise TypeError("feature cache operations require FeatureCacheIdentity")
+    return reference.key, reference.canonical_json, reference
 
 
 def _validate_identity_geometry(
-    identity: FeatureCacheIdentity | None,
+    identity: FeatureCacheIdentity,
     feature_map: PatchFeatureMap,
 ) -> None:
-    if identity is None:
-        return
     if feature_map.image_size != (identity.image_size, identity.image_size):
         raise ValueError("feature map image_size does not match cache identity")
     if feature_map.patch_size != identity.patch_size:
@@ -433,17 +444,100 @@ def _extractor_model(extractor: object) -> tuple[object | None, str | None]:
 def _model_structure_identity(model: object | None) -> dict[str, Any] | None:
     if model is None:
         return None
-    named_modules = []
-    if hasattr(model, "named_modules"):
-        named_modules = [
-            [name, _qualified_class_name(module)]
-            for name, module in model.named_modules()
-        ]
+    named_modules = [
+        {
+            "name": name,
+            "class": _qualified_class_name(module),
+            "module": type(module).__module__,
+            "qualname": type(module).__qualname__,
+            "training": getattr(module, "training", None),
+            "extra_repr": _module_extra_repr(module),
+            "behavior_config": _stable_module_config(module),
+        }
+        for name, module in _named_modules(model)
+    ]
     graph = getattr(model, "graph", None)
     return {
         "training": getattr(model, "training", None),
         "graph": str(graph) if graph is not None else None,
         "named_modules": named_modules,
+    }
+
+
+def _named_modules(model: object) -> list[tuple[str, object]]:
+    if hasattr(model, "named_modules"):
+        return list(model.named_modules())
+    return [("", model)]
+
+
+def _module_extra_repr(module: object) -> str | None:
+    extra_repr = getattr(module, "extra_repr", None)
+    return str(extra_repr()) if callable(extra_repr) else None
+
+
+def _stable_module_config(module: object) -> dict[str, Any]:
+    configuration = {}
+    for name, value in sorted(vars(module).items()):
+        if name.startswith("_") or name == "training":
+            continue
+        stable = _stable_config_value(value)
+        if stable is not _UNSUPPORTED_CONFIG:
+            configuration[name] = stable
+    return configuration
+
+
+def _stable_config_value(value: object) -> Any | None:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, (tuple, list)):
+        converted = [_stable_config_value(item) for item in value]
+        return (
+            converted
+            if all(item is not _UNSUPPORTED_CONFIG for item in converted)
+            else _UNSUPPORTED_CONFIG
+        )
+    if isinstance(value, dict) and all(isinstance(key, str) for key in value):
+        converted = {key: _stable_config_value(item) for key, item in sorted(value.items())}
+        return (
+            converted
+            if all(item is not _UNSUPPORTED_CONFIG for item in converted.values())
+            else _UNSUPPORTED_CONFIG
+        )
+    value_type = type(value)
+    if value_type.__module__ == "torch" and value_type.__name__ in {"device", "dtype"}:
+        return str(value)
+    return _UNSUPPORTED_CONFIG
+
+
+def _hardware_identity(torch_module) -> dict[str, Any]:
+    cpu_capability = None
+    if hasattr(torch_module.backends, "cpu") and hasattr(
+        torch_module.backends.cpu,
+        "get_cpu_capability",
+    ):
+        cpu_capability = torch_module.backends.cpu.get_cpu_capability()
+    cuda_devices = []
+    for index in range(torch_module.cuda.device_count()):
+        properties = torch_module.cuda.get_device_properties(index)
+        cuda_devices.append(
+            {
+                "index": index,
+                "name": properties.name,
+                "capability": list(torch_module.cuda.get_device_capability(index)),
+                "total_memory": int(properties.total_memory),
+            }
+        )
+    mps_backend = getattr(torch_module.backends, "mps", None)
+    return {
+        "cpu": {
+            "machine": platform.machine(),
+            "platform": platform.platform(),
+            "processor": platform.processor(),
+            "torch_capability": cpu_capability,
+        },
+        "cuda_devices": cuda_devices,
+        "mps_available": bool(mps_backend and mps_backend.is_available()),
+        "mps_built": bool(mps_backend and mps_backend.is_built()),
     }
 
 
@@ -515,20 +609,21 @@ def _state_value_bytes(value: object) -> tuple[str, list[int], bytes]:
 def _extractor_source_hashes(extractor: object, model: object | None) -> dict[str, str]:
     from features import dinov2
 
-    modules = {inspect.getmodule(type(extractor)), dinov2}
+    classes = {type(extractor)}
     if model is not None:
-        modules.add(inspect.getmodule(type(model)))
-    hashes = {}
-    for module in sorted((module for module in modules if module), key=lambda item: item.__name__):
+        classes.update(type(module) for _, module in _named_modules(model))
+    hashes = {
+        "preprocessing:features.dinov2": sha256_file(inspect.getsourcefile(dinov2))
+    }
+    for value_type in sorted(classes, key=lambda item: (item.__module__, item.__qualname__)):
         try:
-            source_path = inspect.getsourcefile(module)
+            source_path = inspect.getsourcefile(value_type)
         except TypeError:
             source_path = None
         if source_path is None:
             continue
-        hashes[module.__name__] = sha256_file(source_path)
-    if "features.dinov2" not in hashes:
-        raise RuntimeError("Could not fingerprint shared feature preprocessing source")
+        class_name = f"{value_type.__module__}.{value_type.__qualname__}"
+        hashes[class_name] = sha256_file(source_path)
     return hashes
 
 

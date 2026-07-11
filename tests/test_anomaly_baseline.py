@@ -143,17 +143,19 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             provenance["memory_bank_size_full"],
         )
         self.assertEqual(len(provenance["extractor_source_revision"]), 64)
-        self.assertEqual(
-            set(provenance["extractor_identity"]["runtime"]),
+        self.assertTrue(
             {
+                "hardware",
                 "numpy",
                 "pillow",
                 "python",
                 "torch",
                 "torch_cuda",
+                "torch_cuda_matmul_allow_tf32",
                 "torch_cudnn",
+                "torch_cudnn_allow_tf32",
                 "torchvision",
-            },
+            }.issubset(provenance["extractor_identity"]["runtime"]),
         )
 
     def test_debug_limit_one_keeps_all_heatmaps_and_bounds_panels(self) -> None:

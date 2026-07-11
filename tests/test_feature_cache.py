@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
+import torch
 from PIL import Image
 
 from anomaly.multiscale import compute_anomaly_heatmap
@@ -14,13 +15,56 @@ from features import cache as cache_module
 from features.cache import (
     FeatureCache,
     FeatureCacheError,
+    extractor_revision_identity,
     extractor_source_revision,
     feature_cache_key,
+    numerical_runtime_identity,
 )
 from features.dinov2 import ColorPatchFeatureExtractor, PatchFeatureMap
 
 
 class FeatureCacheTest(unittest.TestCase):
+    def test_raw_digest_cannot_bypass_identity_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = FeatureCache(Path(tmpdir))
+
+            with self.assertRaisesRegex(TypeError, "FeatureCacheIdentity"):
+                cache.load(_cache_key())
+            with self.assertRaisesRegex(TypeError, "FeatureCacheIdentity"):
+                cache.save(_cache_key(), _feature_map())
+            with self.assertRaisesRegex(TypeError, "FeatureCacheIdentity"):
+                cache.get_or_compute(_cache_key(), _feature_map)
+
+    def test_wrong_small_map_cannot_load_under_518_identity(self) -> None:
+        large_identity = cache_module.FeatureCacheIdentity(
+            sample_id="pcb1/a",
+            image_sha256="a" * 64,
+            extractor_revision="b" * 64,
+            backbone="dinov2_vits14",
+            image_size=518,
+            patch_size=14,
+            view="query:global:0,0,40,20",
+            source_size=(40, 20),
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = FeatureCache(Path(tmpdir))
+
+            with self.assertRaisesRegex(ValueError, "image_size.*identity"):
+                cache.save(large_identity, _feature_map())
+            with self.assertRaisesRegex(TypeError, "FeatureCacheIdentity"):
+                cache.load(large_identity.key)
+
+    def test_lock_files_live_outside_cache_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "features"
+            first = FeatureCache(root)
+            second = FeatureCache(root)
+            first.get_or_compute(_identity(), _feature_map)
+
+            self.assertEqual(first.lock_root, second.lock_root)
+            self.assertNotEqual(first.lock_root.parent, root)
+            self.assertEqual(sorted(path.suffix for path in root.iterdir()), [".npz"])
+
     def test_round_trip_preserves_features_and_geometry_metadata(self) -> None:
         original = PatchFeatureMap(
             features=np.arange(12, dtype=np.float32).reshape(2, 2, 3),
@@ -29,12 +73,12 @@ class FeatureCacheTest(unittest.TestCase):
             source_size=(40, 20),
             content_box=(0, 7, 28, 21),
         )
-        key = _cache_key()
+        identity = _identity()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            cache.save(key, original)
-            restored = cache.load(key)
+            cache.save(identity, original)
+            restored = cache.load(identity)
 
         self.assertIsNotNone(restored)
         assert restored is not None
@@ -85,15 +129,15 @@ class FeatureCacheTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            first = cache.get_or_compute(_cache_key(), compute)
-            second = cache.get_or_compute(_cache_key(), compute)
+            first = cache.get_or_compute(_identity(), compute)
+            second = cache.get_or_compute(_identity(), compute)
 
         self.assertEqual(calls, 1)
         np.testing.assert_array_equal(first.features, second.features)
 
     def test_corrupt_entry_raises_without_recomputing(self) -> None:
         calls = 0
-        key = _cache_key()
+        identity = _identity()
 
         def compute() -> PatchFeatureMap:
             nonlocal calls
@@ -102,25 +146,25 @@ class FeatureCacheTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            cache.path_for_key(key).parent.mkdir(parents=True, exist_ok=True)
-            cache.path_for_key(key).write_bytes(b"not an npz archive")
+            cache.path_for_key(identity.key).parent.mkdir(parents=True, exist_ok=True)
+            cache.path_for_key(identity.key).write_bytes(b"not an npz archive")
 
             with self.assertRaisesRegex(FeatureCacheError, "Could not read feature cache"):
-                cache.get_or_compute(key, compute)
+                cache.get_or_compute(identity, compute)
 
         self.assertEqual(calls, 0)
 
     def test_invalid_geometry_payload_is_rejected(self) -> None:
-        key = _cache_key()
+        identity = _identity()
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            path = cache.path_for_key(key)
+            path = cache.path_for_key(identity.key)
             path.parent.mkdir(parents=True, exist_ok=True)
             np.savez_compressed(
                 path,
                 cache_format_version=np.asarray(2, dtype=np.int32),
-                cache_key=np.asarray(key),
-                identity_json=np.asarray('{"cache_key":"' + key + '"}'),
+                cache_key=np.asarray(identity.key),
+                identity_json=np.asarray(identity.canonical_json),
                 features=np.ones((2, 2, 3), dtype=np.float32),
                 image_size=np.asarray((28, 28), dtype=np.int32),
                 patch_size=np.asarray(14, dtype=np.int32),
@@ -129,27 +173,28 @@ class FeatureCacheTest(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(FeatureCacheError, "Invalid feature cache"):
-                cache.load(key)
+                cache.load(identity)
 
     def test_transplanted_payload_is_rejected(self) -> None:
-        first_key = _cache_key()
-        second_key = feature_cache_key(
-            "pcb1/b",
-            "a" * 64,
-            "extractor-rev-a",
-            "dinov2_vits14",
-            518,
-            14,
-            "query:global:0,0,1024,768",
+        first_identity = _identity()
+        second_identity = cache_module.FeatureCacheIdentity(
+            sample_id="pcb1/b",
+            image_sha256="a" * 64,
+            extractor_revision="extractor-rev-a",
+            backbone="dinov2_vits14",
+            image_size=28,
+            patch_size=14,
+            view="query:global:0,0,40,20",
+            source_size=(40, 20),
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            first_path = cache.save(first_key, _feature_map())
-            second_path = cache.path_for_key(second_key)
+            first_path = cache.save(first_identity, _feature_map())
+            second_path = cache.path_for_key(second_identity.key)
             second_path.write_bytes(first_path.read_bytes())
 
             with self.assertRaisesRegex(FeatureCacheError, "cache key does not match"):
-                cache.load(second_key)
+                cache.load(second_identity)
 
     def test_nonfinite_features_are_not_cached(self) -> None:
         with self.assertRaisesRegex(ValueError, "finite"):
@@ -267,6 +312,89 @@ class FeatureCacheTest(unittest.TestCase):
 
 
 class ExtractorRevisionTest(unittest.TestCase):
+    def test_batchnorm_eps_changes_output_and_revision_with_identical_state(self) -> None:
+        import torch
+
+        first_model = torch.nn.BatchNorm1d(2, eps=1e-5, affine=False).eval()
+        second_model = torch.nn.BatchNorm1d(2, eps=0.5, affine=False).eval()
+        second_model.load_state_dict(first_model.state_dict())
+        inputs = torch.tensor([[1.0, 2.0]], dtype=torch.float32)
+        self.assertFalse(torch.equal(first_model(inputs), second_model(inputs)))
+
+        first = extractor_source_revision(
+            _TorchExtractor(first_model),
+            runtime_identity=_runtime_identity(),
+            precision_identity={"policy": "float32"},
+        )
+        second = extractor_source_revision(
+            _TorchExtractor(second_model),
+            runtime_identity=_runtime_identity(),
+            precision_identity={"policy": "float32"},
+        )
+
+        self.assertNotEqual(first, second)
+
+    def test_custom_module_behavior_config_and_source_are_identified(self) -> None:
+        import torch
+
+        first_model = _ScaleModule(1.0)
+        second_model = _ScaleModule(2.0)
+        inputs = torch.ones(1)
+        self.assertFalse(torch.equal(first_model(inputs), second_model(inputs)))
+
+        first_identity = extractor_revision_identity(
+            _TorchExtractor(first_model),
+            runtime_identity=_runtime_identity(),
+            precision_identity={"policy": "float32"},
+        )
+        second_identity = extractor_revision_identity(
+            _TorchExtractor(second_model),
+            runtime_identity=_runtime_identity(),
+            precision_identity={"policy": "float32"},
+        )
+
+        self.assertNotEqual(
+            cache_module.extractor_revision_digest(first_identity),
+            cache_module.extractor_revision_digest(second_identity),
+        )
+        module_entry = first_identity["model_structure"]["named_modules"][0]
+        self.assertEqual(module_entry["extra_repr"], "scale=1.0")
+        self.assertIn(module_entry["class"], first_identity["source_sha256"])
+
+    def test_runtime_identity_includes_hardware_and_tf32_policies(self) -> None:
+        runtime = numerical_runtime_identity()
+
+        self.assertIn("hardware", runtime)
+        self.assertIn("torch_cuda_matmul_allow_tf32", runtime)
+        self.assertIn("torch_cudnn_allow_tf32", runtime)
+        self.assertIn("cpu", runtime["hardware"])
+        self.assertIn("cuda_devices", runtime["hardware"])
+
+    def test_revision_changes_with_injected_hardware_or_tf32_identity(self) -> None:
+        extractor = _FakeExtractor()
+        first_runtime = {
+            **_runtime_identity(),
+            "hardware": {"cpu": "cpu-a", "cuda_devices": []},
+            "torch_cuda_matmul_allow_tf32": False,
+            "torch_cudnn_allow_tf32": False,
+        }
+        hardware_changed = {
+            **first_runtime,
+            "hardware": {"cpu": "cpu-b", "cuda_devices": []},
+        }
+        tf32_changed = {**first_runtime, "torch_cuda_matmul_allow_tf32": True}
+
+        revisions = {
+            extractor_source_revision(
+                extractor,
+                runtime_identity=runtime,
+                precision_identity={"policy": "float32"},
+            )
+            for runtime in (first_runtime, hardware_changed, tf32_changed)
+        }
+
+        self.assertEqual(len(revisions), 3)
+
     def test_revision_changes_when_injected_model_weight_changes(self) -> None:
         extractor = _FakeExtractor()
         first = extractor_source_revision(
@@ -416,15 +544,20 @@ class MultiScaleFeatureCacheTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
-            key_for_view = lambda view: feature_cache_key(
-                "pcb1/query",
-                "a" * 64,
-                "extractor-rev-a",
-                "color_patch",
-                4,
-                2,
-                f"query:{view}",
-            )
+            def key_for_view(view: str):
+                x1, y1, x2, y2 = (
+                    int(value) for value in view.rsplit(":", 1)[1].split(",")
+                )
+                return cache_module.FeatureCacheIdentity(
+                    sample_id="pcb1/query",
+                    image_sha256="a" * 64,
+                    extractor_revision="extractor-rev-a",
+                    backbone="color_patch",
+                    image_size=4,
+                    patch_size=2,
+                    view=f"query:{view}",
+                    source_size=(x2 - x1, y2 - y1),
+                )
             first = compute_anomaly_heatmap(
                 image=image,
                 extractor=extractor,
@@ -515,6 +648,27 @@ class _FakeExtractor:
         self.image_size = 28
         self.patch_size = 14
         self.device = device
+
+
+class _TorchExtractor:
+    def __init__(self, model) -> None:
+        self.model = model
+        self.model_name = "injected_torch_model"
+        self.image_size = 28
+        self.patch_size = 14
+        self.device = "cpu"
+
+
+class _ScaleModule(torch.nn.Module):
+    def __init__(self, scale: float) -> None:
+        super().__init__()
+        self.scale = scale
+
+    def forward(self, inputs):
+        return inputs * self.scale
+
+    def extra_repr(self) -> str:
+        return f"scale={self.scale}"
 
 
 def _runtime_identity() -> dict[str, str]:
