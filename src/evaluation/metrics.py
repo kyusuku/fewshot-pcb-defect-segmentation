@@ -227,10 +227,10 @@ def evaluate_heatmap_rows_at_threshold(
         heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
         label = int(row.get("label") or 0)
         mask_path = row.get("mask_path") or ""
-        if mask_path:
-            target = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
-        elif label == 0:
+        if label == 0:
             target = np.zeros(heatmap.shape, dtype=np.uint8)
+        elif mask_path:
+            target = load_binary_mask(mask_path, size=(heatmap.shape[1], heatmap.shape[0]))
         else:
             raise ValueError("mask_path is required for anomalous heatmap rows")
         if target.shape != heatmap.shape:

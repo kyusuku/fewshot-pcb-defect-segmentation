@@ -46,6 +46,31 @@ class CalibratedHeatmapEvaluationTest(unittest.TestCase):
         self.assertEqual(per_image[0]["false_positive_pixels"], 0.0)
         self.assertEqual(per_image[0]["false_negative_pixels"], 0.0)
 
+    def test_normal_row_ignores_stray_nonempty_mask(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            heatmap_path = root / "heatmap.npy"
+            mask_path = root / "stray_mask.png"
+            np.save(heatmap_path, np.asarray([[0.9, 0.1], [0.8, 0.2]], dtype=np.float32))
+            _save_mask(mask_path, np.asarray([[255, 0], [255, 0]], dtype=np.uint8))
+
+            _, per_image = evaluate_heatmap_rows_at_threshold(
+                [
+                    {
+                        "sample_id": "pcb1/normal",
+                        "category": "pcb1",
+                        "label": "0",
+                        "heatmap_path": str(heatmap_path),
+                        "mask_path": str(mask_path),
+                    }
+                ],
+                threshold=0.5,
+            )
+
+        self.assertEqual(per_image[0]["gt_positive_pixels"], 0.0)
+        self.assertEqual(per_image[0]["true_positive_pixels"], 0.0)
+        self.assertEqual(per_image[0]["false_positive_pixels"], 2.0)
+
     def test_resizes_ground_truth_to_preserve_heatmap_alignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
