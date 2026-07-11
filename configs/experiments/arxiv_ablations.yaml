@@ -1,0 +1,44 @@
+name: arxiv_ablations
+manifest: data/manifests/visa_pcb_folds.csv
+dependency_output_root: outputs/arxiv_primary
+fold_id: 0
+categories: [pcb1, pcb2, pcb3, pcb4]
+k: 4
+seed: 4880
+ablations:
+  - name: crop512_o025_max
+    method: dinov2_multi
+    overrides: {crop_sizes: [512], crop_overlap: 0.25, fusion: max}
+  - name: crop768_o000_max
+    method: dinov2_multi
+    overrides: {crop_sizes: [768], crop_overlap: 0.0, fusion: max}
+  - name: crop768_o050_max
+    method: dinov2_multi
+    overrides: {crop_sizes: [768], crop_overlap: 0.5, fusion: max}
+  - name: crop768_o025_mean
+    method: dinov2_multi
+    overrides: {crop_sizes: [768], crop_overlap: 0.25, fusion: mean}
+  - name: prompt_point_max
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: point, point_mode: anomaly_max, max_mask_area_fraction: 0.25}
+  - name: prompt_box
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: box, point_mode: anomaly_max, max_mask_area_fraction: 0.25}
+  - name: prompt_point_box_center
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: point_box, point_mode: box_center, max_mask_area_fraction: 0.25}
+  - name: area_cap_none
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: point_box, point_mode: anomaly_max, max_mask_area_fraction: null}
+  - name: area_cap_010
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: point_box, point_mode: anomaly_max, max_mask_area_fraction: 0.10}
+  - name: area_cap_050
+    method: dinov2_multi_sam2
+    overrides: {prompt_mode: point_box, point_mode: anomaly_max, max_mask_area_fraction: 0.50}
+  - name: fusion_union
+    method: anomaly_consistent_sam2
+    overrides: {mask_output: union}
+  - name: fusion_selective
+    method: anomaly_consistent_sam2
+    overrides: {mask_output: selective, min_iou: 0.25, max_expansion: 2.0}

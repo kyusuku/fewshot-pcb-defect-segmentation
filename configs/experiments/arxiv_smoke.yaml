@@ -1,0 +1,26 @@
+name: arxiv_smoke
+manifest: data/manifests/visa_pcb_folds.csv
+fold_id: 0
+categories: [pcb1]
+shots: [1]
+seeds: [4880]
+methods:
+  - dinov2_single
+  - dinov2_multi
+  - dinov2_multi_sam2
+  - anomaly_consistent_sam2
+dinov2:
+  backbone: color_patch
+  image_size: 56
+  patch_size: 14
+multi_scale:
+  crop_sizes: [32]
+  crop_overlap: 0.25
+  fusion: max
+calibration:
+  quantile: 0.995
+sam2:
+  refiner: fallback
+  prompt_mode: point_box
+  point_mode: anomaly_max
+  max_mask_area_fraction: 0.25
