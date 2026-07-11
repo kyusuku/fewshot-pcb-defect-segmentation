@@ -9,6 +9,7 @@ import json
 import os
 import random
 import sys
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -21,6 +22,12 @@ if str(SRC_ROOT) not in sys.path:
 from anomaly.heatmap import save_heatmap_debug_panel
 from anomaly.memory_bank import build_memory_bank, select_greedy_coreset
 from anomaly.multiscale import compute_anomaly_heatmap, parse_crop_sizes
+from features.cache import (
+    FeatureCache,
+    extractor_source_revision,
+    feature_cache_key,
+    sha256_file,
+)
 from features.dinov2 import build_feature_extractor
 from utils.image import load_rgb_image
 from utils.visualize import safe_filename
@@ -68,6 +75,17 @@ def parse_args(
     parser.add_argument("--crop-overlap", type=float, default=0.25)
     parser.add_argument("--fusion", choices=("max", "mean"), default="max")
     parser.add_argument(
+        "--feature-cache-dir",
+        type=Path,
+        help="Optional ignored directory for deterministic patch-feature cache artifacts.",
+    )
+    parser.add_argument(
+        "--debug-limit",
+        type=_nonnegative_int,
+        default=8,
+        help="Render at most this many debug panels; use 0 to render none.",
+    )
+    parser.add_argument(
         "--no-normalize",
         action="store_true",
         help="Disable L2 feature normalization.",
@@ -105,10 +123,29 @@ def main(
     )
     normalize = not args.no_normalize
     crop_sizes = parse_crop_sizes(args.crop_sizes)
-    support_features = [
-        extractor.extract(load_rgb_image(row["image_path"]))
-        for row in support_rows
-    ]
+    feature_cache = FeatureCache(args.feature_cache_dir) if args.feature_cache_dir else None
+    source_revision = extractor_source_revision(extractor) if feature_cache else ""
+    extractor_image_size = int(getattr(extractor, "image_size", args.image_size))
+    extractor_patch_size = int(extractor.patch_size)
+    support_features = []
+    for row in support_rows:
+        image = load_rgb_image(row["image_path"])
+        cache_key = None
+        if feature_cache:
+            cache_key = _row_feature_cache_key(
+                row=row,
+                image_sha256=sha256_file(row["image_path"]),
+                source_revision=source_revision,
+                feature_backbone=args.feature_backbone,
+                image_size=extractor_image_size,
+                patch_size=extractor_patch_size,
+                view=f"support:global:0,0,{image.width},{image.height}",
+            )
+        support_features.append(
+            feature_cache.get_or_compute(cache_key, lambda: extractor.extract(image))
+            if feature_cache and cache_key
+            else extractor.extract(image)
+        )
     full_memory_bank = build_memory_bank(support_features, normalize=normalize)
     del support_features
     memory_bank, memory_bank_provenance = prepare_memory_bank(
@@ -117,6 +154,12 @@ def main(
         coreset_ratio=args.coreset_ratio,
         coreset_seed=args.seed,
         coreset_projection_dim=args.coreset_projection_dim,
+    )
+    memory_bank_provenance.update(
+        {
+            "feature_cache_enabled": feature_cache is not None,
+            "extractor_source_revision": source_revision,
+        }
     )
     del full_memory_bank
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -127,6 +170,19 @@ def main(
     score_rows = []
     for rank, row in enumerate(query_rows):
         image = load_rgb_image(row["image_path"])
+        cache_key_for_view = None
+        if feature_cache:
+            image_sha256 = sha256_file(row["image_path"])
+            cache_key_for_view = partial(
+                _row_feature_cache_key,
+                row=row,
+                image_sha256=image_sha256,
+                source_revision=source_revision,
+                feature_backbone=args.feature_backbone,
+                image_size=extractor_image_size,
+                patch_size=extractor_patch_size,
+                view_prefix="query:",
+            )
         heatmap_for_eval = compute_anomaly_heatmap(
             image=image,
             extractor=extractor,
@@ -135,19 +191,24 @@ def main(
             crop_overlap=args.crop_overlap,
             fusion=args.fusion,
             normalize_features=normalize,
+            feature_cache=feature_cache,
+            cache_key_for_view=cache_key_for_view,
         )
         image_score = float(heatmap_for_eval.max())
         output_stem = f"{rank:03d}_{safe_filename(row['sample_id'])}"
         output_path = args.output_dir / f"{output_stem}.png"
         heatmap_path = args.output_dir / f"{output_stem}_heatmap.npy"
         np_save_heatmap(heatmap_path, heatmap_for_eval)
-        save_heatmap_debug_panel(
-            image_path=row["image_path"],
-            mask_path=row.get("mask_path") or None,
-            heatmap=heatmap_for_eval,
-            output_path=output_path,
-            title=f"{row['sample_id']} | score={image_score:.4f}",
-        )
+        debug_path = ""
+        if rank < args.debug_limit:
+            save_heatmap_debug_panel(
+                image_path=row["image_path"],
+                mask_path=row.get("mask_path") or None,
+                heatmap=heatmap_for_eval,
+                output_path=output_path,
+                title=f"{row['sample_id']} | score={image_score:.4f}",
+            )
+            debug_path = str(output_path)
         score_rows.append(
             {
                 "sample_id": row["sample_id"],
@@ -158,7 +219,7 @@ def main(
                 "image_path": row["image_path"],
                 "mask_path": row.get("mask_path") or "",
                 "heatmap_path": str(heatmap_path),
-                "debug_path": str(output_path),
+                "debug_path": debug_path,
             }
         )
         print(f"[{rank + 1}/{len(query_rows)}] {row['sample_id']} score={image_score:.4f}")
@@ -172,6 +233,35 @@ def main(
 def read_manifest_rows(path: str | Path) -> list[dict[str, str]]:
     with Path(path).open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _row_feature_cache_key(
+    view: str,
+    *,
+    row: dict[str, str],
+    image_sha256: str,
+    source_revision: str,
+    feature_backbone: str,
+    image_size: int,
+    patch_size: int,
+    view_prefix: str = "",
+) -> str:
+    return feature_cache_key(
+        sample_id=row["sample_id"],
+        image_sha256=image_sha256,
+        extractor_revision=source_revision,
+        backbone=feature_backbone,
+        image_size=image_size,
+        patch_size=patch_size,
+        view=f"{view_prefix}{view}",
+    )
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return parsed
 
 
 def prepare_memory_bank(

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import numpy as np
 from PIL import Image
 
 from anomaly.heatmap import project_patch_heatmap_to_source
 from anomaly.memory_bank import score_patch_features
+from features.cache import FeatureCache
 from features.dinov2 import PatchFeatureExtractor
 
 
@@ -51,6 +52,8 @@ def compute_anomaly_heatmap(
     crop_overlap: float = 0.25,
     fusion: str = "max",
     normalize_features: bool = True,
+    feature_cache: FeatureCache | None = None,
+    cache_key_for_view: Callable[[str], str] | None = None,
 ) -> np.ndarray:
     """Compute a full-resolution anomaly heatmap with optional local crops."""
 
@@ -59,11 +62,17 @@ def compute_anomaly_heatmap(
 
     image = image.convert("RGB")
     crop_sizes = crop_sizes or []
+    if (feature_cache is None) != (cache_key_for_view is None):
+        raise ValueError("feature_cache and cache_key_for_view must be provided together")
+
+    global_view = f"global:0,0,{image.width},{image.height}"
     global_heatmap = _score_image(
         image=image,
         extractor=extractor,
         memory_bank=memory_bank,
         normalize_features=normalize_features,
+        feature_cache=feature_cache,
+        cache_key=cache_key_for_view(global_view) if cache_key_for_view else None,
     )
     if not crop_sizes:
         return global_heatmap
@@ -83,6 +92,12 @@ def compute_anomaly_heatmap(
                 extractor=extractor,
                 memory_bank=memory_bank,
                 normalize_features=normalize_features,
+                feature_cache=feature_cache,
+                cache_key=(
+                    cache_key_for_view(f"crop:{x1},{y1},{x2},{y2}")
+                    if cache_key_for_view
+                    else None
+                ),
             )
             region = fused[y1:y2, x1:x2]
             if fusion == "max":
@@ -101,8 +116,14 @@ def _score_image(
     extractor: PatchFeatureExtractor,
     memory_bank: np.ndarray,
     normalize_features: bool,
+    feature_cache: FeatureCache | None,
+    cache_key: str | None,
 ) -> np.ndarray:
-    feature_map = extractor.extract(image)
+    if feature_cache is None:
+        feature_map = extractor.extract(image)
+    else:
+        assert cache_key is not None
+        feature_map = feature_cache.get_or_compute(cache_key, lambda: extractor.extract(image))
     if feature_map.source_size != image.size:
         raise ValueError(
             "feature map source_size does not match the image being scored: "

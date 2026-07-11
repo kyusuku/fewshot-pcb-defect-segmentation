@@ -143,6 +143,23 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             provenance["memory_bank_size_full"],
         )
 
+    def test_debug_limit_one_keeps_all_heatmaps_and_bounds_panels(self) -> None:
+        rows, png_names = _run_debug_limit_fixture(debug_limit=1)
+
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["heatmap_path"] for row in rows))
+        self.assertTrue(all(row["debug_path"] == "" for row in rows[1:]))
+        self.assertNotEqual(rows[0]["debug_path"], "")
+        self.assertEqual(png_names, ["000_pcb1_anomaly_000.png"])
+
+    def test_debug_limit_zero_keeps_all_heatmaps_and_skips_panels(self) -> None:
+        rows, png_names = _run_debug_limit_fixture(debug_limit=0)
+
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["heatmap_path"] for row in rows))
+        self.assertTrue(all(row["debug_path"] == "" for row in rows))
+        self.assertEqual(png_names, [])
+
     def test_portable_scores_work_for_calibration_and_evaluation_from_other_cwd(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -292,6 +309,24 @@ def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
         {
             "dataset": "visa_pcb",
             "category": "pcb1",
+            "sample_id": "pcb1/test_normal_000",
+            "split": "test",
+            "image_path": str(
+                visa_root / "pcb1" / "train" / "normal" / "pcb1_train_normal_001.png"
+            ),
+            "label": "0",
+            "mask_path": "",
+            "box_path": "",
+            "template_path": "",
+            "metadata_json": "{}",
+            "fold_id": "0",
+            "fold_split": "test",
+        }
+    )
+    rows.append(
+        {
+            "dataset": "visa_pcb",
+            "category": "pcb1",
             "sample_id": "pcb1/val_normal_000",
             "split": "train",
             "image_path": str(
@@ -350,6 +385,57 @@ def _tiny_manifest_rows_for_selection() -> list[dict[str, str]]:
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _run_debug_limit_fixture(debug_limit: int) -> tuple[list[dict[str, str]], list[str]]:
+    repo_root = Path(__file__).resolve().parents[1]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        fixture = create_synthetic_debug_datasets(tmp_path / "fixtures")
+        manifest_path = tmp_path / "visa_pcb_folds.csv"
+        _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+        output_dir = tmp_path / "outputs"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--manifest",
+                str(manifest_path),
+                "--fold-id",
+                "0",
+                "--category",
+                "pcb1",
+                "--k",
+                "2",
+                "--limit",
+                "2",
+                "--query-fold-split",
+                "test",
+                "--feature-backbone",
+                "color_patch",
+                "--image-size",
+                "56",
+                "--patch-size",
+                "14",
+                "--debug-limit",
+                str(debug_limit),
+                "--output-dir",
+                str(output_dir),
+            ],
+            check=False,
+            cwd=repo_root,
+            env={"PYTHONPATH": str(repo_root / "src")},
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise AssertionError(result.stderr)
+        rows = _read_csv(output_dir / "scores.csv")
+        heatmap_paths = [output_dir / row["heatmap_path"] for row in rows]
+        if not all(path.is_file() for path in heatmap_paths):
+            raise AssertionError("not all required heatmaps were written")
+        png_names = sorted(path.name for path in output_dir.glob("*.png"))
+    return rows, png_names
 
 
 if __name__ == "__main__":
