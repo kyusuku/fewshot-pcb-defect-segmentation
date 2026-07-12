@@ -6,13 +6,21 @@ import sys
 from pathlib import Path
 
 import pytest
+import numpy as np
 
 from experiments.runner import (
     _validate_calibration_payload,
     _validate_recorded_dependency_closure,
     _validate_sample_rows,
     _validate_finite_metrics,
+    _validate_manifest_output_rows,
+    _validate_calibration_contract,
+    _validate_method_metrics,
     _normalize_output_identity,
+    _create_owned_staging,
+    _promote_complete_attempt,
+    _prune_owned_archives,
+    _write_ownership_marker,
     acquire_run_lock,
     build_commands,
     execution_identity,
@@ -80,6 +88,7 @@ def test_expected_heatmap_artifacts_cover_calibrated_evaluation(tmp_path: Path) 
         tmp_path / run.run_id / "test" / "memory_bank_provenance.json",
         tmp_path / run.run_id / "test" / "metrics.json",
         tmp_path / run.run_id / "test" / "per_image.csv",
+        tmp_path / run.run_id / ".runner_ownership.json",
         tmp_path / run.run_id / "provenance.json",
         tmp_path / run.run_id / "status.json",
     ]
@@ -472,6 +481,103 @@ def test_live_run_lock_rejects_second_owner(tmp_path: Path) -> None:
         release_run_lock(lock)
 
 
+def test_foreign_host_lock_is_never_reclaimed_automatically(tmp_path: Path) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    lock_dir = tmp_path / ".locks"
+    lock_dir.mkdir()
+    lock_path = lock_dir / f"{run.run_id}.lock"
+    lock_path.write_text(
+        json.dumps(
+            {
+                "run_id": run.run_id,
+                "pid": 999999,
+                "host": "foreign-host",
+                "requested_execution_sha256": "a" * 64,
+            }
+        )
+    )
+    with pytest.raises(RuntimeError, match="foreign-host"):
+        acquire_run_lock(tmp_path, run, {"identity": "current"})
+    assert lock_path.is_file()
+
+
+def test_staging_parent_symlink_and_planted_unknown_dirs_are_preserved(tmp_path: Path) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked_root = tmp_path / "linked-output"
+    linked_root.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="staging parent.*symlink"):
+        _create_owned_staging(linked_root, run, {"identity": "x"})
+    assert list(outside.iterdir()) == []
+
+    planted = tmp_path / ".planted-user-directory"
+    planted.mkdir()
+    (planted / "keep.txt").write_text("user data")
+    staging = _create_owned_staging(tmp_path, run, {"identity": "x"})
+    assert (planted / "keep.txt").read_text() == "user data"
+    assert staging != planted
+
+
+def test_failed_final_promotion_restores_old_final_and_preserves_staging(
+    tmp_path: Path,
+) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    final = tmp_path / run.run_id
+    final.mkdir()
+    _write_ownership_marker(final, run, {"identity": "old"}, nonce="oldnonce")
+    (final / "old.txt").write_text("old")
+    staging = _create_owned_staging(tmp_path, run, {"identity": "new"})
+    (staging / "new.txt").write_text("new")
+
+    def fail_new_promotion(source: Path, destination: Path) -> None:
+        raise OSError("injected promotion failure")
+
+    with pytest.raises(OSError, match="injected"):
+        _promote_complete_attempt(
+            staging,
+            final,
+            tmp_path,
+            replace_staging=fail_new_promotion,
+        )
+    assert (final / "old.txt").read_text() == "old"
+    assert (staging / "new.txt").read_text() == "new"
+
+
+def test_hidden_sibling_archives_preserve_relative_links_and_bounded_retention(
+    tmp_path: Path,
+) -> None:
+    run = RunSpec("dinov2_multi_sam2", "pcb1", 0, 1, 4880)
+    dependency_file = tmp_path / "dependency" / "test" / "heatmap.npy"
+    dependency_file.parent.mkdir(parents=True)
+    dependency_file.write_bytes(b"heatmap")
+    final = tmp_path / run.run_id
+    (final / "test").mkdir(parents=True)
+    _write_ownership_marker(final, run, {"identity": "old"}, nonce="oldnonce")
+    relative = Path("../../dependency/test/heatmap.npy")
+    (final / "test" / "link.txt").write_text(str(relative))
+    staging = _create_owned_staging(tmp_path, run, {"identity": "new"})
+    _promote_complete_attempt(staging, final, tmp_path)
+    archives = sorted(tmp_path.glob(f".archive-{run.run_id}-*"))
+    assert len(archives) == 1
+    assert (archives[0] / "test" / relative).resolve() == dependency_file.resolve()
+    for index in range(5):
+        archive = tmp_path / f".archive-{run.run_id}-extra{index}"
+        archive.mkdir()
+        _write_ownership_marker(archive, run, {"identity": str(index)}, nonce=str(index))
+    unknown = tmp_path / f".archive-{run.run_id}-unknown"
+    unknown.mkdir()
+    (unknown / "keep.txt").write_text("keep")
+    _prune_owned_archives(tmp_path, run, retain=3)
+    owned = [
+        path
+        for path in tmp_path.glob(f".archive-{run.run_id}-*")
+        if (path / ".runner_ownership.json").is_file()
+    ]
+    assert len(owned) == 3
+    assert (unknown / "keep.txt").read_text() == "keep"
+
+
 def test_symlinked_run_directory_is_rejected_before_write(tmp_path: Path) -> None:
     output = tmp_path / "outputs"
     outside = tmp_path / "outside"
@@ -519,3 +625,70 @@ def test_metrics_allow_declared_metadata_but_require_finite_numeric_values() -> 
         _validate_finite_metrics({"image_auroc": float("nan")})
     with pytest.raises(ValueError, match="numeric"):
         _validate_finite_metrics({"image_auroc": "high"})
+
+
+def test_manifest_row_semantics_reject_wrong_label_and_mask_identity(tmp_path: Path) -> None:
+    image = tmp_path / "image.png"
+    mask = tmp_path / "mask.png"
+    wrong_mask = tmp_path / "wrong-mask.png"
+    image.write_bytes(b"image")
+    mask.write_bytes(b"mask")
+    wrong_mask.write_bytes(b"wrong")
+    expected = {
+        "pcb1/a": {
+            "dataset": "visa_pcb",
+            "sample_id": "pcb1/a",
+            "category": "pcb1",
+            "fold_split": "test",
+            "label": "1",
+            "image_path": str(image),
+            "mask_path": str(mask),
+        }
+    }
+    valid = [dict(expected["pcb1/a"])]
+    _validate_manifest_output_rows(valid, expected, tmp_path, tmp_path, "scores")
+    wrong_label = [dict(valid[0], label="0")]
+    with pytest.raises(ValueError, match="label"):
+        _validate_manifest_output_rows(wrong_label, expected, tmp_path, tmp_path, "scores")
+    wrong_mask_row = [dict(valid[0], mask_path=str(wrong_mask))]
+    with pytest.raises(ValueError, match="mask identity"):
+        _validate_manifest_output_rows(
+            wrong_mask_row, expected, tmp_path, tmp_path, "scores"
+        )
+
+
+def test_calibration_contract_rejects_incomplete_and_pixel_count_mismatch(
+    tmp_path: Path,
+) -> None:
+    heatmap = tmp_path / "heatmap.npy"
+    np.save(heatmap, np.zeros((2, 3), dtype=np.float32))
+    rows = [{"sample_id": "pcb1/n", "label": "0", "heatmap_path": heatmap.name}]
+    valid = {
+        "quantile": 0.995,
+        "threshold": 0.5,
+        "num_images": 1,
+        "num_pixels": 6,
+        "source_split": "val",
+    }
+    _validate_calibration_contract(valid, 0.995, rows, tmp_path)
+    with pytest.raises((KeyError, ValueError, TypeError)):
+        _validate_calibration_contract({"threshold": 0.5}, 0.995, rows, tmp_path)
+    with pytest.raises(ValueError, match="pixel count"):
+        _validate_calibration_contract(dict(valid, num_pixels=5), 0.995, rows, tmp_path)
+
+
+def test_method_metric_schemas_reject_garbage_and_count_mismatch() -> None:
+    with pytest.raises(ValueError, match="missing required"):
+        _validate_method_metrics(
+            RunSpec("dinov2_single", "pcb1", 0, 1, 4880),
+            {"image_auroc": 0.9},
+            test_rows=[{"label": "1"}],
+            calibration=None,
+        )
+    with pytest.raises(ValueError, match="numeric"):
+        _validate_method_metrics(
+            RunSpec("dinov2_multi_sam2", "pcb1", 0, 1, 4880),
+            {"num_mask_images": "one"},
+            test_rows=[{"label": "1"}],
+            calibration=None,
+        )

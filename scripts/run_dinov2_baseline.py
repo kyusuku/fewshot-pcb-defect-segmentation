@@ -233,6 +233,7 @@ def main(
             debug_path = str(output_path)
         score_rows.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row["sample_id"],
                 "category": row["category"],
                 "label": row["label"],
@@ -412,6 +413,7 @@ def write_scores_csv(rows: list[dict[str, str]], output_path: str | Path) -> Pat
     output_path = Path(output_path)
     base_dir = output_path.parent.resolve()
     fieldnames = [
+        "dataset",
         "sample_id",
         "category",
         "label",

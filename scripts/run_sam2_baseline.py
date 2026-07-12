@@ -114,9 +114,12 @@ def main() -> None:
         mask_score = max((prediction.score for prediction in predictions), default=0.0)
         output_rows.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row["sample_id"],
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": args.query_fold_split,
+                "image_path": row.get("image_path", ""),
                 "mask_path": row.get("mask_path", ""),
                 "num_regions": str(len(regions)),
                 "num_masks": str(len(predictions)),
@@ -293,9 +296,12 @@ def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Pa
     output_path = Path(output_path)
     base_dir = output_path.parent.resolve()
     fieldnames = [
+        "dataset",
         "sample_id",
         "category",
         "label",
+        "fold_split",
+        "image_path",
         "mask_path",
         "num_regions",
         "num_masks",
@@ -307,7 +313,13 @@ def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Pa
     portable_rows = []
     for row in rows:
         portable = dict(row)
-        for key in ("mask_path", "pred_mask_path", "heatmap_path", "debug_path"):
+        for key in (
+            "image_path",
+            "mask_path",
+            "pred_mask_path",
+            "heatmap_path",
+            "debug_path",
+        ):
             value = portable.get(key) or ""
             if value:
                 portable[key] = os.path.relpath(Path(value).resolve(), start=base_dir)

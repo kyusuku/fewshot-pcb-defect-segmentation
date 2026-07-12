@@ -16,9 +16,11 @@ from evaluation.calibration import NormalThreshold
 
 
 MASK_SCORE_FIELDS = [
+    "dataset",
     "sample_id",
     "category",
     "label",
+    "fold_split",
     "evidence_class",
     "refiner",
     "raw_mask_source",

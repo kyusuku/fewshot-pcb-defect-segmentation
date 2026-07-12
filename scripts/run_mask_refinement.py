@@ -155,9 +155,11 @@ def main() -> None:
         mask_score = max((prediction.score for prediction in predictions), default=0.0)
         output_rows.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row["sample_id"],
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": row.get("fold_split", ""),
                 "evidence_class": (
                     "paper_evidence" if args.refiner == "sam2" else "smoke_debug_only"
                 ),

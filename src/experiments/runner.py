@@ -13,8 +13,13 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Mapping, Sequence
+
+import numpy as np
+
+from evaluation.calibration import NormalThreshold
 
 from experiments.provenance import (
     atomic_write_json,
@@ -32,6 +37,7 @@ from experiments.spec import ReferencedArtifact, RunSpec, load_experiment_config
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+OWNERSHIP_MARKER = ".runner_ownership.json"
 HEATMAP_METHODS = {"patchcore", "dinov2_single", "dinov2_multi"}
 GUIDED_METHODS = {"dinov2_single_sam2", "dinov2_multi_sam2"}
 MASK_METHODS = {*GUIDED_METHODS, "sam2_only", "anomaly_consistent_sam2"}
@@ -49,7 +55,11 @@ def expected_artifacts(run: RunSpec, root: str | Path) -> list[Path]:
 
 
 def _expected_artifacts_in(run: RunSpec, directory: Path) -> list[Path]:
-    common = [directory / "provenance.json", directory / "status.json"]
+    common = [
+        directory / OWNERSHIP_MARKER,
+        directory / "provenance.json",
+        directory / "status.json",
+    ]
     if run.method in HEATMAP_METHODS:
         return [
             directory / "val" / "scores.csv",
@@ -582,6 +592,7 @@ def run_matrix(
                 execution,
                 allow_dirty=allow_dirty,
             )
+            print(f"COMPLETE {run.run_id}")
         except BaseException as exc:
             if not entered_execute:
                 _record_matrix_preflight_failure(
@@ -608,11 +619,7 @@ def execute_run(
     run_dir = output_root / run.run_id
     if run_dir.is_symlink():
         raise ValueError(f"run directory must not be a symlink: {run.run_id}")
-    staging = output_root / f".{run.run_id}.staging-{sha256_json(execution)[:12]}"
-    if staging.is_symlink():
-        raise ValueError(f"staging directory must not be a symlink: {run.run_id}")
-    if staging.exists():
-        shutil.rmtree(staging)
+    staging = _create_owned_staging(output_root, run, execution)
     staged_commands = [
         [value.replace(str(run_dir), str(staging)) for value in command]
         for command in commands
@@ -659,7 +666,12 @@ def execute_run(
                 cwd=PROJECT_ROOT,
                 env=environment,
             )
-        _validate_data_artifacts_in(run, staging, manifest_path=manifest_path)
+        _validate_data_artifacts_in(
+            run,
+            staging,
+            manifest_path=manifest_path,
+            expected_quantile=float(execution["calibration_quantile"]),
+        )
         _validate_evidence_class(run, staging, execution)
         artifacts = _collect_artifact_identities_in(run, staging)
         final = build_provenance(
@@ -679,17 +691,18 @@ def execute_run(
         final["observed_identities"] = _collect_observed_identities_in(run, staging)
         final["effective_execution_sha256"] = compute_effective_execution_sha256(final)
         atomic_write_json(provenance_path, final)
+        _validate_staged_success(run, staging, execution, manifest_path)
+        complete_status = {
+            "state": "complete",
+            "effective_execution_sha256": final["effective_execution_sha256"],
+            "requested_execution_sha256": sha256_json(execution),
+        }
+        _validate_complete_status_payload(complete_status, final, execution)
         atomic_write_json(
             status_path,
-            {
-                "state": "complete",
-                "effective_execution_sha256": final["effective_execution_sha256"],
-                "requested_execution_sha256": sha256_json(execution),
-            },
+            complete_status,
         )
         _promote_complete_attempt(staging, run_dir, output_root)
-        validate_completed_run(run, output_root, execution)
-        print(f"COMPLETE {run.run_id}")
     except BaseException as exc:
         returncode = exc.returncode if isinstance(exc, subprocess.CalledProcessError) else None
         atomic_write_json(
@@ -758,6 +771,7 @@ def execution_identity(
             if loaded_config["name"] == "arxiv_smoke"
             else "paper_evidence"
         ),
+        "calibration_quantile": method_config["calibration"]["quantile"],
     }
 
 
@@ -818,6 +832,7 @@ def validate_dependency(dependency, run_dir: Path, _visited: set[str] | None = N
         raise ValueError(f"dependency {dependency.run_id} run directory is a symlink")
     if (run_dir / "status.json").is_symlink() or (run_dir / "provenance.json").is_symlink():
         raise ValueError(f"dependency {dependency.run_id} metadata must not be symlinked")
+    marker = _read_ownership_marker(run_dir)
     visited = set() if _visited is None else _visited
     if dependency.run_id in visited:
         raise ValueError(f"dependency closure cycle at {dependency.run_id}")
@@ -856,6 +871,8 @@ def validate_dependency(dependency, run_dir: Path, _visited: set[str] | None = N
     execution = provenance.get("execution")
     if not isinstance(execution, Mapping):
         raise ValueError(f"dependency {dependency.run_id} execution identity is missing")
+    if marker.get("pre_execution_sha256") != sha256_json(execution):
+        raise ValueError(f"dependency {dependency.run_id} ownership identity is stale")
     recorded_ancestors = execution.get("dependency_effective_identities")
     if not isinstance(recorded_ancestors, Mapping):
         raise ValueError(f"dependency {dependency.run_id} closure identity is missing")
@@ -872,18 +889,32 @@ def _validate_recorded_dependency_closure(
 
 
 def validate_data_artifacts(
-    run: RunSpec, root: str | Path, *, manifest_path: str | Path | None = None
+    run: RunSpec,
+    root: str | Path,
+    *,
+    manifest_path: str | Path | None = None,
+    expected_quantile: float | None = None,
 ) -> None:
     run_dir = Path(root) / run.run_id
     if run_dir.is_symlink():
         raise ValueError(f"run {run.run_id} directory must not be a symlink")
     if (run_dir / "status.json").is_symlink() or (run_dir / "provenance.json").is_symlink():
         raise ValueError(f"run {run.run_id} metadata must not be symlinked")
-    _validate_data_artifacts_in(run, run_dir, manifest_path=manifest_path)
+    marker = _read_ownership_marker(run_dir)
+    _validate_data_artifacts_in(
+        run,
+        run_dir,
+        manifest_path=manifest_path,
+        expected_quantile=expected_quantile,
+    )
 
 
 def _validate_data_artifacts_in(
-    run: RunSpec, run_dir: Path, *, manifest_path: str | Path | None = None
+    run: RunSpec,
+    run_dir: Path,
+    *,
+    manifest_path: str | Path | None = None,
+    expected_quantile: float | None = None,
 ) -> None:
     run_dir = run_dir.resolve()
     data_paths = _expected_artifacts_in(run, run_dir)[:-2]
@@ -893,7 +924,7 @@ def _validate_data_artifacts_in(
             raise ValueError(f"artifact escapes run root: {path.name}")
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError(f"missing or empty artifact: {path.relative_to(run_dir)}")
-    expected = _expected_manifest_ids(run, manifest_path) if manifest_path is not None else {}
+    expected = _expected_manifest_rows(run, manifest_path) if manifest_path is not None else {}
     if run.method in HEATMAP_METHODS:
         val_rows = _read_validated_csv(
             run_dir / "val" / "scores.csv", {"sample_id", "heatmap_path"}
@@ -905,13 +936,36 @@ def _validate_data_artifacts_in(
             run_dir / "test" / "per_image.csv", {"sample_id", "mask_f1"}
         )
         if expected:
-            _validate_sample_rows(val_rows, expected["val"], run.category, "val", "scores")
-            _validate_sample_rows(test_rows, expected["test"], run.category, "test", "scores")
             _validate_sample_rows(
-                per_image, expected["test"], run.category, None, "per_image"
+                val_rows, set(expected["val"]), run.category, "val", "scores"
+            )
+            _validate_sample_rows(
+                test_rows, set(expected["test"]), run.category, "test", "scores"
+            )
+            _validate_sample_rows(
+                per_image, set(expected["test"]), run.category, None, "per_image"
+            )
+            _validate_manifest_output_rows(
+                val_rows,
+                expected["val"],
+                run_dir / "val",
+                Path(manifest_path).parent,
+                "validation scores",
+            )
+            _validate_manifest_output_rows(
+                test_rows,
+                expected["test"],
+                run_dir / "test",
+                Path(manifest_path).parent,
+                "test scores",
             )
         calibration = _read_json(run_dir / "calibration.json", "calibration")
-        _validate_calibration_payload(calibration)
+        _validate_calibration_contract(
+            calibration,
+            expected_quantile,
+            val_rows,
+            run_dir / "val",
+        )
     else:
         mask_rows = _read_validated_csv(
             run_dir / "test" / "mask_scores.csv", {"sample_id", "pred_mask_path"}
@@ -920,10 +974,27 @@ def _validate_data_artifacts_in(
             run_dir / "test" / "mask_per_image.csv", {"sample_id"}
         )
         if expected:
-            _validate_sample_rows(mask_rows, expected["test"], run.category, None, "masks")
-            _validate_sample_rows(per_mask, expected["test"], run.category, None, "per_mask")
+            _validate_sample_rows(
+                mask_rows, set(expected["test"]), run.category, "test", "masks"
+            )
+            _validate_sample_rows(
+                per_mask, set(expected["test"]), run.category, None, "per_mask"
+            )
+            _validate_manifest_output_rows(
+                mask_rows,
+                expected["test"],
+                run_dir / "test",
+                Path(manifest_path).parent,
+                "mask scores",
+            )
     metrics_name = "metrics.json" if run.method in HEATMAP_METHODS else "mask_metrics.json"
-    _validate_finite_metrics(_read_json(run_dir / "test" / metrics_name, "metrics"))
+    metrics = _read_json(run_dir / "test" / metrics_name, "metrics")
+    _validate_method_metrics(
+        run,
+        metrics,
+        test_rows=test_rows if run.method in HEATMAP_METHODS else mask_rows,
+        calibration=calibration if run.method in HEATMAP_METHODS else None,
+    )
     for reference in output_references(run):
         resolve_referenced_artifacts(run_dir, reference)
 
@@ -936,7 +1007,11 @@ def collect_artifact_identities(run: RunSpec, root: str | Path) -> list[dict[str
 def _collect_artifact_identities_in(
     run: RunSpec, run_dir: Path
 ) -> list[dict[str, object]]:
-    paths = _expected_artifacts_in(run, run_dir)[:-2]
+    paths = [
+        path
+        for path in _expected_artifacts_in(run, run_dir)[:-2]
+        if path.name != OWNERSHIP_MARKER
+    ]
     identities = [
         {"path": path.relative_to(run_dir).as_posix(), "sha256": sha256_file(path)}
         for path in paths
@@ -1012,6 +1087,9 @@ def validate_completed_run(
     run: RunSpec, root: str | Path, execution: Mapping[str, object]
 ) -> None:
     run_dir = Path(root) / run.run_id
+    if run_dir.is_symlink():
+        raise ValueError(f"run {run.run_id} directory must not be a symlink")
+    marker = _read_ownership_marker(run_dir)
     status = _read_json(run_dir / "status.json", "status")
     provenance = _read_json(run_dir / "provenance.json", "provenance")
     if status.get("state") != "complete":
@@ -1020,6 +1098,10 @@ def validate_completed_run(
         raise ValueError(f"run {run.run_id} run-spec identity is stale")
     if provenance.get("execution") != dict(execution):
         raise ValueError(f"run {run.run_id} requested execution identity is stale")
+    if marker.get("run_id") != run.run_id or marker.get("pre_execution_sha256") != sha256_json(
+        execution
+    ):
+        raise ValueError(f"run {run.run_id} ownership identity is stale")
     effective = provenance.get("effective_execution_sha256")
     validate_resume_identity(provenance, expected_effective_execution_sha256=effective)
     if status.get("effective_execution_sha256") != effective:
@@ -1030,12 +1112,60 @@ def validate_completed_run(
     manifest_path = None
     if isinstance(manifest_identity, Mapping):
         manifest_path = _project_path(manifest_identity.get("path"))
-    validate_data_artifacts(run, root, manifest_path=manifest_path)
+    validate_data_artifacts(
+        run,
+        root,
+        manifest_path=manifest_path,
+        expected_quantile=float(execution["calibration_quantile"]),
+    )
     _validate_evidence_class(run, run_dir, execution)
     _validate_recorded_outputs(provenance, run_dir)
     observed = _collect_observed_identities_in(run, run_dir)
     if provenance.get("observed_identities") != observed:
         raise ValueError("observed extractor identity is stale")
+
+
+def _validate_staged_success(
+    run: RunSpec,
+    staging: Path,
+    execution: Mapping[str, object],
+    manifest_path: str | Path,
+) -> None:
+    marker = _read_ownership_marker(staging)
+    if marker.get("run_id") != run.run_id or marker.get("pre_execution_sha256") != sha256_json(
+        execution
+    ):
+        raise ValueError("staging ownership identity is stale")
+    provenance = _read_json(staging / "provenance.json", "staging provenance")
+    if provenance.get("run_spec_sha256") != run.identity_sha256:
+        raise ValueError("staging run-spec identity is stale")
+    if provenance.get("execution") != dict(execution):
+        raise ValueError("staging execution identity is stale")
+    effective = provenance.get("effective_execution_sha256")
+    validate_resume_identity(provenance, expected_effective_execution_sha256=effective)
+    _validate_data_artifacts_in(
+        run,
+        staging,
+        manifest_path=manifest_path,
+        expected_quantile=float(execution["calibration_quantile"]),
+    )
+    _validate_evidence_class(run, staging, execution)
+    _validate_recorded_outputs(provenance, staging)
+    if provenance.get("observed_identities") != _collect_observed_identities_in(run, staging):
+        raise ValueError("staging observed identity is stale")
+
+
+def _validate_complete_status_payload(
+    status: Mapping[str, object],
+    provenance: Mapping[str, object],
+    execution: Mapping[str, object],
+) -> None:
+    if status != {
+        "state": "complete",
+        "effective_execution_sha256": provenance.get("effective_execution_sha256"),
+        "requested_execution_sha256": sha256_json(execution),
+    }:
+        raise ValueError("complete status payload is inconsistent")
 
 
 def matrix_report(
@@ -1096,6 +1226,7 @@ def _checker_error(exc: BaseException) -> dict[str, str]:
         isinstance(exc, (FileNotFoundError, OSError))
         or "missing" in message
         or "no such" in message
+        or "directory must be real" in message
     ):
         category = "missing"
     elif "failed" in message or "not complete" in message:
@@ -1148,16 +1279,16 @@ def _read_validated_csv(path: Path, required: set[str]) -> list[dict[str, str]]:
         return rows
 
 
-def _expected_manifest_ids(
+def _expected_manifest_rows(
     run: RunSpec, manifest_path: str | Path
-) -> dict[str, set[str]]:
+) -> dict[str, dict[str, dict[str, str]]]:
     with Path(manifest_path).open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         _require_unique_header(reader, "manifest")
         rows = list(reader)
     return {
         split: {
-            row["sample_id"]
+            row["sample_id"]: row
             for row in rows
             if row.get("dataset") == "visa_pcb"
             and row.get("category") == run.category
@@ -1166,6 +1297,75 @@ def _expected_manifest_ids(
         }
         for split in ("val", "test")
     }
+
+
+def _validate_manifest_output_rows(
+    rows: Sequence[Mapping[str, str]],
+    expected: Mapping[str, Mapping[str, str]],
+    output_base: Path,
+    manifest_base: Path,
+    context: str,
+) -> None:
+    for row in rows:
+        sample_id = row.get("sample_id", "")
+        source = expected.get(sample_id)
+        if source is None:
+            raise ValueError(f"{context} sample is absent from manifest")
+        for field in ("dataset", "category", "fold_split", "label"):
+            if row.get(field) != source.get(field):
+                raise ValueError(f"{context} {field} does not match manifest")
+        _require_matching_file_identity(
+            row.get("image_path", ""),
+            source.get("image_path", ""),
+            output_base,
+            manifest_base,
+            f"{context} image identity",
+            required=True,
+        )
+        anomaly = source.get("label") == "1"
+        _require_matching_file_identity(
+            row.get("mask_path", ""),
+            source.get("mask_path", ""),
+            output_base,
+            manifest_base,
+            f"{context} mask identity",
+            required=anomaly,
+        )
+
+
+def _require_matching_file_identity(
+    observed: str,
+    expected: str,
+    observed_base: Path,
+    expected_base: Path,
+    context: str,
+    *,
+    required: bool,
+) -> None:
+    if not required and not expected:
+        if observed:
+            raise ValueError(f"{context} must be empty for a normal sample")
+        return
+    if not observed or not expected:
+        raise ValueError(f"{context} is required")
+    observed_path = _resolve_data_path(observed, observed_base)
+    expected_path = _resolve_data_path(expected, expected_base)
+    if sha256_file(observed_path) != sha256_file(expected_path):
+        raise ValueError(f"{context} does not match manifest")
+
+
+def _resolve_data_path(value: str, base: Path) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        candidate = path
+    else:
+        candidate = base / path
+        project_candidate = PROJECT_ROOT / path
+        if not candidate.is_file() and project_candidate.is_file():
+            candidate = project_candidate
+    if candidate.is_symlink() or not candidate.is_file():
+        raise ValueError("scientific data path must be a regular non-symlink file")
+    return candidate.resolve()
 
 
 def _validate_sample_rows(
@@ -1200,6 +1400,90 @@ def _validate_finite_metrics(payload: Mapping[str, object]) -> None:
             raise ValueError(f"metric {key!r} must be finite")
 
 
+HEATMAP_METRIC_KEYS = {
+    "image_auroc",
+    "pixel_auroc",
+    "aupro",
+    "oracle_best_pixel_f1",
+    "oracle_best_pixel_iou",
+    "oracle_best_pixel_threshold",
+    "calibrated_aggregate_pixel_precision",
+    "calibrated_aggregate_pixel_recall",
+    "calibrated_aggregate_pixel_f1",
+    "calibrated_aggregate_pixel_iou",
+    "calibrated_mean_mask_precision",
+    "calibrated_mean_mask_recall",
+    "calibrated_mean_mask_f1",
+    "calibrated_mean_mask_iou",
+    "calibrated_mean_anomaly_mask_precision",
+    "calibrated_mean_anomaly_mask_recall",
+    "calibrated_mean_anomaly_mask_f1",
+    "calibrated_mean_anomaly_mask_iou",
+    "calibrated_num_images",
+    "calibrated_num_anomaly_images",
+    "calibration_quantile",
+    "calibration_threshold",
+    "calibration_source_split",
+    "calibration_num_images",
+    "calibration_num_pixels",
+    "num_images",
+    "num_pixel_images",
+}
+MASK_METRIC_KEYS = {
+    "num_mask_images",
+    "num_anomaly_mask_images",
+    "mean_mask_precision",
+    "mean_mask_recall",
+    "mean_mask_f1",
+    "mean_mask_iou",
+    "mean_anomaly_mask_precision",
+    "mean_anomaly_mask_recall",
+    "mean_anomaly_mask_f1",
+    "mean_anomaly_mask_iou",
+}
+
+
+def _validate_method_metrics(
+    run: RunSpec,
+    payload: Mapping[str, object],
+    *,
+    test_rows: Sequence[Mapping[str, str]],
+    calibration: Mapping[str, object] | None,
+) -> None:
+    _validate_finite_metrics(payload)
+    required = HEATMAP_METRIC_KEYS if run.method in HEATMAP_METHODS else MASK_METRIC_KEYS
+    missing = sorted(required - set(payload))
+    if missing:
+        raise ValueError(f"metrics missing required method keys: {missing}")
+    anomaly_count = sum(row.get("label") == "1" for row in test_rows)
+    if run.method in HEATMAP_METHODS:
+        if int(float(payload["num_images"])) != len(test_rows):
+            raise ValueError("heatmap metric image count does not match rows")
+        if int(float(payload["num_pixel_images"])) != len(test_rows):
+            raise ValueError("heatmap pixel-image count does not match rows")
+        if int(float(payload["calibrated_num_images"])) != len(test_rows):
+            raise ValueError("calibrated image count does not match rows")
+        if int(float(payload["calibrated_num_anomaly_images"])) != anomaly_count:
+            raise ValueError("heatmap anomaly count does not match rows")
+        if calibration is None:
+            raise ValueError("heatmap metrics require calibration metadata")
+        pairs = {
+            "calibration_quantile": "quantile",
+            "calibration_threshold": "threshold",
+            "calibration_source_split": "source_split",
+            "calibration_num_images": "num_images",
+            "calibration_num_pixels": "num_pixels",
+        }
+        for metric_key, calibration_key in pairs.items():
+            if payload.get(metric_key) != calibration.get(calibration_key):
+                raise ValueError(f"metric {metric_key} does not match calibration artifact")
+    else:
+        if int(float(payload["num_mask_images"])) != len(test_rows):
+            raise ValueError("mask metric image count does not match rows")
+        if int(float(payload["num_anomaly_mask_images"])) != anomaly_count:
+            raise ValueError("mask anomaly count does not match rows")
+
+
 def _validate_evidence_class(
     run: RunSpec, run_dir: Path, execution: Mapping[str, object]
 ) -> None:
@@ -1225,6 +1509,37 @@ def _validate_calibration_payload(payload: Mapping[str, object]) -> None:
         value = payload.get(field)
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             raise ValueError(f"calibration {field} must be a positive integer")
+
+
+def _validate_calibration_contract(
+    payload: Mapping[str, object],
+    expected_quantile: float | None,
+    validation_rows: Sequence[Mapping[str, str]],
+    scores_base: Path,
+) -> NormalThreshold:
+    try:
+        threshold = NormalThreshold.from_dict(dict(payload))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("calibration artifact is incomplete or malformed") from exc
+    if expected_quantile is None or threshold.quantile != expected_quantile:
+        raise ValueError("calibration quantile does not match frozen config")
+    if threshold.source_split != "val":
+        raise ValueError("calibration source must be val")
+    normal_rows = [row for row in validation_rows if row.get("label") == "0"]
+    if threshold.num_images != len(normal_rows):
+        raise ValueError("calibration image count does not match normal validation rows")
+    pixels = 0
+    for row in normal_rows:
+        heatmap = np.load(
+            _resolve_data_path(row.get("heatmap_path", ""), scores_base),
+            allow_pickle=False,
+        )
+        if heatmap.ndim != 2 or not np.isfinite(heatmap).all():
+            raise ValueError("validation heatmap must be finite and two-dimensional")
+        pixels += int(heatmap.size)
+    if threshold.num_pixels != pixels:
+        raise ValueError("calibration pixel count does not match validation heatmaps")
+    return threshold
 
 
 def _require_unique_header(reader: csv.DictReader, context: str) -> list[str]:
@@ -1517,9 +1832,7 @@ def _record_matrix_preflight_failure(
     run_dir = output / run.run_id
     if run_dir.is_symlink():
         raise ValueError(f"run directory must not be a symlink: {run.run_id}") from exc
-    staging = output / f".{run.run_id}.preflight-{sha256_json(preflight_identity)[:12]}"
-    if staging.exists():
-        shutil.rmtree(staging)
+    staging = _create_owned_staging(output, run, preflight_identity)
     _write_preflight_failure(run, staging, preflight_identity, exc)
     _promote_failed_attempt(staging, run_dir, output, preflight_identity)
 
@@ -1543,8 +1856,13 @@ def acquire_run_lock(
             descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         except FileExistsError:
             owner = _read_json(lock_path, "run lock")
-            if owner.get("host") == socket.gethostname() and _pid_is_live(owner.get("pid")):
+            if owner.get("host") != socket.gethostname():
+                raise RuntimeError(
+                    f"run {run.run_id} is owned by foreign-host lock; manual reclaim required"
+                )
+            if _pid_is_live(owner.get("pid")):
                 raise RuntimeError(f"run {run.run_id} has a live conflicting owner")
+            _validate_lock_marker(owner, run)
             lock_path.unlink()
             continue
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
@@ -1555,26 +1873,34 @@ def acquire_run_lock(
     raise RuntimeError(f"unable to acquire lock for {run.run_id}")
 
 
-def _promote_complete_attempt(staging: Path, run_dir: Path, output_root: Path) -> None:
+def _promote_complete_attempt(
+    staging: Path,
+    run_dir: Path,
+    output_root: Path,
+    *,
+    replace_staging=None,
+) -> None:
+    replace_staging = replace_staging or os.replace
     output_root.mkdir(parents=True, exist_ok=True)
+    staging_marker = _read_ownership_marker(staging)
+    _prune_owned_archives(output_root, str(staging_marker["run_id"]), retain=2)
+    archived: Path | None = None
     if run_dir.exists():
-        if run_dir.is_symlink() or not _runner_owned_directory(run_dir):
+        if run_dir.is_symlink() or not _runner_owned_directory(
+            run_dir, expected_run_id=staging_marker["run_id"]
+        ):
             raise ValueError(f"refusing to replace non-runner-owned directory: {run_dir.name}")
-        archive_root = output_root / ".archive"
-        archive_root.mkdir(parents=True, exist_ok=True)
-        status = _read_json(run_dir / "status.json", "archived status")
-        identity = str(
-            status.get("effective_execution_sha256")
-            or status.get("requested_execution_sha256")
-            or "unknown"
-        )[:12]
-        archive = archive_root / f"{run_dir.name}-{identity}"
-        suffix = 1
-        while archive.exists():
-            archive = archive_root / f"{run_dir.name}-{identity}-{suffix}"
-            suffix += 1
-        os.replace(run_dir, archive)
-    os.replace(staging, run_dir)
+        old_marker = _read_ownership_marker(run_dir)
+        archived = output_root / f".archive-{run_dir.name}-{old_marker['nonce']}"
+        if archived.exists() or archived.is_symlink():
+            raise ValueError("archive destination collision; refusing to replace it")
+        os.rename(run_dir, archived)
+    try:
+        replace_staging(staging, run_dir)
+    except BaseException:
+        if archived is not None and not run_dir.exists():
+            os.rename(archived, run_dir)
+        raise
 
 
 def _promote_failed_attempt(
@@ -1585,29 +1911,114 @@ def _promote_failed_attempt(
 ) -> None:
     if not staging.exists():
         return
+    marker = _read_ownership_marker(staging)
     output_root.mkdir(parents=True, exist_ok=True)
     if not run_dir.exists():
         os.replace(staging, run_dir)
         return
-    failures = output_root / ".failures"
-    failures.mkdir(parents=True, exist_ok=True)
-    target = failures / f"{run_dir.name}-{sha256_json(execution)[:12]}"
-    if target.exists():
-        shutil.rmtree(target)
-    os.replace(staging, target)
+    target = output_root / f".failure-{run_dir.name}-{marker['nonce']}"
+    if target.exists() or target.is_symlink():
+        raise ValueError("failure destination collision; preserving owned staging")
+    os.rename(staging, target)
 
 
-def _runner_owned_directory(path: Path) -> bool:
+def _runner_owned_directory(path: Path, expected_run_id: str | None = None) -> bool:
     try:
-        provenance = _read_json(path / "provenance.json", "runner provenance")
-        status = _read_json(path / "status.json", "runner status")
+        marker = _read_ownership_marker(path)
     except (OSError, ValueError, json.JSONDecodeError):
         return False
-    return provenance.get("run_id") == path.name and status.get("state") in {
-        "running",
-        "complete",
-        "failed",
-    }
+    run_id = marker["run_id"]
+    if expected_run_id is not None and run_id != expected_run_id:
+        return False
+    return True
+
+
+def _create_owned_staging(
+    output_root: str | Path,
+    run: RunSpec,
+    pre_execution: Mapping[str, object],
+) -> Path:
+    parent = Path(output_root)
+    if parent.is_symlink():
+        raise ValueError("staging parent must not be a symlink")
+    parent.mkdir(parents=True, exist_ok=True)
+    if parent.is_symlink() or not parent.is_dir():
+        raise ValueError("staging parent must be a real directory")
+    prefix = f".staging-{run.run_id}-"
+    staging = Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
+    nonce = staging.name.removeprefix(prefix)
+    _write_ownership_marker(staging, run, pre_execution, nonce=nonce)
+    return staging
+
+
+def _write_ownership_marker(
+    directory: Path,
+    run: RunSpec,
+    pre_execution: Mapping[str, object],
+    *,
+    nonce: str,
+) -> None:
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError("ownership marker destination must be a real directory")
+    atomic_write_json(
+        directory / OWNERSHIP_MARKER,
+        {
+            "schema_version": 1,
+            "run_id": run.run_id,
+            "pre_execution_sha256": sha256_json(pre_execution),
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
+            "nonce": nonce,
+        },
+    )
+
+
+def _read_ownership_marker(directory: Path) -> dict[str, object]:
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError("owned directory must be real and not symlinked")
+    marker_path = directory / OWNERSHIP_MARKER
+    if marker_path.is_symlink():
+        raise ValueError("ownership marker must not be symlinked")
+    marker = _read_json(marker_path, "ownership marker")
+    required = {"schema_version", "run_id", "pre_execution_sha256", "pid", "host", "nonce"}
+    if set(marker) != required or marker.get("schema_version") != 1:
+        raise ValueError("invalid ownership marker fields")
+    if not isinstance(marker.get("run_id"), str) or not isinstance(marker.get("nonce"), str):
+        raise ValueError("invalid ownership marker identity")
+    checksum = marker.get("pre_execution_sha256")
+    if not isinstance(checksum, str) or len(checksum) != 64:
+        raise ValueError("invalid ownership pre-execution identity")
+    return marker
+
+
+def _validate_lock_marker(owner: Mapping[str, object], run: RunSpec) -> None:
+    required = {"run_id", "pid", "host", "requested_execution_sha256"}
+    if set(owner) != required or owner.get("run_id") != run.run_id:
+        raise RuntimeError("stale lock marker is invalid; manual reclaim required")
+    checksum = owner.get("requested_execution_sha256")
+    if not isinstance(checksum, str) or len(checksum) != 64:
+        raise RuntimeError("stale lock identity is invalid; manual reclaim required")
+
+
+def _prune_owned_archives(
+    output_root: Path, run: RunSpec | str, *, retain: int
+) -> None:
+    run_id = run.run_id if isinstance(run, RunSpec) else run
+    candidates = []
+    for path in output_root.glob(f".archive-{run_id}-*"):
+        if path.is_symlink():
+            continue
+        try:
+            marker = _read_ownership_marker(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if marker.get("run_id") == run_id:
+            candidates.append(path)
+    candidates.sort(key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True)
+    for path in candidates[retain:]:
+        if path.is_symlink() or not _runner_owned_directory(path, run_id):
+            continue
+        shutil.rmtree(path)
 
 
 def release_run_lock(lock_path: str | Path) -> None:
