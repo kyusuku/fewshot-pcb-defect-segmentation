@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import csv
 import importlib.metadata
+import importlib.util
 import json
+import math
 import os
 import random
+import shutil
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -41,12 +45,18 @@ def method_dependencies(run: RunSpec) -> list[str]:
 
 def expected_artifacts(run: RunSpec, root: str | Path) -> list[Path]:
     directory = Path(root) / run.run_id
+    return _expected_artifacts_in(run, directory)
+
+
+def _expected_artifacts_in(run: RunSpec, directory: Path) -> list[Path]:
     common = [directory / "provenance.json", directory / "status.json"]
     if run.method in HEATMAP_METHODS:
         return [
             directory / "val" / "scores.csv",
+            directory / "val" / "memory_bank_provenance.json",
             directory / "calibration.json",
             directory / "test" / "scores.csv",
+            directory / "test" / "memory_bank_provenance.json",
             directory / "test" / "metrics.json",
             directory / "test" / "per_image.csv",
             *common,
@@ -150,6 +160,7 @@ def build_commands(
 ) -> list[list[str]]:
     """Expand one run into exact shell-free argv lists."""
 
+    config = effective_method_config(config)
     output_root = Path(output_root)
     dependency_root = Path(dependency_root)
     run_dir = output_root / run.run_id
@@ -336,7 +347,7 @@ def _sam2_only_commands(
                 "--sam2-checkpoint",
                 str(_project_path(values["checkpoint"])),
                 "--sam2-model-config",
-                str(_project_path(values["model_config"])),
+                str(values["model_config"]),
             ]
         )
     else:
@@ -381,37 +392,25 @@ def _fusion_commands(
     mask_output = str(run.overrides.get("mask_output", "intersection"))
     minimum_iou = run.overrides.get("min_iou", 0.25)
     max_expansion = run.overrides.get("max_expansion", 2.0)
+    masks = dependency_dirs[run.dependencies[1].run_id]
+    command = [
+        python,
+        str(PROJECT_ROOT / "scripts" / "fuse_saved_masks.py"),
+        "--mask-scores-csv",
+        str(masks / "test" / "mask_scores.csv"),
+        "--calibration-json",
+        str(heatmap / "calibration.json"),
+        "--mask-output",
+        mask_output,
+        "--output-dir",
+        str(run_dir / "test"),
+        "--selective-min-iou",
+        str(minimum_iou),
+        "--selective-max-expansion",
+        str(max_expansion),
+    ]
     if config["name"] == "arxiv_smoke":
-        sam2 = dict(config["sam2"])
-        command = _refinement_command(
-            scores_csv=heatmap / "test" / "scores.csv",
-            calibration_json=heatmap / "calibration.json",
-            output_dir=run_dir / "test",
-            sam2=sam2,
-            device=device,
-            mask_output=mask_output,
-            python=python,
-            minimum_iou=minimum_iou,
-            max_expansion=max_expansion,
-        )
-    else:
-        masks = dependency_dirs[run.dependencies[1].run_id]
-        command = [
-            python,
-            str(PROJECT_ROOT / "scripts" / "fuse_saved_masks.py"),
-            "--mask-scores-csv",
-            str(masks / "test" / "mask_scores.csv"),
-            "--calibration-json",
-            str(heatmap / "calibration.json"),
-            "--mask-output",
-            mask_output,
-            "--output-dir",
-            str(run_dir / "test"),
-            "--selective-min-iou",
-            str(minimum_iou),
-            "--selective-max-expansion",
-            str(max_expansion),
-        ]
+        command.append("--smoke-debug-fallback")
     return [command, _mask_evaluation_command(run_dir, python, heatmap / "test" / "scores.csv")]
 
 
@@ -467,7 +466,7 @@ def _refinement_command(
                 "--sam2-checkpoint",
                 str(_project_path(sam2["checkpoint"])),
                 "--sam2-model-config",
-                str(_project_path(sam2["model_config"])),
+                str(sam2["model_config"]),
             ]
         )
     return command
@@ -523,41 +522,74 @@ def run_matrix(
         )
         if dry_run:
             print(f"RUN {run.run_id}")
-            for command in commands:
+            portable = portable_command_identity(
+                commands,
+                run,
+                output_root=output_root,
+                dependency_root=dependency_root,
+                cache_root=feature_cache_dir,
+            )
+            for command in portable:
                 print("ARGV " + canonical_json(command))
             continue
-        support_ids = select_support_ids(run, manifest)
-        dependency_identities = {
-            dependency.run_id: validate_dependency(
-                dependency,
-                dependency_locations[dependency.run_id],
-            )
-            for dependency in run.dependencies
+        portable = portable_command_identity(
+            commands,
+            run,
+            output_root=output_root,
+            dependency_root=dependency_root,
+            cache_root=feature_cache_dir,
+        )
+        preflight_identity = {
+            "run_spec_sha256": run.identity_sha256,
+            "commands": portable,
+            "config_sha256": sha256_file(config_path),
+            "selected_device": selected_device,
         }
-        execution = execution_identity(
-            run,
-            commands,
-            config_path,
-            dependency_root,
-            selected_device,
-            support_ids,
-            feature_cache_dir,
-            dependency_identities,
-        )
-        if resume and is_complete(run, output_root, execution):
-            print(f"SKIP complete {run.run_id}")
-            continue
-        execute_run(
-            run,
-            config,
-            config_path,
-            manifest,
-            output_root,
-            commands,
-            support_ids,
-            execution,
-            allow_dirty=allow_dirty,
-        )
+        lock = acquire_run_lock(output_root, run, preflight_identity)
+        entered_execute = False
+        try:
+            support_ids = select_support_ids(run, manifest)
+            dependency_identities = {
+                dependency.run_id: validate_dependency(
+                    dependency,
+                    dependency_locations[dependency.run_id],
+                )
+                for dependency in run.dependencies
+            }
+            execution = execution_identity(
+                run,
+                commands,
+                config_path,
+                output_root,
+                dependency_root,
+                selected_device,
+                support_ids,
+                feature_cache_dir,
+                dependency_identities,
+            )
+            if resume and is_complete(run, output_root, execution):
+                print(f"SKIP complete {run.run_id}")
+                continue
+            entered_execute = True
+            execute_run(
+                run,
+                config,
+                config_path,
+                manifest,
+                output_root,
+                commands,
+                support_ids,
+                execution,
+                allow_dirty=allow_dirty,
+            )
+        except BaseException as exc:
+            if not entered_execute:
+                _record_matrix_preflight_failure(
+                    run, output_root, preflight_identity, exc
+                )
+            raise
+        finally:
+            release_run_lock(lock)
 
 
 def execute_run(
@@ -572,23 +604,40 @@ def execute_run(
     *,
     allow_dirty: bool,
 ) -> None:
-    run_dir = Path(output_root) / run.run_id
-    provenance_path = run_dir / "provenance.json"
-    status_path = run_dir / "status.json"
-    checkpoints, model_configs = _model_files(run, config)
-    pre = build_provenance(
-        run,
-        manifest_path,
-        support_ids,
-        repo_root=PROJECT_ROOT,
-        config_path=config_path,
-        config=config,
-        checkpoint_paths=checkpoints,
-        model_config_paths=model_configs,
-        cache_identity={"feature_cache": execution["feature_cache"]},
-        artifact_identities={"phase": "pre_execution"},
-        allow_dirty=allow_dirty,
-    )
+    output_root = Path(output_root)
+    run_dir = output_root / run.run_id
+    if run_dir.is_symlink():
+        raise ValueError(f"run directory must not be a symlink: {run.run_id}")
+    staging = output_root / f".{run.run_id}.staging-{sha256_json(execution)[:12]}"
+    if staging.is_symlink():
+        raise ValueError(f"staging directory must not be a symlink: {run.run_id}")
+    if staging.exists():
+        shutil.rmtree(staging)
+    staged_commands = [
+        [value.replace(str(run_dir), str(staging)) for value in command]
+        for command in commands
+    ]
+    provenance_path = staging / "provenance.json"
+    status_path = staging / "status.json"
+    try:
+        checkpoints, model_configs = _model_files(run, effective_method_config(config))
+        pre = build_provenance(
+            run,
+            manifest_path,
+            support_ids,
+            repo_root=PROJECT_ROOT,
+            config_path=config_path,
+            config=config,
+            checkpoint_paths=checkpoints,
+            model_config_paths=model_configs,
+            cache_identity={"feature_cache": execution["feature_cache"]},
+            artifact_identities={"phase": "pre_execution"},
+            allow_dirty=allow_dirty,
+        )
+    except BaseException as exc:
+        _write_preflight_failure(run, staging, execution, exc)
+        _promote_failed_attempt(staging, run_dir, output_root, execution)
+        raise
     pre["execution"] = dict(execution)
     pre["effective_execution_sha256"] = compute_effective_execution_sha256(pre)
     atomic_write_json(provenance_path, pre)
@@ -603,15 +652,16 @@ def execute_run(
         environment["PYTHONPATH"] = str(PROJECT_ROOT / "src") + (
             os.pathsep + existing if existing else ""
         )
-        for command_index, command in enumerate(commands):
+        for command_index, command in enumerate(staged_commands):
             subprocess.run(
                 list(command),
                 check=True,
                 cwd=PROJECT_ROOT,
                 env=environment,
             )
-        validate_data_artifacts(run, output_root)
-        artifacts = collect_artifact_identities(run, output_root)
+        _validate_data_artifacts_in(run, staging, manifest_path=manifest_path)
+        _validate_evidence_class(run, staging, execution)
+        artifacts = _collect_artifact_identities_in(run, staging)
         final = build_provenance(
             run,
             manifest_path,
@@ -626,7 +676,7 @@ def execute_run(
             allow_dirty=allow_dirty,
         )
         final["execution"] = dict(execution)
-        final["observed_identities"] = collect_observed_identities(run, output_root)
+        final["observed_identities"] = _collect_observed_identities_in(run, staging)
         final["effective_execution_sha256"] = compute_effective_execution_sha256(final)
         atomic_write_json(provenance_path, final)
         atomic_write_json(
@@ -637,6 +687,7 @@ def execute_run(
                 "requested_execution_sha256": sha256_json(execution),
             },
         )
+        _promote_complete_attempt(staging, run_dir, output_root)
         validate_completed_run(run, output_root, execution)
         print(f"COMPLETE {run.run_id}")
     except BaseException as exc:
@@ -647,9 +698,10 @@ def execute_run(
                 "state": "failed",
                 "command_index": command_index,
                 "returncode": returncode,
-                "error": _sanitize_error(str(exc), run_dir),
+                "error": f"{type(exc).__name__}: execution failed",
             },
         )
+        _promote_failed_attempt(staging, run_dir, output_root, execution)
         raise
 
 
@@ -657,6 +709,7 @@ def execution_identity(
     run: RunSpec,
     commands: Sequence[Sequence[str]],
     config_path: str | Path,
+    output_root: str | Path,
     dependency_root: str | Path,
     selected_device: str,
     support_ids: Sequence[str],
@@ -664,25 +717,34 @@ def execution_identity(
     dependency_identities: Mapping[str, str],
 ) -> dict[str, object]:
     loaded_config = load_experiment_config(config_path)
+    method_config = effective_method_config(loaded_config)
     manifest_path = _project_path(loaded_config["manifest"])
-    checkpoints, model_configs = _model_files(run, loaded_config)
+    checkpoints, model_configs = _model_files(run, method_config)
+    portable_commands = portable_command_identity(
+        commands,
+        run,
+        output_root=output_root,
+        dependency_root=dependency_root,
+        cache_root=feature_cache_dir,
+    )
     return {
-        "commands": [list(command) for command in commands],
-        "config_path": str(Path(config_path)),
+        "commands": portable_commands,
+        "config_path": _portable_path(Path(config_path), {}),
         "config_sha256": sha256_file(config_path),
         "config_canonical_sha256": sha256_json(loaded_config),
+        "base_config": _base_config_identity(loaded_config),
         "manifest": {
             "path": str(loaded_config["manifest"]),
             "sha256": sha256_file(manifest_path) if manifest_path.is_file() else "unavailable",
         },
-        "dependency_root": str(Path(dependency_root)),
+        "dependency_root": "$DEPENDENCY_ROOT",
         "dependency_effective_identities": dict(sorted(dependency_identities.items())),
         "selected_device": selected_device,
         "support_ids": list(support_ids),
-        "feature_cache": str(Path(feature_cache_dir)),
+        "feature_cache": "$CACHE_ROOT",
         "cache_identity": {
             "schema": "feature-cache-v2",
-            "root": str(Path(feature_cache_dir)),
+            "root": "$CACHE_ROOT",
         },
         "runtime": runtime_identity(),
         "source_revisions": source_revisions(),
@@ -751,7 +813,15 @@ def device_identity(selected: str) -> dict[str, str]:
     return identity
 
 
-def validate_dependency(dependency, run_dir: Path) -> str:
+def validate_dependency(dependency, run_dir: Path, _visited: set[str] | None = None) -> str:
+    if run_dir.is_symlink():
+        raise ValueError(f"dependency {dependency.run_id} run directory is a symlink")
+    if (run_dir / "status.json").is_symlink() or (run_dir / "provenance.json").is_symlink():
+        raise ValueError(f"dependency {dependency.run_id} metadata must not be symlinked")
+    visited = set() if _visited is None else _visited
+    if dependency.run_id in visited:
+        raise ValueError(f"dependency closure cycle at {dependency.run_id}")
+    visited.add(dependency.run_id)
     status = _read_json(run_dir / "status.json", "dependency status")
     provenance = _read_json(run_dir / "provenance.json", "dependency provenance")
     if status.get("state") != "complete":
@@ -772,36 +842,101 @@ def validate_dependency(dependency, run_dir: Path) -> str:
     for reference in dependency.referenced_artifacts:
         resolve_referenced_artifacts(run_dir, reference)
     _validate_recorded_outputs(provenance, run_dir)
+    recorded_spec = RunSpec.from_dict(provenance["run_spec"])
+    if provenance.get("observed_identities") != _collect_observed_identities_in(
+        recorded_spec, run_dir
+    ):
+        raise ValueError(f"dependency {dependency.run_id} observed identity is stale")
+    current_ancestors = {
+        ancestor.run_id: validate_dependency(
+            ancestor, run_dir.parent / ancestor.run_id, visited
+        )
+        for ancestor in recorded_spec.dependencies
+    }
+    execution = provenance.get("execution")
+    if not isinstance(execution, Mapping):
+        raise ValueError(f"dependency {dependency.run_id} execution identity is missing")
+    recorded_ancestors = execution.get("dependency_effective_identities")
+    if not isinstance(recorded_ancestors, Mapping):
+        raise ValueError(f"dependency {dependency.run_id} closure identity is missing")
+    _validate_recorded_dependency_closure(recorded_ancestors, current_ancestors)
+    visited.remove(dependency.run_id)
     return effective
 
 
-def validate_data_artifacts(run: RunSpec, root: str | Path) -> None:
-    run_dir = (Path(root) / run.run_id).resolve()
-    data_paths = expected_artifacts(run, root)[:-2]
+def _validate_recorded_dependency_closure(
+    recorded: Mapping[str, object], current: Mapping[str, object]
+) -> None:
+    if dict(recorded) != dict(current):
+        raise ValueError("dependency ancestor effective identity is stale")
+
+
+def validate_data_artifacts(
+    run: RunSpec, root: str | Path, *, manifest_path: str | Path | None = None
+) -> None:
+    run_dir = Path(root) / run.run_id
+    if run_dir.is_symlink():
+        raise ValueError(f"run {run.run_id} directory must not be a symlink")
+    if (run_dir / "status.json").is_symlink() or (run_dir / "provenance.json").is_symlink():
+        raise ValueError(f"run {run.run_id} metadata must not be symlinked")
+    _validate_data_artifacts_in(run, run_dir, manifest_path=manifest_path)
+
+
+def _validate_data_artifacts_in(
+    run: RunSpec, run_dir: Path, *, manifest_path: str | Path | None = None
+) -> None:
+    run_dir = run_dir.resolve()
+    data_paths = _expected_artifacts_in(run, run_dir)[:-2]
     for path in data_paths:
         resolved = path.resolve()
         if not resolved.is_relative_to(run_dir):
             raise ValueError(f"artifact escapes run root: {path.name}")
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError(f"missing or empty artifact: {path.relative_to(run_dir)}")
+    expected = _expected_manifest_ids(run, manifest_path) if manifest_path is not None else {}
     if run.method in HEATMAP_METHODS:
-        _validate_csv(run_dir / "val" / "scores.csv", {"sample_id", "heatmap_path"})
-        _validate_csv(run_dir / "test" / "scores.csv", {"sample_id", "heatmap_path"})
-        _validate_csv(run_dir / "test" / "per_image.csv", {"sample_id", "mask_f1"})
+        val_rows = _read_validated_csv(
+            run_dir / "val" / "scores.csv", {"sample_id", "heatmap_path"}
+        )
+        test_rows = _read_validated_csv(
+            run_dir / "test" / "scores.csv", {"sample_id", "heatmap_path"}
+        )
+        per_image = _read_validated_csv(
+            run_dir / "test" / "per_image.csv", {"sample_id", "mask_f1"}
+        )
+        if expected:
+            _validate_sample_rows(val_rows, expected["val"], run.category, "val", "scores")
+            _validate_sample_rows(test_rows, expected["test"], run.category, "test", "scores")
+            _validate_sample_rows(
+                per_image, expected["test"], run.category, None, "per_image"
+            )
         calibration = _read_json(run_dir / "calibration.json", "calibration")
         _validate_calibration_payload(calibration)
     else:
-        _validate_csv(run_dir / "test" / "mask_scores.csv", {"sample_id", "pred_mask_path"})
-        _validate_csv(run_dir / "test" / "mask_per_image.csv", {"sample_id"})
+        mask_rows = _read_validated_csv(
+            run_dir / "test" / "mask_scores.csv", {"sample_id", "pred_mask_path"}
+        )
+        per_mask = _read_validated_csv(
+            run_dir / "test" / "mask_per_image.csv", {"sample_id"}
+        )
+        if expected:
+            _validate_sample_rows(mask_rows, expected["test"], run.category, None, "masks")
+            _validate_sample_rows(per_mask, expected["test"], run.category, None, "per_mask")
     metrics_name = "metrics.json" if run.method in HEATMAP_METHODS else "mask_metrics.json"
-    _read_json(run_dir / "test" / metrics_name, "metrics")
+    _validate_finite_metrics(_read_json(run_dir / "test" / metrics_name, "metrics"))
     for reference in output_references(run):
         resolve_referenced_artifacts(run_dir, reference)
 
 
 def collect_artifact_identities(run: RunSpec, root: str | Path) -> list[dict[str, object]]:
     run_dir = Path(root) / run.run_id
-    paths = expected_artifacts(run, root)[:-2]
+    return _collect_artifact_identities_in(run, run_dir)
+
+
+def _collect_artifact_identities_in(
+    run: RunSpec, run_dir: Path
+) -> list[dict[str, object]]:
+    paths = _expected_artifacts_in(run, run_dir)[:-2]
     identities = [
         {"path": path.relative_to(run_dir).as_posix(), "sha256": sha256_file(path)}
         for path in paths
@@ -831,6 +966,12 @@ def _normalize_output_identity(
 
 def collect_observed_identities(run: RunSpec, root: str | Path) -> dict[str, object]:
     run_dir = Path(root) / run.run_id
+    return _collect_observed_identities_in(run, run_dir)
+
+
+def _collect_observed_identities_in(
+    run: RunSpec, run_dir: Path
+) -> dict[str, object]:
     observed: dict[str, object] = {"source_revisions": source_revisions()}
     if run.method in HEATMAP_METHODS:
         memory_records = []
@@ -838,8 +979,25 @@ def collect_observed_identities(run: RunSpec, root: str | Path) -> dict[str, obj
             path = run_dir / split / "memory_bank_provenance.json"
             if path.is_file():
                 memory_records.append({"split": split, "identity": _read_json(path, "memory")})
+        _validate_observed_consistency(memory_records)
         observed["extractors"] = memory_records
     return observed
+
+
+def _validate_observed_consistency(records: Sequence[Mapping[str, object]]) -> None:
+    if len(records) != 2:
+        raise ValueError("heatmap runs require val and test observed extractor identities")
+    val_identity = records[0].get("identity")
+    test_identity = records[1].get("identity")
+    if not isinstance(val_identity, Mapping) or not isinstance(test_identity, Mapping):
+        raise ValueError("observed extractor identities must be mappings")
+    fields = ("feature_backbone", "feature_cache_enabled", "extractor_source_revision")
+    for field in fields:
+        if val_identity.get(field) != test_identity.get(field):
+            raise ValueError(f"val/test observed identity mismatch: {field}")
+    for field in ("extractor_identity",):
+        if canonical_json(val_identity.get(field)) != canonical_json(test_identity.get(field)):
+            raise ValueError(f"val/test observed identity mismatch: {field}")
 
 
 def is_complete(run: RunSpec, root: str | Path, execution: Mapping[str, object]) -> bool:
@@ -868,8 +1026,16 @@ def validate_completed_run(
         raise ValueError(f"run {run.run_id} status effective identity is stale")
     if status.get("requested_execution_sha256") != sha256_json(execution):
         raise ValueError(f"run {run.run_id} requested identity is stale")
-    validate_data_artifacts(run, root)
+    manifest_identity = execution.get("manifest")
+    manifest_path = None
+    if isinstance(manifest_identity, Mapping):
+        manifest_path = _project_path(manifest_identity.get("path"))
+    validate_data_artifacts(run, root, manifest_path=manifest_path)
+    _validate_evidence_class(run, run_dir, execution)
     _validate_recorded_outputs(provenance, run_dir)
+    observed = _collect_observed_identities_in(run, run_dir)
+    if provenance.get("observed_identities") != observed:
+        raise ValueError("observed extractor identity is stale")
 
 
 def matrix_report(
@@ -887,7 +1053,7 @@ def matrix_report(
     selected_device = resolve_device(device)
     reports = []
     for run in ordered:
-        errors: list[str] = []
+        errors: list[dict[str, str]] = []
         try:
             support = select_support_ids(run, manifest)
             locations = _dependency_locations(
@@ -910,6 +1076,7 @@ def matrix_report(
                 run,
                 commands,
                 config_path,
+                output_root,
                 dependency_root,
                 selected_device,
                 support,
@@ -918,9 +1085,32 @@ def matrix_report(
             )
             validate_completed_run(run, output_root, execution)
         except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
-            errors.append(_sanitize_error(str(exc), Path(output_root)))
+            errors.append(_checker_error(exc))
         reports.append({"run_id": run.run_id, "ok": not errors, "errors": errors})
     return {"ok": all(report["ok"] for report in reports), "runs": reports}
+
+
+def _checker_error(exc: BaseException) -> dict[str, str]:
+    message = str(exc).lower()
+    if (
+        isinstance(exc, (FileNotFoundError, OSError))
+        or "missing" in message
+        or "no such" in message
+    ):
+        category = "missing"
+    elif "failed" in message or "not complete" in message:
+        category = "failed"
+    elif "duplicate" in message:
+        category = "duplicate"
+    elif "dependency" in message or "ancestor" in message:
+        category = "dependency"
+    elif "stale" in message or "identity" in message or "checksum" in message:
+        category = "stale"
+    elif "manifest row set" in message or "metric" in message or "evidence class" in message:
+        category = "semantic"
+    else:
+        category = "artifact"
+    return {"category": category, "message": f"{category} validation failure"}
 
 
 def _validate_recorded_outputs(provenance: Mapping[str, object], run_dir: Path) -> None:
@@ -942,14 +1132,90 @@ def _validate_recorded_outputs(provenance: Mapping[str, object], run_dir: Path) 
 
 
 def _validate_csv(path: Path, required: set[str]) -> None:
+    _read_validated_csv(path, required)
+
+
+def _read_validated_csv(path: Path, required: set[str]) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         headers = _require_unique_header(reader, path.name)
         missing = required - set(headers)
         if missing:
             raise ValueError(f"{path.name} missing columns: {sorted(missing)}")
-        if next(reader, None) is None:
+        rows = list(reader)
+        if not rows:
             raise ValueError(f"{path.name} must contain at least one row")
+        return rows
+
+
+def _expected_manifest_ids(
+    run: RunSpec, manifest_path: str | Path
+) -> dict[str, set[str]]:
+    with Path(manifest_path).open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        _require_unique_header(reader, "manifest")
+        rows = list(reader)
+    return {
+        split: {
+            row["sample_id"]
+            for row in rows
+            if row.get("dataset") == "visa_pcb"
+            and row.get("category") == run.category
+            and row.get("fold_id") == str(run.fold_id)
+            and row.get("fold_split") == split
+        }
+        for split in ("val", "test")
+    }
+
+
+def _validate_sample_rows(
+    rows: Sequence[Mapping[str, str]],
+    expected_ids: set[str],
+    category: str,
+    split: str | None,
+    context: str,
+) -> None:
+    sample_ids = [row.get("sample_id", "") for row in rows]
+    if len(sample_ids) != len(set(sample_ids)):
+        raise ValueError(f"{context} contains duplicate sample IDs")
+    if set(sample_ids) != expected_ids:
+        raise ValueError(f"{context} does not match exact manifest row set")
+    for row in rows:
+        row_category = row.get("category")
+        if row_category not in (None, "", category):
+            raise ValueError(f"{context} category does not match {category}")
+        if split is not None and row.get("fold_split") != split:
+            raise ValueError(f"{context} split does not match {split}")
+
+
+def _validate_finite_metrics(payload: Mapping[str, object]) -> None:
+    if not payload:
+        raise ValueError("metrics must be a nonempty mapping")
+    for key, value in payload.items():
+        if key == "calibration_source_split" and value == "val":
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"metric {key!r} must be numeric")
+        if not math.isfinite(float(value)):
+            raise ValueError(f"metric {key!r} must be finite")
+
+
+def _validate_evidence_class(
+    run: RunSpec, run_dir: Path, execution: Mapping[str, object]
+) -> None:
+    if run.method not in {*GUIDED_METHODS, "anomaly_consistent_sam2"}:
+        return
+    rows = _read_validated_csv(
+        run_dir / "test" / "mask_scores.csv",
+        {"sample_id", "evidence_class", "refiner", "raw_mask_source"},
+    )
+    expected_class = execution.get("evidence_class")
+    for row in rows:
+        if row.get("evidence_class") != expected_class:
+            raise ValueError("mask evidence class does not match experiment class")
+        expected_source = "fallback" if expected_class == "smoke_debug_only" else "sam2"
+        if row.get("refiner") != expected_source or row.get("raw_mask_source") != expected_source:
+            raise ValueError("mask source cannot be accepted for this evidence class")
 
 
 def _validate_calibration_payload(payload: Mapping[str, object]) -> None:
@@ -1018,6 +1284,93 @@ def _project_path(value: object) -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
+def portable_command_identity(
+    commands: Sequence[Sequence[str]],
+    run: RunSpec,
+    *,
+    output_root: str | Path,
+    dependency_root: str | Path,
+    cache_root: str | Path,
+) -> list[list[str]]:
+    output = Path(output_root)
+    dependency = Path(dependency_root)
+    cache = Path(cache_root)
+    replacements = {
+        output / run.run_id: "$RUN_ROOT",
+        cache: "$CACHE_ROOT",
+        dependency: "$DEPENDENCY_ROOT",
+        output: "$OUTPUT_ROOT",
+        PROJECT_ROOT: "$PROJECT_ROOT",
+    }
+    portable: list[list[str]] = []
+    for command in commands:
+        values = []
+        for index, value in enumerate(command):
+            values.append(
+                "$PYTHON_EXECUTABLE"
+                if index == 0
+                else _portable_path(Path(value), replacements, original=value)
+            )
+        portable.append(values)
+    return portable
+
+
+def _portable_path(
+    path: Path,
+    replacements: Mapping[Path, str],
+    *,
+    original: str | None = None,
+) -> str:
+    value = str(path) if original is None else original
+    for root, placeholder in sorted(
+        replacements.items(), key=lambda item: len(str(item[0])), reverse=True
+    ):
+        root_value = str(root)
+        if value == root_value:
+            return placeholder
+        prefix = root_value.rstrip("/") + "/"
+        if value.startswith(prefix):
+            return placeholder + "/" + value[len(prefix) :]
+        if path.is_absolute() and root.is_absolute():
+            try:
+                relative = path.resolve().relative_to(root.resolve())
+            except ValueError:
+                continue
+            return placeholder + "/" + relative.as_posix()
+    if path.is_absolute():
+        return "$EXTERNAL_PATH/" + path.name
+    return value
+
+
+def effective_method_config(config: Mapping[str, object]) -> dict[str, object]:
+    if config.get("name") != "arxiv_ablations":
+        return dict(config)
+    base_path = _project_path(config["base_config"])
+    base = load_experiment_config(base_path)
+    merged = dict(base)
+    merged.update(
+        {
+            "name": config["name"],
+            "manifest": config["manifest"],
+            "dependency_output_root": config["dependency_output_root"],
+        }
+    )
+    return merged
+
+
+def _base_config_identity(config: Mapping[str, object]) -> dict[str, object]:
+    if config.get("name") != "arxiv_ablations":
+        return {}
+    path = _project_path(config["base_config"])
+    base = load_experiment_config(path)
+    return {
+        "path": str(config["base_config"]),
+        "file_sha256": sha256_file(path),
+        "canonical_sha256": sha256_json(base),
+        "declared_canonical_sha256": config["base_config_canonical_sha256"],
+    }
+
+
 def _optional_number(value: object) -> str:
     return "none" if value is None else str(value)
 
@@ -1037,8 +1390,34 @@ def _model_files(
         return {}, {}
     return (
         {"sam2": _project_path(section["checkpoint"])},
-        {"sam2": _project_path(section["model_config"])},
+        {
+            "sam2": Path(
+                resolve_sam2_model_config(section["model_config"], required=True)[
+                    "resolved_path"
+                ]
+            )
+        },
     )
+
+
+def resolve_sam2_model_config(identifier: object, *, required: bool) -> dict[str, str]:
+    value = str(identifier)
+    result = {"path": value, "resolved_path": "unavailable", "sha256": "unavailable"}
+    try:
+        spec = importlib.util.find_spec("sam2")
+    except (ImportError, ValueError):
+        spec = None
+    roots = list(spec.submodule_search_locations or ()) if spec is not None else []
+    for root in roots:
+        candidate = Path(root) / value
+        if candidate.is_file():
+            result.update(resolved_path=str(candidate.resolve()), sha256=sha256_file(candidate))
+            return result
+    if required:
+        raise ValueError(
+            f"installed sam2 package does not provide Hydra config identifier {value!r}"
+        )
+    return result
 
 
 def _execution_file_identities(paths: Mapping[str, Path]) -> dict[str, object]:
@@ -1096,3 +1475,150 @@ def _sanitize_error(message: str, run_dir: Path) -> str:
     sanitized = message.replace(str(PROJECT_ROOT), "<project>")
     sanitized = sanitized.replace(str(run_dir), "<run>")
     return sanitized[:2000]
+
+
+def _write_preflight_failure(
+    run: RunSpec,
+    run_dir: Path,
+    execution: Mapping[str, object],
+    exc: BaseException,
+) -> None:
+    requested = sha256_json(execution)
+    atomic_write_json(
+        run_dir / "provenance.json",
+        {
+            "schema_version": 1,
+            "run_id": run.run_id,
+            "phase": "preflight_failed",
+            "requested_execution_sha256": requested,
+            "error_type": type(exc).__name__,
+        },
+    )
+    atomic_write_json(
+        run_dir / "status.json",
+        {
+            "state": "failed",
+            "phase": "preflight",
+            "command_index": -1,
+            "returncode": None,
+            "requested_execution_sha256": requested,
+            "error": f"{type(exc).__name__}: preflight validation failed",
+        },
+    )
+
+
+def _record_matrix_preflight_failure(
+    run: RunSpec,
+    output_root: str | Path,
+    preflight_identity: Mapping[str, object],
+    exc: BaseException,
+) -> None:
+    output = Path(output_root)
+    run_dir = output / run.run_id
+    if run_dir.is_symlink():
+        raise ValueError(f"run directory must not be a symlink: {run.run_id}") from exc
+    staging = output / f".{run.run_id}.preflight-{sha256_json(preflight_identity)[:12]}"
+    if staging.exists():
+        shutil.rmtree(staging)
+    _write_preflight_failure(run, staging, preflight_identity, exc)
+    _promote_failed_attempt(staging, run_dir, output, preflight_identity)
+
+
+def acquire_run_lock(
+    output_root: str | Path, run: RunSpec, execution: Mapping[str, object]
+) -> Path:
+    lock_dir = Path(output_root) / ".locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    if lock_dir.is_symlink():
+        raise ValueError("runner lock directory must not be a symlink")
+    lock_path = lock_dir / f"{run.run_id}.lock"
+    payload = {
+        "run_id": run.run_id,
+        "pid": os.getpid(),
+        "host": socket.gethostname(),
+        "requested_execution_sha256": sha256_json(execution),
+    }
+    for _ in range(2):
+        try:
+            descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            owner = _read_json(lock_path, "run lock")
+            if owner.get("host") == socket.gethostname() and _pid_is_live(owner.get("pid")):
+                raise RuntimeError(f"run {run.run_id} has a live conflicting owner")
+            lock_path.unlink()
+            continue
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(canonical_json(payload) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        return lock_path
+    raise RuntimeError(f"unable to acquire lock for {run.run_id}")
+
+
+def _promote_complete_attempt(staging: Path, run_dir: Path, output_root: Path) -> None:
+    output_root.mkdir(parents=True, exist_ok=True)
+    if run_dir.exists():
+        if run_dir.is_symlink() or not _runner_owned_directory(run_dir):
+            raise ValueError(f"refusing to replace non-runner-owned directory: {run_dir.name}")
+        archive_root = output_root / ".archive"
+        archive_root.mkdir(parents=True, exist_ok=True)
+        status = _read_json(run_dir / "status.json", "archived status")
+        identity = str(
+            status.get("effective_execution_sha256")
+            or status.get("requested_execution_sha256")
+            or "unknown"
+        )[:12]
+        archive = archive_root / f"{run_dir.name}-{identity}"
+        suffix = 1
+        while archive.exists():
+            archive = archive_root / f"{run_dir.name}-{identity}-{suffix}"
+            suffix += 1
+        os.replace(run_dir, archive)
+    os.replace(staging, run_dir)
+
+
+def _promote_failed_attempt(
+    staging: Path,
+    run_dir: Path,
+    output_root: Path,
+    execution: Mapping[str, object],
+) -> None:
+    if not staging.exists():
+        return
+    output_root.mkdir(parents=True, exist_ok=True)
+    if not run_dir.exists():
+        os.replace(staging, run_dir)
+        return
+    failures = output_root / ".failures"
+    failures.mkdir(parents=True, exist_ok=True)
+    target = failures / f"{run_dir.name}-{sha256_json(execution)[:12]}"
+    if target.exists():
+        shutil.rmtree(target)
+    os.replace(staging, target)
+
+
+def _runner_owned_directory(path: Path) -> bool:
+    try:
+        provenance = _read_json(path / "provenance.json", "runner provenance")
+        status = _read_json(path / "status.json", "runner status")
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    return provenance.get("run_id") == path.name and status.get("state") in {
+        "running",
+        "complete",
+        "failed",
+    }
+
+
+def release_run_lock(lock_path: str | Path) -> None:
+    Path(lock_path).unlink(missing_ok=True)
+
+
+def _pid_is_live(value: object) -> bool:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        return False
+    try:
+        os.kill(value, 0)
+    except (OSError, OverflowError):
+        return False
+    return True

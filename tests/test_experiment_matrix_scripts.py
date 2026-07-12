@@ -62,6 +62,8 @@ def test_checker_missing_matrix_is_deterministic_json_and_exit_one(tmp_path: Pat
         str(tmp_path / "missing"),
         "--device",
         "cpu",
+        "--output-json",
+        str(tmp_path / "check.json"),
     ]
     environment = {"PYTHONPATH": str(repo / "src")}
     first = subprocess.run(
@@ -73,6 +75,11 @@ def test_checker_missing_matrix_is_deterministic_json_and_exit_one(tmp_path: Pat
     assert first.returncode == second.returncode == 1
     assert first.stdout == second.stdout
     assert '"ok":false' in first.stdout
+    assert (tmp_path / "check.json").read_bytes() == second.stdout.encode("utf-8")
+    report = json.loads(first.stdout)
+    assert {error["category"] for run in report["runs"] for error in run["errors"]} == {
+        "missing"
+    }
 
 
 def _argv_option(line: str, flag: str) -> str | None:

@@ -19,6 +19,7 @@ MASK_SCORE_FIELDS = [
     "sample_id",
     "category",
     "label",
+    "evidence_class",
     "refiner",
     "raw_mask_source",
     "sam2_model_config",

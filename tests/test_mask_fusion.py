@@ -352,6 +352,47 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
         self.assertIn("raw_mask_source", result.stderr)
         self.assertIn("fallback", result.stderr)
 
+    def test_explicit_smoke_debug_fallback_reuses_saved_mask_offline(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_scores_path = _write_refinement_source_fixture(root)
+            calibration_path = root / "calibration.json"
+            calibration_path.write_bytes(_calibration_bytes(threshold=0.5))
+            raw_output_dir = root / "raw"
+            raw_result = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "run_mask_refinement.py"),
+                    "--scores-csv",
+                    str(source_scores_path),
+                    "--output-dir",
+                    str(raw_output_dir),
+                    "--calibration-json",
+                    str(calibration_path),
+                    "--refiner",
+                    "fallback",
+                    "--min-area",
+                    "1",
+                ],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(raw_result.returncode, 0, msg=raw_result.stderr)
+            result = _run_offline_fusion(
+                repo_root,
+                raw_output_dir / "mask_scores.csv",
+                calibration_path,
+                root / "fused",
+                smoke_debug_fallback=True,
+            )
+            rows = _read_csv(root / "fused" / "mask_scores.csv")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertTrue(all(row["evidence_class"] == "smoke_debug_only" for row in rows))
+
     def test_missing_or_mismatched_sam2_source_provenance_is_rejected(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -652,6 +693,7 @@ def _run_offline_fusion(
     calibration_path: Path,
     output_dir: Path,
     allow_mismatch: bool = False,
+    smoke_debug_fallback: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     command = [
         sys.executable,
@@ -667,6 +709,8 @@ def _run_offline_fusion(
     ]
     if allow_mismatch:
         command.append("--allow-calibration-mismatch")
+    if smoke_debug_fallback:
+        command.append("--smoke-debug-fallback")
     return subprocess.run(
         command,
         check=False,

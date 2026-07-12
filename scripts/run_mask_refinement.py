@@ -158,6 +158,9 @@ def main() -> None:
                 "sample_id": row["sample_id"],
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "evidence_class": (
+                    "paper_evidence" if args.refiner == "sam2" else "smoke_debug_only"
+                ),
                 **raw_provenance,
                 "image_path": row.get("image_path", ""),
                 "mask_path": row.get("mask_path", ""),

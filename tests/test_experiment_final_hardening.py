@@ -139,6 +139,7 @@ def test_effective_execution_hash_covers_every_result_affecting_identity(
         lambda value: value["environment"]["libraries"].update(numpy="changed"),
         lambda value: value.update(platform="changed-platform"),
         lambda value: value["execution"].update(selected_device="cuda"),
+        lambda value: value["observed_identities"].update(extractor="changed"),
     ]
     for mutate in mutations:
         expected = copy.deepcopy(record)

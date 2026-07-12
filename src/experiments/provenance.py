@@ -190,6 +190,7 @@ def build_provenance(
         "cache_identity": cache,
         "artifact_identities": artifacts,
         "execution": {},
+        "observed_identities": {},
     }
     record["effective_execution_sha256"] = compute_effective_execution_sha256(record)
     canonical_json(record)
@@ -471,6 +472,7 @@ def compute_effective_execution_sha256(provenance: Mapping[str, object]) -> str:
         "python",
         "platform",
         "execution",
+        "observed_identities",
     )
     missing = [field for field in fields if field not in provenance]
     if missing:
@@ -503,6 +505,9 @@ def _validate_effective_hash_inputs(provenance: Mapping[str, object]) -> None:
     execution = provenance.get("execution")
     if not isinstance(execution, Mapping):
         raise ValueError("execution identity must be a mapping")
+    observed = provenance.get("observed_identities")
+    if not isinstance(observed, Mapping):
+        raise ValueError("observed identities must be a mapping")
     run_spec = provenance.get("run_spec")
     if not isinstance(run_spec, Mapping) or sha256_json(run_spec) != provenance.get(
         "run_spec_sha256"

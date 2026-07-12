@@ -9,13 +9,19 @@ import pytest
 
 from experiments.runner import (
     _validate_calibration_payload,
+    _validate_recorded_dependency_closure,
+    _validate_sample_rows,
+    _validate_finite_metrics,
     _normalize_output_identity,
+    acquire_run_lock,
     build_commands,
     execution_identity,
     execute_run,
     expected_artifacts,
     method_dependencies,
     output_references,
+    resolve_sam2_model_config,
+    release_run_lock,
     select_support_ids,
     topological_order,
 )
@@ -68,8 +74,10 @@ def test_expected_heatmap_artifacts_cover_calibrated_evaluation(tmp_path: Path) 
     paths = expected_artifacts(run, tmp_path)
     assert paths == [
         tmp_path / run.run_id / "val" / "scores.csv",
+        tmp_path / run.run_id / "val" / "memory_bank_provenance.json",
         tmp_path / run.run_id / "calibration.json",
         tmp_path / run.run_id / "test" / "scores.csv",
+        tmp_path / run.run_id / "test" / "memory_bank_provenance.json",
         tmp_path / run.run_id / "test" / "metrics.json",
         tmp_path / run.run_id / "test" / "per_image.csv",
         tmp_path / run.run_id / "provenance.json",
@@ -125,6 +133,76 @@ def test_patchcore_command_emits_every_frozen_method_parameter(tmp_path: Path) -
         assert command[command.index(flag) + 1] == value
 
 
+def test_all_48_ablations_build_exact_commands_and_external_dependencies(
+    tmp_path: Path,
+) -> None:
+    config = load_experiment_config(CONFIG_ROOT / "arxiv_ablations.yaml")
+    runs = expand_matrix(config)
+    assert len(runs) == 48
+    for run in runs:
+        commands = build_commands(
+            run,
+            config,
+            tmp_path / "ablations",
+            tmp_path / "primary",
+            "cpu",
+            tmp_path / "cache",
+        )
+        assert commands
+        flat = [value for command in commands for value in command]
+        for dependency in run.dependencies:
+            assert str(tmp_path / "primary" / dependency.run_id) in " ".join(flat)
+        for key, value in run.overrides.items():
+            flag = {
+                "crop_sizes": "--crop-sizes",
+                "crop_overlap": "--crop-overlap",
+                "fusion": "--fusion",
+                "prompt_mode": "--prompt-mode",
+                "point_mode": "--point-mode",
+                "max_mask_area_fraction": "--max-mask-area-fraction",
+                "mask_output": "--mask-output",
+                "min_iou": "--selective-min-iou",
+                "max_expansion": "--selective-max-expansion",
+            }[key]
+            expected = ",".join(str(item) for item in value) if isinstance(value, list) else (
+                "none" if value is None else str(value)
+            )
+            assert any(
+                flag in command and command[command.index(flag) + 1] == expected
+                for command in commands
+            )
+
+
+def test_sam2_hydra_identifier_is_preserved_and_resolved_from_installed_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    package = tmp_path / "sam2"
+    config = package / "configs" / "sam2.1" / "sam2.1_hiera_t.yaml"
+    config.parent.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    config.write_text("model: tiny\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    import importlib
+    import sys
+
+    sys.modules.pop("sam2", None)
+    importlib.invalidate_caches()
+    identity = resolve_sam2_model_config(
+        "configs/sam2.1/sam2.1_hiera_t.yaml", required=True
+    )
+    assert identity["path"] == "configs/sam2.1/sam2.1_hiera_t.yaml"
+    assert len(identity["sha256"]) == 64
+
+    primary = load_experiment_config(CONFIG_ROOT / "arxiv_primary.yaml")
+    run = next(run for run in expand_matrix(primary) if run.method == "sam2_only")
+    command = build_commands(
+        run, primary, tmp_path / "out", tmp_path / "deps", "cpu", tmp_path / "cache"
+    )[0]
+    assert command[command.index("--sam2-model-config") + 1] == (
+        "configs/sam2.1/sam2.1_hiera_t.yaml"
+    )
+
+
 def test_guided_and_fusion_commands_use_real_dependency_columns_without_rerun(
     tmp_path: Path,
 ) -> None:
@@ -159,14 +237,15 @@ def test_guided_and_fusion_commands_use_real_dependency_columns_without_rerun(
     assert "--scores-csv" not in fusion_commands[0]
 
 
-def test_smoke_fusion_is_explicit_online_fallback_only(tmp_path: Path) -> None:
+def test_smoke_fusion_reuses_declared_fallback_mask_offline(tmp_path: Path) -> None:
     config = load_experiment_config(CONFIG_ROOT / "arxiv_smoke.yaml")
     run = next(run for run in _smoke_runs() if run.method == "anomaly_consistent_sam2")
     commands = build_commands(
         run, config, tmp_path / "out", tmp_path / "deps", "cpu", tmp_path / "cache"
     )
-    assert Path(commands[0][1]).name == "run_mask_refinement.py"
-    assert commands[0][commands[0].index("--refiner") + 1] == "fallback"
+    assert Path(commands[0][1]).name == "fuse_saved_masks.py"
+    assert "--smoke-debug-fallback" in commands[0]
+    assert "--refiner" not in commands[0]
     assert commands[0][commands[0].index("--mask-output") + 1] == "intersection"
 
 
@@ -243,6 +322,7 @@ def test_execution_identity_contains_exact_git_state(tmp_path: Path) -> None:
         run,
         [["python", "script.py"]],
         config,
+        tmp_path / "out",
         tmp_path / "deps",
         "cpu",
         ["pcb1/example"],
@@ -258,6 +338,35 @@ def test_execution_identity_contains_exact_git_state(tmp_path: Path) -> None:
     assert identity["device_identity"]["kind"] == "cpu"
     assert identity["cache_identity"]["schema"] == "feature-cache-v2"
     assert identity["evidence_class"] == "smoke_debug_only"
+    serialized = json.dumps(identity)
+    assert str(tmp_path) not in serialized
+    assert identity["commands"] == [["$PYTHON_EXECUTABLE", "script.py"]]
+
+
+def test_execution_identity_canonicalizes_absolute_operational_roots(tmp_path: Path) -> None:
+    config = load_experiment_config(CONFIG_ROOT / "arxiv_smoke.yaml")
+    run = next(run for run in _smoke_runs() if run.method == "dinov2_multi")
+    output = tmp_path / "private" / "out"
+    dependency = tmp_path / "private" / "deps"
+    cache = tmp_path / "private" / "cache"
+    commands = build_commands(run, config, output, dependency, "cpu", cache)
+    identity = execution_identity(
+        run,
+        commands,
+        CONFIG_ROOT / "arxiv_smoke.yaml",
+        output,
+        dependency,
+        "cpu",
+        ["pcb1/support"],
+        cache,
+        {},
+    )
+    serialized = json.dumps(identity)
+    assert str(tmp_path) not in serialized
+    assert "$PROJECT_ROOT" in serialized
+    assert "$RUN_ROOT" in serialized
+    assert identity["dependency_root"] == "$DEPENDENCY_ROOT"
+    assert identity["feature_cache"] == "$CACHE_ROOT"
 
 
 def test_failed_subprocess_writes_atomic_failed_status_without_shell_injection(
@@ -309,3 +418,104 @@ def test_failed_subprocess_writes_atomic_failed_status_without_shell_injection(
     assert status["command_index"] == 0
     assert status["returncode"] == 7
     assert not marker.exists()
+
+
+def test_preflight_failure_writes_sanitized_status_and_provenance(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.csv"
+    fields = ["dataset", "sample_id", "category", "fold_id", "fold_split", "label"]
+    with manifest.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "dataset": "visa_pcb",
+                "sample_id": "pcb1/support",
+                "category": "pcb1",
+                "fold_id": "0",
+                "fold_split": "dev",
+                "label": "0",
+            }
+        )
+    config_path = tmp_path / "secret-private-config.yaml"
+    config_path.write_text("name: file-value\n")
+    output = tmp_path / "outputs"
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    with pytest.raises(ValueError):
+        execute_run(
+            run,
+            {"name": "different-value"},
+            config_path,
+            manifest,
+            output,
+            [[sys.executable, "-c", "raise AssertionError('must not run')"]],
+            ["pcb1/support"],
+            {"commands": [], "selected_device": "cpu", "feature_cache": "$CACHE_ROOT"},
+            allow_dirty=True,
+        )
+    run_dir = output / run.run_id
+    status = json.loads((run_dir / "status.json").read_text())
+    provenance = json.loads((run_dir / "provenance.json").read_text())
+    assert status["state"] == "failed"
+    assert status["phase"] == "preflight"
+    serialized = json.dumps(provenance)
+    assert str(tmp_path) not in serialized
+    assert "different-value" not in serialized
+
+
+def test_live_run_lock_rejects_second_owner(tmp_path: Path) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    lock = acquire_run_lock(tmp_path, run, {"identity": "first"})
+    try:
+        with pytest.raises(RuntimeError, match="live conflicting owner"):
+            acquire_run_lock(tmp_path, run, {"identity": "second"})
+    finally:
+        release_run_lock(lock)
+
+
+def test_symlinked_run_directory_is_rejected_before_write(tmp_path: Path) -> None:
+    output = tmp_path / "outputs"
+    outside = tmp_path / "outside"
+    output.mkdir()
+    outside.mkdir()
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    (output / run.run_id).symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink"):
+        execute_run(
+            run,
+            {"name": "bad"},
+            tmp_path / "missing.yaml",
+            tmp_path / "missing.csv",
+            output,
+            [],
+            [],
+            {"commands": [], "selected_device": "cpu", "feature_cache": "$CACHE_ROOT"},
+            allow_dirty=True,
+        )
+    assert list(outside.iterdir()) == []
+
+
+def test_dependency_closure_rejects_old_guided_parent_identity() -> None:
+    recorded = {"heatmap-run": "a" * 64}
+    _validate_recorded_dependency_closure(recorded, recorded)
+    with pytest.raises(ValueError, match="ancestor.*stale"):
+        _validate_recorded_dependency_closure(recorded, {"heatmap-run": "b" * 64})
+
+
+def test_semantic_rows_require_unique_exact_manifest_sample_set() -> None:
+    rows = [
+        {"sample_id": "pcb1/a", "category": "pcb1", "fold_split": "test"},
+        {"sample_id": "pcb1/b", "category": "pcb1", "fold_split": "test"},
+    ]
+    _validate_sample_rows(rows, {"pcb1/a", "pcb1/b"}, "pcb1", "test", "scores")
+    with pytest.raises(ValueError, match="duplicate sample IDs"):
+        _validate_sample_rows([rows[0], rows[0]], {"pcb1/a"}, "pcb1", "test", "scores")
+    with pytest.raises(ValueError, match="manifest row set"):
+        _validate_sample_rows(rows[:1], {"pcb1/a", "pcb1/b"}, "pcb1", "test", "scores")
+
+
+def test_metrics_allow_declared_metadata_but_require_finite_numeric_values() -> None:
+    _validate_finite_metrics({"image_auroc": 0.9, "calibration_source_split": "val"})
+    with pytest.raises(ValueError, match="finite"):
+        _validate_finite_metrics({"image_auroc": float("nan")})
+    with pytest.raises(ValueError, match="numeric"):
+        _validate_finite_metrics({"image_auroc": "high"})

@@ -44,6 +44,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selective-min-iou", type=float, default=0.25)
     parser.add_argument("--selective-max-expansion", type=float, default=2.0)
     parser.add_argument("--allow-calibration-mismatch", action="store_true")
+    parser.add_argument(
+        "--smoke-debug-fallback",
+        action="store_true",
+        help="Allow only fallback-owned raw masks for non-paper smoke/debug fusion.",
+    )
     return parser.parse_args()
 
 
@@ -57,7 +62,7 @@ def main() -> None:
     if not rows:
         raise ValueError("mask scores CSV must contain at least one row")
     _validate_required_fields(rows)
-    _validate_sam2_source_identity(rows)
+    _validate_sam2_source_identity(rows, allow_smoke_fallback=args.smoke_debug_fallback)
     _validate_calibration_identity(
         rows,
         threshold=calibration.threshold,
@@ -113,6 +118,9 @@ def main() -> None:
         updated = dict(row)
         updated.update(
             {
+                "evidence_class": (
+                    "smoke_debug_only" if args.smoke_debug_fallback else "paper_evidence"
+                ),
                 "mask_output": args.mask_output,
                 "selected_source": selected_source,
                 "proposal_threshold": f"{calibration.threshold:.8f}",
@@ -179,7 +187,9 @@ def _validate_calibration_identity(
             )
 
 
-def _validate_sam2_source_identity(rows: list[dict[str, str]]) -> None:
+def _validate_sam2_source_identity(
+    rows: list[dict[str, str]], allow_smoke_fallback: bool = False
+) -> None:
     expected_model_identity: tuple[str, str] | None = None
     for index, row in enumerate(rows):
         refiner = (row.get("refiner") or "").strip()
@@ -190,11 +200,17 @@ def _validate_sam2_source_identity(rows: list[dict[str, str]]) -> None:
             raise ValueError(f"row {index} must have refiner provenance")
         if not raw_mask_source:
             raise ValueError(f"row {index} must have raw_mask_source provenance")
-        if refiner != "sam2" or raw_mask_source != "sam2":
+        expected_source = "fallback" if allow_smoke_fallback else "sam2"
+        if refiner != expected_source or raw_mask_source != expected_source:
             raise ValueError(
-                f"row {index} raw_mask_source must be 'sam2' for offline SAM2 fusion; "
+                f"row {index} raw_mask_source must be {expected_source!r} for offline "
+                f"{'smoke/debug' if allow_smoke_fallback else 'SAM2'} fusion; "
                 f"got refiner={refiner!r}, raw_mask_source={raw_mask_source!r}"
             )
+        if allow_smoke_fallback:
+            if model_config or checkpoint_sha256:
+                raise ValueError(f"row {index} fallback source must not claim a SAM2 model")
+            continue
         if not model_config:
             raise ValueError(f"row {index} must have sam2_model_config")
         if len(checkpoint_sha256) != 64 or any(

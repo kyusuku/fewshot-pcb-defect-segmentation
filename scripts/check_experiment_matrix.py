@@ -12,7 +12,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from experiments.provenance import canonical_json
+from experiments.provenance import atomic_write_json, canonical_json
 from experiments.runner import matrix_report
 from experiments.spec import expand_matrix, load_experiment_config
 
@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dependency-root", type=Path)
     parser.add_argument("--feature-cache-dir", type=Path)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--output-json", type=Path)
     parser.add_argument("--run-id")
     parser.add_argument("--method")
     parser.add_argument("--category")
@@ -45,6 +46,8 @@ def main() -> None:
         args.device,
         cache,
     )
+    if args.output_json is not None:
+        atomic_write_json(args.output_json, report)
     print(canonical_json(report))
     if not report["ok"]:
         raise SystemExit(1)

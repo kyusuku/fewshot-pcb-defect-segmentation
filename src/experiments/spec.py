@@ -52,6 +52,8 @@ _PRIMARY_FIELDS = {
 _ABLATION_FIELDS = {
     "name",
     "manifest",
+    "base_config",
+    "base_config_canonical_sha256",
     "dependency_output_root",
     "fold_id",
     "categories",
@@ -61,7 +63,7 @@ _ABLATION_FIELDS = {
 }
 _FROZEN_CONFIG_SHA256 = {
     "arxiv_primary": "1e06656f525e4130f3b8685aa60afcc26a1ec5ffa48ab122c8ac4ed436df8127",
-    "arxiv_ablations": "cf7791daf3d9fb670a2036735fad3477d0158db1d79bf91c40f4bdba3db08fdf",
+    "arxiv_ablations": "2489dbe090c615678695f401614805829a4e399fb933b2512643ab96e1b1aeee",
     "arxiv_smoke": "2467bab225c1c9cb0a50bc928cb45a5b9fcf8fc3ef79661a5cec84bab7069f28",
 }
 
@@ -507,6 +509,16 @@ def _validate_primary_config(config: Mapping[str, object]) -> None:
 def _validate_ablation_config(config: Mapping[str, object]) -> None:
     _require_exact_fields(config, _ABLATION_FIELDS, "experiment config")
     _validate_common(config)
+    _validate_relative_path(config["base_config"], "base_config")
+    canonical_sha = config["base_config_canonical_sha256"]
+    if not isinstance(canonical_sha, str) or not _SHA256_RE.fullmatch(canonical_sha):
+        raise ValueError("base_config_canonical_sha256 must be a lowercase SHA-256")
+    base_path = Path(__file__).resolve().parents[2] / config["base_config"]
+    base = load_yaml_mapping(base_path)
+    _validate_primary_config(base)
+    observed_base_sha = hashlib.sha256(_canonical_json(base).encode("utf-8")).hexdigest()
+    if observed_base_sha != canonical_sha:
+        raise ValueError("base config canonical SHA-256 does not match declared identity")
     _validate_relative_path(config["dependency_output_root"], "dependency_output_root")
     _require_int(config["k"], "k", minimum=1)
     _require_int(config["seed"], "seed", minimum=0)

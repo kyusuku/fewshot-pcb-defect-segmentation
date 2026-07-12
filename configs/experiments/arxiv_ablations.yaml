@@ -1,5 +1,7 @@
 name: arxiv_ablations
 manifest: data/manifests/visa_pcb_folds.csv
+base_config: configs/experiments/arxiv_primary.yaml
+base_config_canonical_sha256: 1e06656f525e4130f3b8685aa60afcc26a1ec5ffa48ab122c8ac4ed436df8127
 dependency_output_root: outputs/arxiv_primary
 fold_id: 0
 categories: [pcb1, pcb2, pcb3, pcb4]
