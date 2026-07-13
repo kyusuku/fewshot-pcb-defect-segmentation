@@ -12,9 +12,11 @@ from utils.image import load_binary_mask
 
 
 PER_MASK_FIELDS = [
+    "dataset",
     "sample_id",
     "category",
     "label",
+    "fold_split",
     "mask_precision",
     "mask_recall",
     "mask_f1",
@@ -159,9 +161,11 @@ def evaluate_mask_rows(
             anomaly_metrics.append(metrics)
         per_row.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row.get("sample_id", ""),
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": row.get("fold_split", ""),
                 "mask_precision": metrics["precision"],
                 "mask_recall": metrics["recall"],
                 "mask_f1": metrics["f1"],
@@ -200,7 +204,14 @@ def merge_source_score_rows(
         merged = dict(row)
         source = source_by_id.get(row.get("sample_id", ""))
         if source:
-            for key in ("category", "label", "image_path", "mask_path"):
+            for key in (
+                "dataset",
+                "category",
+                "label",
+                "fold_split",
+                "image_path",
+                "mask_path",
+            ):
                 if not merged.get(key) and source.get(key):
                     merged[key] = source[key]
         merged_rows.append(merged)

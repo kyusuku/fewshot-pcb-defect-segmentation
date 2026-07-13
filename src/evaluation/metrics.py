@@ -269,9 +269,11 @@ def evaluate_heatmap_rows_at_threshold(
         metrics = mask_confusion_metrics(heatmap >= threshold, target)
         per_image.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row.get("sample_id", ""),
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": row.get("fold_split", ""),
                 "threshold": float(threshold),
                 "mask_precision": metrics["precision"],
                 "mask_recall": metrics["recall"],

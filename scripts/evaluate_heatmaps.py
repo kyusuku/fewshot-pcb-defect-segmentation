@@ -24,9 +24,11 @@ from evaluation.metrics import (
 
 
 PER_IMAGE_FIELDS = [
+    "dataset",
     "sample_id",
     "category",
     "label",
+    "fold_split",
     "threshold",
     "mask_precision",
     "mask_recall",

@@ -252,9 +252,11 @@ class EvaluateHeatmapsCalibrationScriptTest(unittest.TestCase):
         self.assertEqual(
             fieldnames,
             [
+                "dataset",
                 "sample_id",
                 "category",
                 "label",
+                "fold_split",
                 "threshold",
                 "mask_precision",
                 "mask_recall",

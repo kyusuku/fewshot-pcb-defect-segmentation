@@ -692,6 +692,9 @@ def execute_run(
         final["effective_execution_sha256"] = compute_effective_execution_sha256(final)
         atomic_write_json(provenance_path, final)
         _validate_staged_success(run, staging, execution, manifest_path)
+        _write_final_ownership_marker(
+            staging, run, str(final["effective_execution_sha256"])
+        )
         complete_status = {
             "state": "complete",
             "effective_execution_sha256": final["effective_execution_sha256"],
@@ -871,7 +874,7 @@ def validate_dependency(dependency, run_dir: Path, _visited: set[str] | None = N
     execution = provenance.get("execution")
     if not isinstance(execution, Mapping):
         raise ValueError(f"dependency {dependency.run_id} execution identity is missing")
-    if marker.get("pre_execution_sha256") != sha256_json(execution):
+    if marker.get("portable_effective_identity") != effective:
         raise ValueError(f"dependency {dependency.run_id} ownership identity is stale")
     recorded_ancestors = execution.get("dependency_effective_identities")
     if not isinstance(recorded_ancestors, Mapping):
@@ -995,6 +998,15 @@ def _validate_data_artifacts_in(
         test_rows=test_rows if run.method in HEATMAP_METHODS else mask_rows,
         calibration=calibration if run.method in HEATMAP_METHODS else None,
     )
+    if expected and run.method in HEATMAP_METHODS:
+        _validate_heatmap_per_image_rows(
+            per_image,
+            expected["test"],
+            float(calibration["threshold"]),
+            metrics,
+        )
+    elif expected:
+        _validate_mask_per_rows(per_mask, expected["test"], metrics)
     for reference in output_references(run):
         resolve_referenced_artifacts(run_dir, reference)
 
@@ -1098,9 +1110,9 @@ def validate_completed_run(
         raise ValueError(f"run {run.run_id} run-spec identity is stale")
     if provenance.get("execution") != dict(execution):
         raise ValueError(f"run {run.run_id} requested execution identity is stale")
-    if marker.get("run_id") != run.run_id or marker.get("pre_execution_sha256") != sha256_json(
-        execution
-    ):
+    if marker.get("run_id") != run.run_id or marker.get(
+        "portable_effective_identity"
+    ) != provenance.get("effective_execution_sha256"):
         raise ValueError(f"run {run.run_id} ownership identity is stale")
     effective = provenance.get("effective_execution_sha256")
     validate_resume_identity(provenance, expected_effective_execution_sha256=effective)
@@ -1484,6 +1496,149 @@ def _validate_method_metrics(
             raise ValueError("mask anomaly count does not match rows")
 
 
+def _validate_heatmap_per_image_rows(
+    rows: Sequence[Mapping[str, str]],
+    expected: Mapping[str, Mapping[str, str]],
+    threshold: float,
+    metrics: Mapping[str, object],
+) -> None:
+    parsed = []
+    for row in rows:
+        _validate_report_row_metadata(row, expected, "per_image")
+        values = {
+            key: _finite_float(row.get(key), f"per_image {key}")
+            for key in (
+                "threshold",
+                "mask_precision",
+                "mask_recall",
+                "mask_f1",
+                "mask_iou",
+                "pred_positive_pixels",
+                "gt_positive_pixels",
+                "true_positive_pixels",
+                "false_positive_pixels",
+                "false_negative_pixels",
+            )
+        }
+        if not math.isclose(values["threshold"], threshold, rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("per_image threshold does not match calibration")
+        for key in ("mask_precision", "mask_recall", "mask_f1", "mask_iou"):
+            if not 0.0 <= values[key] <= 1.0:
+                raise ValueError(f"per_image {key} must be in [0, 1]")
+        for key in (
+            "pred_positive_pixels",
+            "gt_positive_pixels",
+            "true_positive_pixels",
+            "false_positive_pixels",
+            "false_negative_pixels",
+        ):
+            _require_nonnegative_integral(values[key], f"per_image {key}")
+        if values["pred_positive_pixels"] != (
+            values["true_positive_pixels"] + values["false_positive_pixels"]
+        ) or values["gt_positive_pixels"] != (
+            values["true_positive_pixels"] + values["false_negative_pixels"]
+        ):
+            raise ValueError("per_image confusion identities are inconsistent")
+        parsed.append((row, values))
+    _validate_reported_means(parsed, metrics, prefix="calibrated_")
+    tp = sum(values["true_positive_pixels"] for _, values in parsed)
+    fp = sum(values["false_positive_pixels"] for _, values in parsed)
+    fn = sum(values["false_negative_pixels"] for _, values in parsed)
+    precision = tp / (tp + fp) if tp + fp else 0.0
+    recall = tp / (tp + fn) if tp + fn else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    iou = tp / (tp + fp + fn) if tp + fp + fn else 0.0
+    for key, value in {
+        "calibrated_aggregate_pixel_precision": precision,
+        "calibrated_aggregate_pixel_recall": recall,
+        "calibrated_aggregate_pixel_f1": f1,
+        "calibrated_aggregate_pixel_iou": iou,
+    }.items():
+        _require_close_metric(metrics, key, value)
+
+
+def _validate_mask_per_rows(
+    rows: Sequence[Mapping[str, str]],
+    expected: Mapping[str, Mapping[str, str]],
+    metrics: Mapping[str, object],
+) -> None:
+    parsed = []
+    for row in rows:
+        _validate_report_row_metadata(row, expected, "per_mask")
+        values = {
+            key: _finite_float(row.get(key), f"per_mask {key}")
+            for key in (
+                "mask_precision",
+                "mask_recall",
+                "mask_f1",
+                "mask_iou",
+                "pred_positive_pixels",
+                "gt_positive_pixels",
+            )
+        }
+        for key in ("mask_precision", "mask_recall", "mask_f1", "mask_iou"):
+            if not 0.0 <= values[key] <= 1.0:
+                raise ValueError(f"per_mask {key} must be in [0, 1]")
+        for key in ("pred_positive_pixels", "gt_positive_pixels"):
+            _require_nonnegative_integral(values[key], f"per_mask {key}")
+        parsed.append((row, values))
+    _validate_reported_means(parsed, metrics, prefix="")
+
+
+def _validate_report_row_metadata(
+    row: Mapping[str, str],
+    expected: Mapping[str, Mapping[str, str]],
+    context: str,
+) -> None:
+    source = expected.get(row.get("sample_id", ""))
+    if source is None:
+        raise ValueError(f"{context} sample is absent from manifest")
+    for field in ("dataset", "category", "fold_split", "label"):
+        if row.get(field) != source.get(field):
+            raise ValueError(f"{context} {field} does not match manifest")
+
+
+def _validate_reported_means(
+    parsed: Sequence[tuple[Mapping[str, str], Mapping[str, float]]],
+    metrics: Mapping[str, object],
+    *,
+    prefix: str,
+) -> None:
+    anomaly = [item for item in parsed if item[0].get("label") == "1"]
+    for metric in ("precision", "recall", "f1", "iou"):
+        all_mean = float(np.mean([values[f"mask_{metric}"] for _, values in parsed]))
+        anomaly_mean = float(
+            np.mean([values[f"mask_{metric}"] for _, values in anomaly])
+        )
+        _require_close_metric(metrics, f"{prefix}mean_mask_{metric}", all_mean)
+        _require_close_metric(
+            metrics, f"{prefix}mean_anomaly_mask_{metric}", anomaly_mean
+        )
+
+
+def _finite_float(value: object, context: str) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{context} must be finite numeric data") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{context} must be finite")
+    return parsed
+
+
+def _require_nonnegative_integral(value: float, context: str) -> None:
+    if value < 0.0 or not value.is_integer():
+        raise ValueError(f"{context} must be nonnegative integral data")
+
+
+def _require_close_metric(
+    metrics: Mapping[str, object], key: str, expected: float
+) -> None:
+    observed = _finite_float(metrics.get(key), f"metric {key}")
+    if not math.isclose(observed, expected, rel_tol=1e-10, abs_tol=1e-12):
+        raise ValueError(f"metric mean/count reconciliation failed for {key}")
+
+
 def _validate_evidence_class(
     run: RunSpec, run_dir: Path, execution: Mapping[str, object]
 ) -> None:
@@ -1529,6 +1684,7 @@ def _validate_calibration_contract(
     if threshold.num_images != len(normal_rows):
         raise ValueError("calibration image count does not match normal validation rows")
     pixels = 0
+    flattened = []
     for row in normal_rows:
         heatmap = np.load(
             _resolve_data_path(row.get("heatmap_path", ""), scores_base),
@@ -1537,8 +1693,12 @@ def _validate_calibration_contract(
         if heatmap.ndim != 2 or not np.isfinite(heatmap).all():
             raise ValueError("validation heatmap must be finite and two-dimensional")
         pixels += int(heatmap.size)
+        flattened.append(heatmap.ravel())
     if threshold.num_pixels != pixels:
         raise ValueError("calibration pixel count does not match validation heatmaps")
+    recomputed = float(np.quantile(np.concatenate(flattened), expected_quantile))
+    if not np.isclose(threshold.threshold, recomputed, rtol=1e-12, atol=1e-12):
+        raise ValueError("calibration threshold does not match exact validation quantile")
     return threshold
 
 
@@ -1916,6 +2076,7 @@ def _promote_failed_attempt(
     if not run_dir.exists():
         os.replace(staging, run_dir)
         return
+    _prune_owned_failures(output_root, str(marker["run_id"]), retain=2)
     target = output_root / f".failure-{run_dir.name}-{marker['nonce']}"
     if target.exists() or target.is_symlink():
         raise ValueError("failure destination collision; preserving owned staging")
@@ -1964,11 +2125,34 @@ def _write_ownership_marker(
         directory / OWNERSHIP_MARKER,
         {
             "schema_version": 1,
+            "kind": "operational_stage",
             "run_id": run.run_id,
             "pre_execution_sha256": sha256_json(pre_execution),
             "pid": os.getpid(),
             "host": socket.gethostname(),
             "nonce": nonce,
+        },
+    )
+
+
+def _write_final_ownership_marker(
+    directory: Path,
+    run: RunSpec,
+    portable_effective_identity: str,
+) -> None:
+    marker = _read_ownership_marker(directory)
+    if marker.get("kind") != "operational_stage" or marker.get("run_id") != run.run_id:
+        raise ValueError("final ownership marker requires the matching operational stage")
+    if len(portable_effective_identity) != 64:
+        raise ValueError("invalid portable effective identity")
+    atomic_write_json(
+        directory / OWNERSHIP_MARKER,
+        {
+            "schema_version": 1,
+            "kind": "final_run",
+            "run_id": run.run_id,
+            "portable_effective_identity": portable_effective_identity,
+            "nonce": marker["nonce"],
         },
     )
 
@@ -1980,14 +2164,25 @@ def _read_ownership_marker(directory: Path) -> dict[str, object]:
     if marker_path.is_symlink():
         raise ValueError("ownership marker must not be symlinked")
     marker = _read_json(marker_path, "ownership marker")
-    required = {"schema_version", "run_id", "pre_execution_sha256", "pid", "host", "nonce"}
-    if set(marker) != required or marker.get("schema_version") != 1:
+    common = {"schema_version", "kind", "run_id", "nonce"}
+    operational = common | {"pre_execution_sha256", "pid", "host"}
+    final = common | {"portable_effective_identity"}
+    if marker.get("schema_version") != 1 or set(marker) not in (operational, final):
         raise ValueError("invalid ownership marker fields")
     if not isinstance(marker.get("run_id"), str) or not isinstance(marker.get("nonce"), str):
         raise ValueError("invalid ownership marker identity")
-    checksum = marker.get("pre_execution_sha256")
+    kind = marker.get("kind")
+    if set(marker) == operational and kind != "operational_stage":
+        raise ValueError("invalid operational ownership marker kind")
+    if set(marker) == final and kind != "final_run":
+        raise ValueError("invalid final ownership marker kind")
+    checksum = (
+        marker.get("pre_execution_sha256")
+        if kind == "operational_stage"
+        else marker.get("portable_effective_identity")
+    )
     if not isinstance(checksum, str) or len(checksum) != 64:
-        raise ValueError("invalid ownership pre-execution identity")
+        raise ValueError("invalid ownership identity")
     return marker
 
 
@@ -2006,6 +2201,27 @@ def _prune_owned_archives(
     run_id = run.run_id if isinstance(run, RunSpec) else run
     candidates = []
     for path in output_root.glob(f".archive-{run_id}-*"):
+        if path.is_symlink():
+            continue
+        try:
+            marker = _read_ownership_marker(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if marker.get("run_id") == run_id:
+            candidates.append(path)
+    candidates.sort(key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True)
+    for path in candidates[retain:]:
+        if path.is_symlink() or not _runner_owned_directory(path, run_id):
+            continue
+        shutil.rmtree(path)
+
+
+def _prune_owned_failures(
+    output_root: Path, run: RunSpec | str, *, retain: int
+) -> None:
+    run_id = run.run_id if isinstance(run, RunSpec) else run
+    candidates = []
+    for path in output_root.glob(f".failure-{run_id}-*"):
         if path.is_symlink():
             continue
         try:

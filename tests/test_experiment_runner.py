@@ -16,10 +16,15 @@ from experiments.runner import (
     _validate_manifest_output_rows,
     _validate_calibration_contract,
     _validate_method_metrics,
+    _validate_heatmap_per_image_rows,
+    _validate_mask_per_rows,
     _normalize_output_identity,
     _create_owned_staging,
     _promote_complete_attempt,
+    _prune_owned_failures,
     _prune_owned_archives,
+    _read_ownership_marker,
+    _write_final_ownership_marker,
     _write_ownership_marker,
     acquire_run_lock,
     build_commands,
@@ -578,6 +583,50 @@ def test_hidden_sibling_archives_preserve_relative_links_and_bounded_retention(
     assert (unknown / "keep.txt").read_text() == "keep"
 
 
+def test_final_ownership_marker_is_portable_and_sanitized(tmp_path: Path) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    staging = _create_owned_staging(tmp_path, run, {"identity": "requested"})
+    effective_identity = "e" * 64
+
+    _write_final_ownership_marker(staging, run, effective_identity)
+
+    marker = _read_ownership_marker(staging)
+    assert marker == {
+        "schema_version": 1,
+        "kind": "final_run",
+        "run_id": run.run_id,
+        "portable_effective_identity": effective_identity,
+        "nonce": staging.name.removeprefix(f".staging-{run.run_id}-"),
+    }
+    serialized = json.dumps(marker)
+    assert "host" not in serialized
+    assert "pid" not in serialized
+    assert "pre_execution_sha256" not in serialized
+
+
+def test_owned_failure_retention_is_bounded_and_unknown_dirs_are_preserved(
+    tmp_path: Path,
+) -> None:
+    run = RunSpec("dinov2_single", "pcb1", 0, 1, 4880)
+    for index in range(5):
+        failure = tmp_path / f".failure-{run.run_id}-extra{index}"
+        failure.mkdir()
+        _write_ownership_marker(failure, run, {"identity": str(index)}, nonce=str(index))
+    unknown = tmp_path / f".failure-{run.run_id}-unknown"
+    unknown.mkdir()
+    (unknown / "keep.txt").write_text("keep")
+
+    _prune_owned_failures(tmp_path, run, retain=3)
+
+    owned = [
+        path
+        for path in tmp_path.glob(f".failure-{run.run_id}-*")
+        if (path / ".runner_ownership.json").is_file()
+    ]
+    assert len(owned) == 3
+    assert (unknown / "keep.txt").read_text() == "keep"
+
+
 def test_symlinked_run_directory_is_rejected_before_write(tmp_path: Path) -> None:
     output = tmp_path / "outputs"
     outside = tmp_path / "outside"
@@ -665,7 +714,7 @@ def test_calibration_contract_rejects_incomplete_and_pixel_count_mismatch(
     rows = [{"sample_id": "pcb1/n", "label": "0", "heatmap_path": heatmap.name}]
     valid = {
         "quantile": 0.995,
-        "threshold": 0.5,
+        "threshold": 0.0,
         "num_images": 1,
         "num_pixels": 6,
         "source_split": "val",
@@ -675,6 +724,8 @@ def test_calibration_contract_rejects_incomplete_and_pixel_count_mismatch(
         _validate_calibration_contract({"threshold": 0.5}, 0.995, rows, tmp_path)
     with pytest.raises(ValueError, match="pixel count"):
         _validate_calibration_contract(dict(valid, num_pixels=5), 0.995, rows, tmp_path)
+    with pytest.raises(ValueError, match="exact validation quantile"):
+        _validate_calibration_contract(dict(valid, threshold=123.0), 0.995, rows, tmp_path)
 
 
 def test_method_metric_schemas_reject_garbage_and_count_mismatch() -> None:
@@ -685,6 +736,100 @@ def test_method_metric_schemas_reject_garbage_and_count_mismatch() -> None:
             test_rows=[{"label": "1"}],
             calibration=None,
         )
+
+
+def test_per_image_rows_reject_nan_confusion_and_mean_mismatch() -> None:
+    expected = {
+        "pcb1/a": {
+            "dataset": "visa_pcb",
+            "sample_id": "pcb1/a",
+            "category": "pcb1",
+            "fold_split": "test",
+            "label": "1",
+        }
+    }
+    row = {
+        **expected["pcb1/a"],
+        "threshold": "0.5",
+        "mask_precision": "1.0",
+        "mask_recall": "1.0",
+        "mask_f1": "1.0",
+        "mask_iou": "1.0",
+        "pred_positive_pixels": "2",
+        "gt_positive_pixels": "2",
+        "true_positive_pixels": "2",
+        "false_positive_pixels": "0",
+        "false_negative_pixels": "0",
+    }
+    metrics = {
+        "calibrated_mean_mask_precision": 1.0,
+        "calibrated_mean_mask_recall": 1.0,
+        "calibrated_mean_mask_f1": 1.0,
+        "calibrated_mean_mask_iou": 1.0,
+        "calibrated_mean_anomaly_mask_precision": 1.0,
+        "calibrated_mean_anomaly_mask_recall": 1.0,
+        "calibrated_mean_anomaly_mask_f1": 1.0,
+        "calibrated_mean_anomaly_mask_iou": 1.0,
+        "calibrated_aggregate_pixel_precision": 1.0,
+        "calibrated_aggregate_pixel_recall": 1.0,
+        "calibrated_aggregate_pixel_f1": 1.0,
+        "calibrated_aggregate_pixel_iou": 1.0,
+    }
+    _validate_heatmap_per_image_rows([row], expected, 0.5, metrics)
+    with pytest.raises(ValueError, match="finite"):
+        _validate_heatmap_per_image_rows(
+            [dict(row, mask_f1="nan")], expected, 0.5, metrics
+        )
+    with pytest.raises(ValueError, match="confusion"):
+        _validate_heatmap_per_image_rows(
+            [dict(row, pred_positive_pixels="3")], expected, 0.5, metrics
+        )
+    with pytest.raises(ValueError, match="mean"):
+        _validate_heatmap_per_image_rows(
+            [row], expected, 0.5, dict(metrics, calibrated_mean_mask_f1=0.0)
+        )
+
+
+def test_mask_per_rows_reject_wrong_label_nan_count_and_mean_mismatch() -> None:
+    expected = {
+        "pcb1/a": {
+            "dataset": "visa_pcb",
+            "sample_id": "pcb1/a",
+            "category": "pcb1",
+            "fold_split": "test",
+            "label": "1",
+        }
+    }
+    row = {
+        **expected["pcb1/a"],
+        "mask_precision": "0.5",
+        "mask_recall": "0.5",
+        "mask_f1": "0.5",
+        "mask_iou": "0.5",
+        "pred_positive_pixels": "2",
+        "gt_positive_pixels": "2",
+    }
+    metrics = {
+        "mean_mask_precision": 0.5,
+        "mean_mask_recall": 0.5,
+        "mean_mask_f1": 0.5,
+        "mean_mask_iou": 0.5,
+        "mean_anomaly_mask_precision": 0.5,
+        "mean_anomaly_mask_recall": 0.5,
+        "mean_anomaly_mask_f1": 0.5,
+        "mean_anomaly_mask_iou": 0.5,
+    }
+    _validate_mask_per_rows([row], expected, metrics)
+    with pytest.raises(ValueError, match="label"):
+        _validate_mask_per_rows([dict(row, label="0")], expected, metrics)
+    with pytest.raises(ValueError, match="finite"):
+        _validate_mask_per_rows([dict(row, mask_iou="inf")], expected, metrics)
+    with pytest.raises(ValueError, match="integral"):
+        _validate_mask_per_rows(
+            [dict(row, pred_positive_pixels="1.5")], expected, metrics
+        )
+    with pytest.raises(ValueError, match="mean"):
+        _validate_mask_per_rows([row], expected, dict(metrics, mean_mask_f1=0.1))
     with pytest.raises(ValueError, match="numeric"):
         _validate_method_metrics(
             RunSpec("dinov2_multi_sam2", "pcb1", 0, 1, 4880),
