@@ -11,13 +11,16 @@ from pathlib import Path
 STAGE4_FIELDS = [
     "category",
     "method",
+    "threshold_policy",
     "image_auroc",
     "pixel_auroc",
     "aupro",
-    "mask_f1",
-    "mask_iou",
-    "precision",
-    "recall",
+    "aggregate_pixel_f1",
+    "aggregate_pixel_iou",
+    "mean_anomaly_mask_f1",
+    "mean_anomaly_mask_iou",
+    "mean_anomaly_mask_precision",
+    "mean_anomaly_mask_recall",
 ]
 
 METHOD_ORDER = {
@@ -71,22 +74,34 @@ def infer_method(path: Path) -> str:
 
 def format_stage4_markdown(rows: list[dict[str, float | str | None]]) -> str:
     lines = [
-        "| category | method | image AUROC | pixel AUROC | AUPRO | mask F1 | mask IoU | precision | recall |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| category | method | threshold policy | image AUROC | pixel AUROC | AUPRO | "
+        "aggregate pixel F1 | aggregate pixel IoU | mean anomaly mask F1 | "
+        "mean anomaly mask IoU | precision | recall |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in rows:
         lines.append(
-            "| {category} | {method} | {image_auroc} | {pixel_auroc} | {aupro} | {mask_f1} | "
-            "{mask_iou} | {precision} | {recall} |".format(
+            "| {category} | {method} | {threshold_policy} | {image_auroc} | "
+            "{pixel_auroc} | {aupro} | {aggregate_pixel_f1} | "
+            "{aggregate_pixel_iou} | {mean_anomaly_mask_f1} | "
+            "{mean_anomaly_mask_iou} | {mean_anomaly_mask_precision} | "
+            "{mean_anomaly_mask_recall} |".format(
                 category=row["category"],
                 method=row["method"],
+                threshold_policy=row.get("threshold_policy", "-"),
                 image_auroc=_format_metric(row.get("image_auroc")),
                 pixel_auroc=_format_metric(row.get("pixel_auroc")),
                 aupro=_format_metric(row.get("aupro")),
-                mask_f1=_format_metric(row.get("mask_f1")),
-                mask_iou=_format_metric(row.get("mask_iou")),
-                precision=_format_metric(row.get("precision")),
-                recall=_format_metric(row.get("recall")),
+                aggregate_pixel_f1=_format_metric(row.get("aggregate_pixel_f1")),
+                aggregate_pixel_iou=_format_metric(row.get("aggregate_pixel_iou")),
+                mean_anomaly_mask_f1=_format_metric(row.get("mean_anomaly_mask_f1")),
+                mean_anomaly_mask_iou=_format_metric(row.get("mean_anomaly_mask_iou")),
+                mean_anomaly_mask_precision=_format_metric(
+                    row.get("mean_anomaly_mask_precision")
+                ),
+                mean_anomaly_mask_recall=_format_metric(
+                    row.get("mean_anomaly_mask_recall")
+                ),
             )
         )
     return "\n".join(lines) + "\n"
@@ -98,27 +113,59 @@ def _row_from_metrics(
     metrics: dict[str, float],
 ) -> dict[str, float | str | None]:
     if "image_auroc" in metrics or "pixel_auroc" in metrics:
+        required = {
+            "calibrated_aggregate_pixel_f1",
+            "calibrated_aggregate_pixel_iou",
+            "calibrated_mean_anomaly_mask_f1",
+            "calibrated_mean_anomaly_mask_iou",
+            "calibrated_mean_anomaly_mask_precision",
+            "calibrated_mean_anomaly_mask_recall",
+        }
+        if not required.issubset(metrics):
+            raise ValueError("calibrated heatmap metrics required")
         return {
             "category": category,
             "method": method,
+            "threshold_policy": "normal_q995",
             "image_auroc": _optional_float(metrics.get("image_auroc")),
             "pixel_auroc": _optional_float(metrics.get("pixel_auroc")),
             "aupro": _optional_float(metrics.get("aupro")),
-            "mask_f1": _optional_float(metrics.get("best_pixel_f1")),
-            "mask_iou": _optional_float(metrics.get("best_pixel_iou")),
-            "precision": None,
-            "recall": None,
+            "aggregate_pixel_f1": _optional_float(
+                metrics.get("calibrated_aggregate_pixel_f1")
+            ),
+            "aggregate_pixel_iou": _optional_float(
+                metrics.get("calibrated_aggregate_pixel_iou")
+            ),
+            "mean_anomaly_mask_f1": _optional_float(
+                metrics.get("calibrated_mean_anomaly_mask_f1")
+            ),
+            "mean_anomaly_mask_iou": _optional_float(
+                metrics.get("calibrated_mean_anomaly_mask_iou")
+            ),
+            "mean_anomaly_mask_precision": _optional_float(
+                metrics.get("calibrated_mean_anomaly_mask_precision")
+            ),
+            "mean_anomaly_mask_recall": _optional_float(
+                metrics.get("calibrated_mean_anomaly_mask_recall")
+            ),
         }
     return {
         "category": category,
         "method": method,
+        "threshold_policy": "binary_model_output",
         "image_auroc": None,
         "pixel_auroc": None,
         "aupro": None,
-        "mask_f1": _optional_float(metrics.get("mean_anomaly_mask_f1")),
-        "mask_iou": _optional_float(metrics.get("mean_anomaly_mask_iou")),
-        "precision": _optional_float(metrics.get("mean_anomaly_mask_precision")),
-        "recall": _optional_float(metrics.get("mean_anomaly_mask_recall")),
+        "aggregate_pixel_f1": None,
+        "aggregate_pixel_iou": None,
+        "mean_anomaly_mask_f1": _optional_float(metrics.get("mean_anomaly_mask_f1")),
+        "mean_anomaly_mask_iou": _optional_float(metrics.get("mean_anomaly_mask_iou")),
+        "mean_anomaly_mask_precision": _optional_float(
+            metrics.get("mean_anomaly_mask_precision")
+        ),
+        "mean_anomaly_mask_recall": _optional_float(
+            metrics.get("mean_anomaly_mask_recall")
+        ),
     }
 
 
@@ -131,8 +178,12 @@ def _mean_rows(
 
     mean_rows = []
     for method, method_rows in rows_by_method.items():
-        mean = {"category": "mean", "method": method}
-        for key in STAGE4_FIELDS[2:]:
+        mean = {
+            "category": "mean",
+            "method": method,
+            "threshold_policy": method_rows[0].get("threshold_policy"),
+        }
+        for key in STAGE4_FIELDS[3:]:
             values = [row.get(key) for row in method_rows]
             numeric_values = [
                 float(value)

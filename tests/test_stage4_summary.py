@@ -61,11 +61,23 @@ class Stage4SummaryTest(unittest.TestCase):
             0.75,
         )
         self.assertAlmostEqual(
-            method_rows[("pcb1", "sam2_only")]["mask_f1"],
+            method_rows[("pcb1", "dinov2_single_heatmap")]["mean_anomaly_mask_f1"],
+            0.2,
+        )
+        self.assertEqual(
+            method_rows[("pcb1", "dinov2_single_heatmap")]["threshold_policy"],
+            "normal_q995",
+        )
+        self.assertEqual(
+            method_rows[("pcb1", "sam2_only")]["threshold_policy"],
+            "binary_model_output",
+        )
+        self.assertAlmostEqual(
+            method_rows[("pcb1", "sam2_only")]["mean_anomaly_mask_f1"],
             0.05,
         )
         self.assertAlmostEqual(
-            method_rows[("pcb1", "ms768_dinov2_sam2")]["recall"],
+            method_rows[("pcb1", "ms768_dinov2_sam2")]["mean_anomaly_mask_recall"],
             0.45,
         )
         self.assertAlmostEqual(
@@ -79,21 +91,42 @@ class Stage4SummaryTest(unittest.TestCase):
                 {
                     "category": "pcb1",
                     "method": "sam2_only",
+                    "threshold_policy": "binary_model_output",
                     "image_auroc": None,
                     "pixel_auroc": None,
                     "aupro": None,
-                    "mask_f1": 0.1,
-                    "mask_iou": 0.05,
-                    "precision": 0.2,
-                    "recall": 0.3,
+                    "aggregate_pixel_f1": None,
+                    "aggregate_pixel_iou": None,
+                    "mean_anomaly_mask_f1": 0.1,
+                    "mean_anomaly_mask_iou": 0.05,
+                    "mean_anomaly_mask_precision": 0.2,
+                    "mean_anomaly_mask_recall": 0.3,
                 }
             ]
         )
 
         self.assertIn(
-            "| pcb1 | sam2_only | - | - | - | 0.1000 | 0.0500 | 0.2000 | 0.3000 |",
+            "| pcb1 | sam2_only | binary_model_output | - | - | - | - | - | 0.1000 | 0.0500 | 0.2000 | 0.3000 |",
             markdown,
         )
+
+    def test_heatmap_requires_calibrated_binary_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            path = _write_json(
+                root / "dinov2_vits14_pcb1_fold0_full" / "metrics.json",
+                {
+                    "num_images": 10,
+                    "image_auroc": 0.7,
+                    "pixel_auroc": 0.8,
+                    "aupro": 0.75,
+                    "best_pixel_f1": 0.9,
+                    "best_pixel_iou": 0.8,
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "calibrated heatmap metrics required"):
+                summarize_stage4_files([path])
 
 
 class Stage4SummaryScriptTest(unittest.TestCase):
@@ -143,7 +176,10 @@ class Stage4SummaryScriptTest(unittest.TestCase):
             markdown = output_md.read_text()
 
         self.assertEqual(rows[0]["method"], "dinov2_single_heatmap")
-        self.assertIn("| category | method | image AUROC | pixel AUROC | AUPRO |", markdown)
+        self.assertIn(
+            "| category | method | threshold policy | image AUROC | pixel AUROC | AUPRO |",
+            markdown,
+        )
 
 
 def _write_heatmap_metrics(
@@ -161,8 +197,12 @@ def _write_heatmap_metrics(
             "image_auroc": image_auroc,
             "pixel_auroc": pixel_auroc,
             "aupro": aupro,
-            "best_pixel_f1": f1,
-            "best_pixel_iou": iou,
+            "calibrated_aggregate_pixel_f1": f1,
+            "calibrated_aggregate_pixel_iou": iou,
+            "calibrated_mean_anomaly_mask_f1": f1,
+            "calibrated_mean_anomaly_mask_iou": iou,
+            "calibrated_mean_anomaly_mask_precision": f1 + 0.01,
+            "calibrated_mean_anomaly_mask_recall": f1 + 0.02,
         },
     )
 
