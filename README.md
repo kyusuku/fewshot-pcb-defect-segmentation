@@ -6,12 +6,15 @@ Repository name: `fewshot-pcb-defect-segmentation`
 
 This project implements a few-shot PCB defect detection and segmentation pipeline. The intended method learns normal PCB appearance from a small number of normal images, detects anomalous regions with DINOv2 patch features, improves small-defect localization with multi-scale crops, and refines candidate regions into masks with SAM2.
 
-Current status: dataset loaders, official split manifests, DINOv2-style anomaly
-heatmap baseline, optional multi-scale crop fusion, heatmap evaluation, and a
-SAM2-compatible mask refinement stage with a deterministic fallback refiner.
+Current status: the local arXiv evidence pipeline is implemented through compact
+paper tables, paired SAM2 failure analysis, deterministic figure tooling, and an
+offline smoke test. Full primary/ablation numbers still require the AutoDL matrix
+run described below.
 
 See [docs/PRD.md](docs/PRD.md) for the staged research plan, exit criteria, and
 publishability gates.
+See [docs/arxiv_readiness_checklist.md](docs/arxiv_readiness_checklist.md) for
+the current arXiv-readiness audit.
 
 ## Benchmarks
 
@@ -68,6 +71,92 @@ See [docs/data_acquisition.md](docs/data_acquisition.md) for official download p
 See [docs/autodl_data_setup.md](docs/autodl_data_setup.md) for the no-download AutoDL upload workflow.
 
 Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, and API keys are ignored by `.gitignore`.
+
+## ArXiv Evidence Workflow
+
+The paper-facing protocol uses VisA PCB as the primary segmentation benchmark.
+DeepPCB is secondary because it provides boxes, not true masks. CLIP is not part
+of this method.
+
+Offline smoke, with no network, GPU, or checkpoint:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --device cpu \
+  --allow-dirty
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --device cpu \
+  --output-json outputs/arxiv_smoke/matrix_summary.json
+PYTHONPATH=src python scripts/analyze_paper_results.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --analysis-dir outputs/arxiv_smoke_analysis \
+  --device cpu
+```
+
+Single primary run example:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --device auto \
+  --run-id dinov2_multi__pcb1__fold0__k1__seed4880
+```
+
+Full primary matrix on AutoDL:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --output-json outputs/arxiv_primary/matrix_summary.json
+```
+
+Ablations, analysis, assets, and compact evidence:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_ablations.yaml \
+  --output-root outputs/arxiv_ablations \
+  --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/analyze_paper_results.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --analysis-dir outputs/arxiv_analysis \
+  --device cuda
+PYTHONPATH=src python scripts/curate_paper_assets.py \
+  --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
+  --asset-dir artifacts/paper_assets
+PYTHONPATH=src python scripts/render_method_figure.py
+PYTHONPATH=src python scripts/build_paper_evidence.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --ablation-config configs/experiments/arxiv_ablations.yaml \
+  --ablation-output-root outputs/arxiv_ablations \
+  --analysis-dir outputs/arxiv_analysis \
+  --evidence-dir docs/evidence/generated \
+  --device cuda
+```
+
+Primary paper tables use normal-validation calibrated binary masks
+(`normal_q995`) for heatmaps and binary model outputs for SAM2/fused masks.
+Oracle/test-optimal metrics are retained only as `oracle_*` diagnostics.
 
 ## Debug Loaders
 

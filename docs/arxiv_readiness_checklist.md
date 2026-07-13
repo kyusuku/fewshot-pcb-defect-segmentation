@@ -1,0 +1,25 @@
+# ArXiv Readiness Checklist
+
+Current status: local evidence infrastructure is implemented and smoke-tested.
+Full paper claims remain incomplete until the AutoDL primary and ablation matrices
+finish and `docs/evidence/generated/completion_manifest.json` is produced from
+those runs.
+
+| Requirement | Status | Authoritative evidence | Verification command | Notes |
+| --- | --- | --- | --- | --- |
+| Normal-only calibration | complete | `src/evaluation/calibration.py`, `scripts/calibrate_heatmaps.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_calibration.py -q` | Uses validation normals only. |
+| Comparable calibrated metrics | complete | `scripts/evaluate_heatmaps.py`, `src/evaluation/stage4.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_calibrated_evaluation.py tests/test_stage4_summary.py -q` | Oracle metrics are diagnostics only. |
+| Statistics and paired deltas | complete | `src/evaluation/statistics.py`, `scripts/analyze_paper_results.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_statistics.py tests/test_analyze_paper_results.py -q` | Bootstrap CIs are deterministic. |
+| Prompt variants and mask fusion | complete | `src/sam_refine/`, `scripts/fuse_saved_masks.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_sam_refine.py tests/test_mask_fusion.py -q` | Raw SAM2 provenance is enforced. |
+| PatchCore baseline | complete | `src/features/patchcore.py`, `scripts/run_patchcore_baseline.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_patchcore_features.py -q` | Frozen Wide-ResNet feature baseline. |
+| Feature cache and bounded debug | complete | `src/features/cache.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_feature_cache.py -q` | Cache identity includes model/runtime/device state. |
+| Immutable experiment specs | complete | `src/experiments/spec.py`, `configs/experiments/*.yaml` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_experiment_spec.py tests/test_provenance.py -q` | Frozen primary count is 364; ablations count is 48. |
+| Resumable runner and checker | complete | `scripts/run_experiment_matrix.py`, `scripts/check_experiment_matrix.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_experiment_runner.py tests/test_experiment_matrix_scripts.py -q` | Smoke/resume/checker path is covered. |
+| Failure geometry analysis | complete | `src/evaluation/failure_analysis.py`, `scripts/analyze_paper_results.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_failure_analysis.py tests/test_analyze_paper_results.py -q` | Normal rows are separated from defect-area strata. |
+| Paper tables and evidence index | complete locally | `src/evaluation/paper_tables.py`, `scripts/build_paper_evidence.py`, `docs/evidence/README.md` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_paper_tables.py tests/test_build_paper_evidence.py -q` | Full generated evidence awaits AutoDL matrix. |
+| Deterministic figures and curation | complete locally | `scripts/curate_paper_assets.py`, `scripts/render_method_figure.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_curate_paper_assets.py tests/test_render_method_figure.py -q` | Qualitative assets are copied from selected runs only. |
+| End-to-end offline smoke | complete | `tests/test_arxiv_smoke.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_arxiv_smoke.py -q` | Uses color-patch and fallback refiner. |
+| Public repository hygiene | complete | `tests/test_public_hygiene.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_public_hygiene.py -q` | Blocks tracked data, weights, archives, and key-shaped secrets. |
+| Full primary matrix | incomplete | `outputs/arxiv_primary/matrix_summary.json` | `PYTHONPATH=src python scripts/check_experiment_matrix.py --config configs/experiments/arxiv_primary.yaml --output-root outputs/arxiv_primary --device cuda` | Requires AutoDL/GPU execution. |
+| Full ablation matrix | incomplete | `outputs/arxiv_ablations/matrix_summary.json` | `PYTHONPATH=src python scripts/check_experiment_matrix.py --config configs/experiments/arxiv_ablations.yaml --output-root outputs/arxiv_ablations --dependency-root outputs/arxiv_primary --device cuda` | Requires completed primary matrix. |
+| Final arXiv claim audit | incomplete | `docs/evidence/generated/completion_manifest.json` | `PYTHONPATH=src python scripts/build_paper_evidence.py ...` | No report claim should be written until this is complete. |

@@ -124,3 +124,90 @@ PYTHONPATH=src python scripts/create_manifests.py \
 
 If only VisA is available, omit `--deeppcb-root`. If only DeepPCB is available,
 omit `--visa-root`.
+
+## AutoDL Primary Matrix Workflow
+
+Use the ignored AutoDL checkout under `/root/autodl-tmp`:
+
+```bash
+cd /root/autodl-tmp/fewshot-pcb-defect-segmentation
+python3.11 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
+```
+
+Check CUDA before launching the matrix:
+
+```bash
+python - <<'PY'
+import torch
+print("cuda_available", torch.cuda.is_available())
+print("device", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
+PY
+```
+
+Run long jobs inside `tmux` and always use `--resume`:
+
+```bash
+tmux new -s pcb-arxiv
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --output-json outputs/arxiv_primary/matrix_summary.json
+```
+
+Then run ablations against the completed primary outputs:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_ablations.yaml \
+  --output-root outputs/arxiv_ablations \
+  --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_ablations.yaml \
+  --output-root outputs/arxiv_ablations \
+  --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --output-json outputs/arxiv_ablations/matrix_summary.json
+```
+
+Build compact summaries and selected paper assets only:
+
+```bash
+PYTHONPATH=src python scripts/analyze_paper_results.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --analysis-dir outputs/arxiv_analysis \
+  --device cuda
+PYTHONPATH=src python scripts/curate_paper_assets.py \
+  --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
+  --asset-dir artifacts/paper_assets
+PYTHONPATH=src python scripts/render_method_figure.py
+PYTHONPATH=src python scripts/build_paper_evidence.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --ablation-config configs/experiments/arxiv_ablations.yaml \
+  --ablation-output-root outputs/arxiv_ablations \
+  --analysis-dir outputs/arxiv_analysis \
+  --evidence-dir docs/evidence/generated \
+  --device cuda
+tar -czf arxiv_compact_evidence.tar.gz docs/evidence/generated artifacts/paper_assets
+```
+
+Transfer `arxiv_compact_evidence.tar.gz` back to the local checkout. Do not
+archive raw `outputs/`, checkpoints, datasets, feature caches, or heatmaps for
+public release.

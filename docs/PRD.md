@@ -95,9 +95,14 @@ evaluated under few-shot normal-only PCB inspection constraints.
 | 1 | DINOv2-Only Baseline | Few-shot memory bank and heatmap scoring | Initial implementation complete | Per-category VisA metrics saved and summarized |
 | 2 | Multi-Scale DINOv2 Proposals | Improve small-defect localization with crops | Initial implementation complete | Single-scale vs multi-scale ablation complete |
 | 3 | SAM2 Mask Refinement | Refine anomaly proposals into masks | Adapter/fallback implemented | Real SAM2 run works on a small subset |
-| 4 | Baseline Comparison | Compare method variants fairly | SAM2-only script and summary tooling added; full SAM2-only table pending | Four baseline rows reported with same data split |
-| 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | Pending | Milestone/final report figures reproducible |
-| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | Ongoing | Clean README, commands, license, no private artifacts |
+| 4 | Baseline Comparison | Compare method variants fairly | Frozen primary and ablation matrices implemented; full AutoDL results pending | Matrix checker passes on all primary/ablation runs |
+| 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | Local smoke, analysis, evidence builder, and figure tooling implemented | `docs/evidence/generated/completion_manifest.json` from full matrix |
+| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | README, evidence policy, and hygiene tests active | Full arXiv checklist complete |
+
+The current publication-readiness source of truth is
+[`docs/arxiv_readiness_checklist.md`](arxiv_readiness_checklist.md). The older
+milestone status below is retained as historical project context; final claims
+must be derived from the frozen matrix, analysis, evidence manifest, and checklist.
 
 ## Stage 0: Repo and Data Foundation
 
