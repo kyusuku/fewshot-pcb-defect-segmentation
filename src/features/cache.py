@@ -179,9 +179,7 @@ def extractor_revision_identity(
         else _default_precision_identity(state_identity)
     )
     runtime = (
-        dict(runtime_identity)
-        if runtime_identity is not None
-        else numerical_runtime_identity()
+        dict(runtime_identity) if runtime_identity is not None else numerical_runtime_identity()
     )
     return {
         "identity_version": 1,
@@ -230,9 +228,7 @@ class FeatureCache:
         self.root = Path(root)
         root_digest = hashlib.sha256(str(self.root.resolve()).encode("utf-8")).hexdigest()
         self.lock_root = (
-            Path(tempfile.gettempdir())
-            / "pcb-defect-feature-cache-locks"
-            / root_digest
+            Path(tempfile.gettempdir()) / "pcb-defect-feature-cache-locks" / root_digest
         )
 
     def path_for_key(self, key: str) -> Path:
@@ -612,9 +608,7 @@ def _extractor_source_hashes(extractor: object, model: object | None) -> dict[st
     classes = {type(extractor)}
     if model is not None:
         classes.update(type(module) for _, module in _named_modules(model))
-    hashes = {
-        "preprocessing:features.dinov2": sha256_file(inspect.getsourcefile(dinov2))
-    }
+    hashes = {"preprocessing:features.dinov2": sha256_file(inspect.getsourcefile(dinov2))}
     for value_type in sorted(classes, key=lambda item: (item.__module__, item.__qualname__)):
         try:
             source_path = inspect.getsourcefile(value_type)

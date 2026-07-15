@@ -155,9 +155,7 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
             output_files = sorted(path.name for path in output_dir.glob("*.png"))
             scores_path = output_dir / "scores.csv"
             rows = _read_csv(scores_path)
-            provenance = json.loads(
-                (output_dir / "memory_bank_provenance.json").read_text()
-            )
+            provenance = json.loads((output_dir / "memory_bank_provenance.json").read_text())
             self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
             self.assertFalse(Path(rows[0]["image_path"]).is_absolute())
             self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
@@ -403,11 +401,7 @@ def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
             "image_path": str(visa_root / "pcb1" / "test" / "anomaly" / "pcb1_anomaly_000.png"),
             "label": "1",
             "mask_path": str(
-                visa_root
-                / "pcb1"
-                / "ground_truth"
-                / "anomaly"
-                / "pcb1_anomaly_000.png"
+                visa_root / "pcb1" / "ground_truth" / "anomaly" / "pcb1_anomaly_000.png"
             ),
             "box_path": "",
             "template_path": "",

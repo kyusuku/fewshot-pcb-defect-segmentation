@@ -47,8 +47,7 @@ def test_public_repo_does_not_track_private_artifacts_or_secret_markers() -> Non
     bad_paths = [
         path
         for path in tracked
-        if path.startswith(FORBIDDEN_ROOTS)
-        or Path(path).suffix.lower() in FORBIDDEN_EXTENSIONS
+        if path.startswith(FORBIDDEN_ROOTS) or Path(path).suffix.lower() in FORBIDDEN_EXTENSIONS
     ]
     assert bad_paths == []
 

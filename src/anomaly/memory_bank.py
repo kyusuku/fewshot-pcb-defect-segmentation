@@ -75,11 +75,7 @@ def select_greedy_coreset(
         or not 0.0 < ratio <= 1.0
     ):
         raise ValueError("ratio must be finite and in (0, 1]")
-    if (
-        not isinstance(seed, (int, np.integer))
-        or isinstance(seed, (bool, np.bool_))
-        or seed < 0
-    ):
+    if not isinstance(seed, (int, np.integer)) or isinstance(seed, (bool, np.bool_)) or seed < 0:
         raise ValueError("seed must be a non-negative integer")
     if (
         not isinstance(projection_dim, (int, np.integer))

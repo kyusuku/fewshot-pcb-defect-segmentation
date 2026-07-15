@@ -544,10 +544,9 @@ class MultiScaleFeatureCacheTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = FeatureCache(Path(tmpdir))
+
             def key_for_view(view: str):
-                x1, y1, x2, y2 = (
-                    int(value) for value in view.rsplit(":", 1)[1].split(",")
-                )
+                x1, y1, x2, y2 = (int(value) for value in view.rsplit(":", 1)[1].split(","))
                 return cache_module.FeatureCacheIdentity(
                     sample_id="pcb1/query",
                     image_sha256="a" * 64,
@@ -558,6 +557,7 @@ class MultiScaleFeatureCacheTest(unittest.TestCase):
                     view=f"query:{view}",
                     source_size=(x2 - x1, y2 - y1),
                 )
+
             first = compute_anomaly_heatmap(
                 image=image,
                 extractor=extractor,

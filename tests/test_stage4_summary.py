@@ -40,7 +40,8 @@ class Stage4SummaryTest(unittest.TestCase):
                     recall=0.08,
                 ),
                 _write_mask_metrics(
-                    root / "dinov2_vits14_pcb1_fold0_ms768_o025_max_full_sam2"
+                    root
+                    / "dinov2_vits14_pcb1_fold0_ms768_o025_max_full_sam2"
                     / "mask_metrics.json",
                     f1=0.3,
                     iou=0.2,

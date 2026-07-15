@@ -159,9 +159,7 @@ def test_dependencies_declare_referenced_artifacts_and_expected_identity() -> No
 
     ablations = expand_matrix(load_experiment_config(CONFIG_ROOT / "arxiv_ablations.yaml"))
     fusion = next(
-        run
-        for run in ablations
-        if run.variant == "fusion_union" and run.category == "pcb1"
+        run for run in ablations if run.variant == "fusion_union" and run.category == "pcb1"
     )
     raw_reference = fusion.dependencies[1].referenced_artifacts[0]
     assert raw_reference.csv_path == "test/mask_scores.csv"
@@ -233,9 +231,7 @@ def test_dirty_provenance_is_rejected_by_default_and_hashed_when_allowed(
     dirty = record["git"]["dirty_identity"]
     assert len(dirty["staged_diff_sha256"]) == 64
     assert len(dirty["unstaged_diff_sha256"]) == 64
-    assert dirty["untracked"] == [
-        {"path": "notes.txt", "sha256": sha256_file(untracked)}
-    ]
+    assert dirty["untracked"] == [{"path": "notes.txt", "sha256": sha256_file(untracked)}]
     assert "untracked evidence" not in json.dumps(record)
 
 
@@ -299,12 +295,8 @@ def test_same_run_id_with_different_effective_identity_is_not_resumable(
     config_path = tmp_path / "config.yaml"
     config = {"name": "debug"}
     config_path.write_text(yaml.safe_dump(config))
-    original = RunSpec(
-        "dinov2_multi", "pcb1", 0, 1, 4880, overrides={"crop_sizes": [512]}
-    )
-    changed = RunSpec(
-        "dinov2_multi", "pcb1", 0, 1, 4880, overrides={"crop_sizes": [768]}
-    )
+    original = RunSpec("dinov2_multi", "pcb1", 0, 1, 4880, overrides={"crop_sizes": [512]})
+    changed = RunSpec("dinov2_multi", "pcb1", 0, 1, 4880, overrides={"crop_sizes": [768]})
     record = build_provenance(
         original,
         manifest,

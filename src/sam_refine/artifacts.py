@@ -211,9 +211,7 @@ def _heatmap_to_rgb(heatmap: np.ndarray) -> Image.Image:
     else:
         heatmap = np.zeros_like(heatmap)
     red = (heatmap * 255).astype(np.uint8)
-    green = (np.clip(1.0 - np.abs(heatmap - 0.75) * 2.0, 0.0, 1.0) * 220).astype(
-        np.uint8
-    )
+    green = (np.clip(1.0 - np.abs(heatmap - 0.75) * 2.0, 0.0, 1.0) * 220).astype(np.uint8)
     blue = ((1.0 - heatmap) * 80).astype(np.uint8)
     return Image.fromarray(np.stack([red, green, blue], axis=-1), mode="RGB")
 

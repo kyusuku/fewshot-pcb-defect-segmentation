@@ -182,9 +182,7 @@ def evaluate_heatmap_rows(
         heatmap = np.load(info.path).astype(np.float32, copy=False)
         mask = _load_evaluation_target(info.row, heatmap.shape)
         selected_start = int(np.searchsorted(selected_indices, info.offset, side="left"))
-        selected_end = int(
-            np.searchsorted(selected_indices, info.offset + info.size, side="left")
-        )
+        selected_end = int(np.searchsorted(selected_indices, info.offset + info.size, side="left"))
         local_indices = selected_indices[selected_start:selected_end] - info.offset
         if local_indices.size:
             pixel_labels.append(mask.ravel()[local_indices])

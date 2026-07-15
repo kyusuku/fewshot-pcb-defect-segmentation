@@ -86,8 +86,7 @@ def main() -> None:
         heatmap = load_validated_heatmap(
             heatmap_path,
             context=(
-                f"heatmap row {index} sample_id={row.get('sample_id', '')!r} "
-                f"at {heatmap_path!r}"
+                f"heatmap row {index} sample_id={row.get('sample_id', '')!r} at {heatmap_path!r}"
             ),
         )
         anomaly_mask = anomaly_mask_from_heatmap(heatmap, calibration.threshold)
@@ -124,9 +123,7 @@ def main() -> None:
                 "mask_output": args.mask_output,
                 "selected_source": selected_source,
                 "proposal_threshold": f"{calibration.threshold:.8f}",
-                "calibration_mismatch_override": (
-                    "1" if args.allow_calibration_mismatch else "0"
-                ),
+                "calibration_mismatch_override": ("1" if args.allow_calibration_mismatch else "0"),
                 **{key: format_float(value) for key, value in agreement.items()},
                 "selective_min_iou": f"{args.selective_min_iou:.8f}",
                 "selective_max_expansion": f"{args.selective_max_expansion:.8f}",
@@ -216,16 +213,12 @@ def _validate_sam2_source_identity(
         if len(checkpoint_sha256) != 64 or any(
             character not in "0123456789abcdef" for character in checkpoint_sha256
         ):
-            raise ValueError(
-                f"row {index} must have a lowercase SHA-256 sam2_checkpoint_sha256"
-            )
+            raise ValueError(f"row {index} must have a lowercase SHA-256 sam2_checkpoint_sha256")
         model_identity = (model_config, checkpoint_sha256)
         if expected_model_identity is None:
             expected_model_identity = model_identity
         elif model_identity != expected_model_identity:
-            raise ValueError(
-                f"row {index} SAM2 model identity does not match earlier rows"
-            )
+            raise ValueError(f"row {index} SAM2 model identity does not match earlier rows")
 
 
 def _required_existing_path(row: dict[str, str], index: int, field: str) -> str:

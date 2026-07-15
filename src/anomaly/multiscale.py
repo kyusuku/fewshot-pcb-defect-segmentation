@@ -94,9 +94,7 @@ def compute_anomaly_heatmap(
                 normalize_features=normalize_features,
                 feature_cache=feature_cache,
                 cache_key=(
-                    cache_key_for_view(f"crop:{x1},{y1},{x2},{y2}")
-                    if cache_key_for_view
-                    else None
+                    cache_key_for_view(f"crop:{x1},{y1},{x2},{y2}") if cache_key_for_view else None
                 ),
             )
             region = fused[y1:y2, x1:x2]

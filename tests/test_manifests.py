@@ -105,9 +105,7 @@ class ManifestSplitTest(unittest.TestCase):
             if row["split"] == "train"
         }
         self.assertTrue(all(count == 1 for count in train_val_counts.values()))
-        self.assertTrue(
-            all(row["fold_split"] == "test" for row in rows if row["split"] == "test")
-        )
+        self.assertTrue(all(row["fold_split"] == "test" for row in rows if row["split"] == "test"))
 
     def test_build_kfold_manifest_rows_can_balance_deeppcb_multilabels(self) -> None:
         records = [
@@ -170,9 +168,7 @@ class ManifestSplitTest(unittest.TestCase):
         rows = build_kfold_manifest_rows(records, num_folds=2, seed=4880, stratify_by="multilabel")
 
         many_opens = [
-            row
-            for row in rows
-            if row["sample_id"] == "many_opens" and row["fold_split"] == "val"
+            row for row in rows if row["sample_id"] == "many_opens" and row["fold_split"] == "val"
         ]
         self.assertEqual(len(many_opens), 1)
         self.assertIn('"class_ids": [1, 1, 1]', many_opens[0]["metadata_json"])

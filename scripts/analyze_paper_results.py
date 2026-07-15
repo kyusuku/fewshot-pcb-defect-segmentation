@@ -189,9 +189,7 @@ def _collect_failure_rows(
         for k in shots:
             for seed in seeds:
                 heatmap_run = RunSpec("dinov2_multi", category, fold_id, int(k), int(seed))
-                sam2_run = RunSpec(
-                    "dinov2_multi_sam2", category, fold_id, int(k), int(seed)
-                )
+                sam2_run = RunSpec("dinov2_multi_sam2", category, fold_id, int(k), int(seed))
                 fusion_run = RunSpec(
                     "anomaly_consistent_sam2", category, fold_id, int(k), int(seed)
                 )
@@ -228,9 +226,7 @@ def _collect_run_triplet(
     }
     fusion_rows = {
         row["sample_id"]: row
-        for row in resolve_mask_row_paths(
-            _read_csv(fusion_dir / "mask_scores.csv"), fusion_dir
-        )
+        for row in resolve_mask_row_paths(_read_csv(fusion_dir / "mask_scores.csv"), fusion_dir)
     }
     output: list[dict[str, str | float | int]] = []
     for heatmap_row in heatmap_rows:

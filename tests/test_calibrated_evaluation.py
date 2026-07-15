@@ -146,8 +146,18 @@ class CalibrationScriptTest(unittest.TestCase):
                 scores_csv,
                 ["sample_id", "label", "fold_split", "heatmap_path"],
                 [
-                    {"sample_id": "n1", "label": "0", "fold_split": "val", "heatmap_path": first.name},
-                    {"sample_id": "n2", "label": "0", "fold_split": "val", "heatmap_path": second.name},
+                    {
+                        "sample_id": "n1",
+                        "label": "0",
+                        "fold_split": "val",
+                        "heatmap_path": first.name,
+                    },
+                    {
+                        "sample_id": "n2",
+                        "label": "0",
+                        "fold_split": "val",
+                        "heatmap_path": second.name,
+                    },
                 ],
             )
 

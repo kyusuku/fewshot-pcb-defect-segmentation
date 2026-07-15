@@ -30,22 +30,14 @@ def test_dry_run_prints_ordered_argv_and_writes_nothing(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert not output.exists()
     lines = result.stdout.splitlines()
-    argv = [
-        json.loads(line.removeprefix("ARGV "))
-        for line in lines
-        if line.startswith("ARGV ")
-    ]
+    argv = [json.loads(line.removeprefix("ARGV ")) for line in lines if line.startswith("ARGV ")]
     assert all(isinstance(command, list) for command in argv)
     val_index = next(
-        i
-        for i, line in enumerate(lines)
-        if _argv_option(line, "--query-fold-split") == "val"
+        i for i, line in enumerate(lines) if _argv_option(line, "--query-fold-split") == "val"
     )
     calibration_index = next(i for i, line in enumerate(lines) if "calibrate_heatmaps.py" in line)
     test_index = next(
-        i
-        for i, line in enumerate(lines)
-        if _argv_option(line, "--query-fold-split") == "test"
+        i for i, line in enumerate(lines) if _argv_option(line, "--query-fold-split") == "test"
     )
     assert val_index < calibration_index < test_index
     assert all(line.startswith(("RUN ", "ARGV ")) for line in lines)
@@ -66,20 +58,14 @@ def test_checker_missing_matrix_is_deterministic_json_and_exit_one(tmp_path: Pat
         str(tmp_path / "check.json"),
     ]
     environment = {"PYTHONPATH": str(repo / "src")}
-    first = subprocess.run(
-        command, cwd=repo, env=environment, capture_output=True, text=True
-    )
-    second = subprocess.run(
-        command, cwd=repo, env=environment, capture_output=True, text=True
-    )
+    first = subprocess.run(command, cwd=repo, env=environment, capture_output=True, text=True)
+    second = subprocess.run(command, cwd=repo, env=environment, capture_output=True, text=True)
     assert first.returncode == second.returncode == 1
     assert first.stdout == second.stdout
     assert '"ok":false' in first.stdout
     assert (tmp_path / "check.json").read_bytes() == second.stdout.encode("utf-8")
     report = json.loads(first.stdout)
-    assert {error["category"] for run in report["runs"] for error in run["errors"]} == {
-        "missing"
-    }
+    assert {error["category"] for run in report["runs"] for error in run["errors"]} == {"missing"}
 
 
 def _argv_option(line: str, flag: str) -> str | None:

@@ -125,7 +125,9 @@ def build_paper_evidence(
             Path(config_path) if config_path is not None else Path("primary.yaml"),
             output_root,
             Path(dependency_root) if dependency_root is not None else output_root,
-            Path(feature_cache_dir) if feature_cache_dir is not None else output_root / ".feature_cache",
+            Path(feature_cache_dir)
+            if feature_cache_dir is not None
+            else output_root / ".feature_cache",
             device,
         )
         _require_matrix_ok(
@@ -253,17 +255,13 @@ def _collect_ablation_rows(
                     "aggregate_pixel_iou": None,
                     "mean_anomaly_mask_f1": metrics.get("mean_anomaly_mask_f1"),
                     "mean_anomaly_mask_iou": metrics.get("mean_anomaly_mask_iou"),
-                    "mean_anomaly_mask_precision": metrics.get(
-                        "mean_anomaly_mask_precision"
-                    ),
+                    "mean_anomaly_mask_precision": metrics.get("mean_anomaly_mask_precision"),
                     "mean_anomaly_mask_recall": metrics.get("mean_anomaly_mask_recall"),
                     "git_commit": provenance.get("git_commit", ""),
                     "git_dirty": bool(provenance.get("git_dirty", False)),
                     "manifest_path": _manifest_value(provenance, "path"),
                     "manifest_sha256": _manifest_value(provenance, "sha256"),
-                    "effective_execution_sha256": provenance.get(
-                        "effective_execution_sha256", ""
-                    ),
+                    "effective_execution_sha256": provenance.get("effective_execution_sha256", ""),
                     "run_spec_sha256": provenance.get("run_spec_sha256", ""),
                 }
             )
@@ -342,9 +340,7 @@ def _completion_manifest(
     return {
         "schema_version": 1,
         "generation_command": generation_command,
-        "source_runs": [
-            _source_run(row) for row in [*primary_rows, *ablation_rows]
-        ],
+        "source_runs": [_source_run(row) for row in [*primary_rows, *ablation_rows]],
         "generated_files": [
             {
                 "path": path.relative_to(evidence_dir).as_posix(),

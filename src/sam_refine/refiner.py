@@ -26,8 +26,7 @@ class MaskRefiner(Protocol):
         image: Image.Image,
         heatmap: np.ndarray,
         regions: list[PromptRegion],
-    ) -> list[MaskPrediction]:
-        ...
+    ) -> list[MaskPrediction]: ...
 
 
 class FallbackMaskRefiner:
@@ -84,9 +83,7 @@ class SAM2MaskRefiner:
         if max_mask_area_fraction is not None and not 0.0 < max_mask_area_fraction <= 1.0:
             raise ValueError("max_mask_area_fraction must be in (0, 1]")
         if prompt_mode not in {"point", "box", "point_box"}:
-            raise ValueError(
-                "prompt_mode must be one of 'point', 'box', or 'point_box'"
-            )
+            raise ValueError("prompt_mode must be one of 'point', 'box', or 'point_box'")
         self.checkpoint_path = Path(checkpoint_path)
         self.model_config = model_config
         self.device = device

@@ -79,11 +79,8 @@ def _resize_float_bilinear(heatmap: np.ndarray, output_shape: tuple[int, int]) -
         return heatmap.astype(np.float32, copy=True)
 
     y_coords = (
-        (np.arange(output_height, dtype=np.float32) + 0.5)
-        * input_height
-        / output_height
-        - 0.5
-    )
+        np.arange(output_height, dtype=np.float32) + 0.5
+    ) * input_height / output_height - 0.5
     x_coords = (np.arange(output_width, dtype=np.float32) + 0.5) * input_width / output_width - 0.5
     y_coords = np.clip(y_coords, 0.0, input_height - 1)
     x_coords = np.clip(x_coords, 0.0, input_width - 1)

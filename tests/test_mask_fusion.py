@@ -486,9 +486,7 @@ class FuseSavedMasksScriptTest(unittest.TestCase):
                 heatmap=np.ones((2, 2), dtype=np.float32),
                 calibration_threshold=0.5,
                 identity_threshold=0.5,
-                identity_sha256=hashlib.sha256(
-                    different_same_threshold_bytes
-                ).hexdigest(),
+                identity_sha256=hashlib.sha256(different_same_threshold_bytes).hexdigest(),
             )
             hash_result = _run_offline_fusion(
                 repo_root,
@@ -645,9 +643,7 @@ def _write_offline_fixture(
                 "refiner": refiner,
                 "raw_mask_source": raw_mask_source,
                 "sam2_model_config": "sam2_hiera_s.yaml",
-                "sam2_checkpoint_sha256": hashlib.sha256(
-                    b"fake-sam2-checkpoint"
-                ).hexdigest(),
+                "sam2_checkpoint_sha256": hashlib.sha256(b"fake-sam2-checkpoint").hexdigest(),
             }
         )
     if include_identity:
@@ -655,9 +651,9 @@ def _write_offline_fixture(
             calibration_threshold if identity_threshold is None else identity_threshold
         )
         row["sam2_prompt_threshold"] = f"{stored_threshold:.8f}"
-        row["sam2_calibration_sha256"] = identity_sha256 or hashlib.sha256(
-            calibration_bytes
-        ).hexdigest()
+        row["sam2_calibration_sha256"] = (
+            identity_sha256 or hashlib.sha256(calibration_bytes).hexdigest()
+        )
     scores_path = root / "mask_scores.csv"
     _write_csv(scores_path, list(row), [row])
     return scores_path, calibration_path

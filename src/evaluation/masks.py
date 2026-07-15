@@ -91,10 +91,7 @@ def summarize_binary_metrics(
             else 0.0
         )
         aggregate_f1 = (
-            2.0
-            * aggregate_precision
-            * aggregate_recall
-            / (aggregate_precision + aggregate_recall)
+            2.0 * aggregate_precision * aggregate_recall / (aggregate_precision + aggregate_recall)
             if aggregate_precision + aggregate_recall > 0.0
             else 0.0
         )
@@ -121,9 +118,7 @@ def summarize_binary_metrics(
     }
     for metric in ("precision", "recall", "f1", "iou"):
         summary[f"{prefix}_mean_mask_{metric}"] = _mean_rows(rows, f"mask_{metric}")
-        summary[f"{prefix}_mean_anomaly_mask_{metric}"] = _mean_rows(
-            anomaly_rows, f"mask_{metric}"
-        )
+        summary[f"{prefix}_mean_anomaly_mask_{metric}"] = _mean_rows(anomaly_rows, f"mask_{metric}")
     return summary
 
 

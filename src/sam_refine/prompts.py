@@ -28,9 +28,7 @@ def heatmap_to_prompt_regions(
     """Extract connected high-score regions from a heatmap."""
 
     if point_mode not in {"anomaly_max", "box_center"}:
-        raise ValueError(
-            "point_mode must be one of 'anomaly_max' or 'box_center'"
-        )
+        raise ValueError("point_mode must be one of 'anomaly_max' or 'box_center'")
     heatmap = np.asarray(heatmap, dtype=np.float32)
     if heatmap.ndim != 2:
         raise ValueError("heatmap must be a 2D array")

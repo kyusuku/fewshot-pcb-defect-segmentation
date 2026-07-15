@@ -100,10 +100,7 @@ def fuse_masks_with_metadata(
     if mode == "union":
         return union, "union", features
 
-    if (
-        features["mask_iou"] >= min_iou
-        and features["sam2_to_anomaly_area_ratio"] <= max_expansion
-    ):
+    if features["mask_iou"] >= min_iou and features["sam2_to_anomaly_area_ratio"] <= max_expansion:
         return intersection, "intersection", features
     return anomaly, "anomaly_fallback", features
 

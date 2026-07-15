@@ -88,9 +88,7 @@ def _optional_fraction(value: str) -> float | None:
 def main() -> None:
     args = parse_args()
     calibration_artifact = load_calibration_artifact(args.calibration_json)
-    calibration = (
-        calibration_artifact.threshold if calibration_artifact is not None else None
-    )
+    calibration = calibration_artifact.threshold if calibration_artifact is not None else None
     raw_provenance = raw_mask_provenance(
         refiner=args.refiner,
         sam2_model_config=args.sam2_model_config,

@@ -425,12 +425,10 @@ class MaskRefinementScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             rows = _read_csv(output_dir / "mask_scores.csv")
-            raw = np.asarray(
-                Image.open(output_dir / rows[0]["sam2_mask_path"]).convert("L")
-            ) > 0
-            selected = np.asarray(
-                Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")
-            ) > 0
+            raw = np.asarray(Image.open(output_dir / rows[0]["sam2_mask_path"]).convert("L")) > 0
+            selected = (
+                np.asarray(Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")) > 0
+            )
             portable_source_paths_resolve = (
                 (output_dir / rows[0]["image_path"]).samefile(image_path)
                 and (output_dir / rows[0]["mask_path"]).samefile(mask_path)
@@ -473,9 +471,7 @@ class MaskRefinementScriptTest(unittest.TestCase):
                     }
                 )
             )
-            expected_calibration_sha256 = hashlib.sha256(
-                calibration_path.read_bytes()
-            ).hexdigest()
+            expected_calibration_sha256 = hashlib.sha256(calibration_path.read_bytes()).hexdigest()
 
             result = subprocess.run(
                 [
@@ -507,9 +503,9 @@ class MaskRefinementScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             rows = _read_csv(output_dir / "mask_scores.csv")
-            selected = np.asarray(
-                Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")
-            ) > 0
+            selected = (
+                np.asarray(Image.open(output_dir / rows[0]["pred_mask_path"]).convert("L")) > 0
+            )
 
         self.assertEqual(int(selected.sum()), 8)
         self.assertEqual(rows[0]["proposal_threshold"], "0.80000000")

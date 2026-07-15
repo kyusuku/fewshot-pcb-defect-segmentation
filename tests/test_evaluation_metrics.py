@@ -115,9 +115,7 @@ class EvaluationMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["best_pixel_iou"], 1.0)
         self.assertEqual(metrics["oracle_best_pixel_f1"], metrics["best_pixel_f1"])
         self.assertEqual(metrics["oracle_best_pixel_iou"], metrics["best_pixel_iou"])
-        self.assertEqual(
-            metrics["oracle_best_pixel_threshold"], metrics["best_pixel_threshold"]
-        )
+        self.assertEqual(metrics["oracle_best_pixel_threshold"], metrics["best_pixel_threshold"])
 
     def test_heatmap_oracle_aliases_are_nan_without_pixel_data(self) -> None:
         metrics = evaluate_heatmap_rows(

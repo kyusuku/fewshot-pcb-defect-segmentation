@@ -79,9 +79,7 @@ def test_arxiv_smoke_builds_checked_analysis_and_evidence(tmp_path: Path) -> Non
     )
 
     assert (evidence_dir / "completion_manifest.json").exists()
-    assert "anomaly_consistent_sam2" in (
-        evidence_dir / "primary_results.md"
-    ).read_text()
+    assert "anomaly_consistent_sam2" in (evidence_dir / "primary_results.md").read_text()
 
 
 def _run(command: list[str], cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:

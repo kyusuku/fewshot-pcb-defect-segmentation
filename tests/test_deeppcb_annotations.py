@@ -51,7 +51,9 @@ class DeepPCBAnnotationTest(unittest.TestCase):
                 (annotation_dir / f"{sample_id}.txt").write_text("1,2,8,9,4\n")
 
             split_file = root / "trainval.txt"
-            split_file.write_text("group77000/77000/77000016.jpg group77000/77000_not/77000016.txt\n")
+            split_file.write_text(
+                "group77000/77000/77000016.jpg group77000/77000_not/77000016.txt\n"
+            )
 
             dataset = DeepPCBDataset(
                 root=root,

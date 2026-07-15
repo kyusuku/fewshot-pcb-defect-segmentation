@@ -376,9 +376,7 @@ def select_rows(
         and row.get("fold_id") == fold_value
     ]
     support_pool = [
-        row
-        for row in category_rows
-        if row.get("fold_split") == "dev" and row["label"] == "0"
+        row for row in category_rows if row.get("fold_split") == "dev" and row["label"] == "0"
     ]
     rng = random.Random(seed)
     support_rows = sorted(support_pool, key=lambda row: row["sample_id"])

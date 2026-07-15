@@ -61,9 +61,7 @@ def collect_primary_rows(
                     "git_dirty": bool(provenance.get("git_dirty", False)),
                     "manifest_path": _manifest_value(provenance, "path"),
                     "manifest_sha256": _manifest_value(provenance, "sha256"),
-                    "effective_execution_sha256": provenance.get(
-                        "effective_execution_sha256", ""
-                    ),
+                    "effective_execution_sha256": provenance.get("effective_execution_sha256", ""),
                     "run_spec_sha256": provenance.get("run_spec_sha256", ""),
                 }
             )
@@ -148,18 +146,10 @@ def _metric_fields(method: str, metrics: Mapping[str, object]) -> dict[str, obje
             "image_auroc": _optional_metric(metrics, "image_auroc"),
             "pixel_auroc": _optional_metric(metrics, "pixel_auroc"),
             "aupro": _optional_metric(metrics, "aupro"),
-            "aggregate_pixel_f1": _required_metric(
-                metrics, "calibrated_aggregate_pixel_f1"
-            ),
-            "aggregate_pixel_iou": _required_metric(
-                metrics, "calibrated_aggregate_pixel_iou"
-            ),
-            "mean_anomaly_mask_f1": _required_metric(
-                metrics, "calibrated_mean_anomaly_mask_f1"
-            ),
-            "mean_anomaly_mask_iou": _required_metric(
-                metrics, "calibrated_mean_anomaly_mask_iou"
-            ),
+            "aggregate_pixel_f1": _required_metric(metrics, "calibrated_aggregate_pixel_f1"),
+            "aggregate_pixel_iou": _required_metric(metrics, "calibrated_aggregate_pixel_iou"),
+            "mean_anomaly_mask_f1": _required_metric(metrics, "calibrated_mean_anomaly_mask_f1"),
+            "mean_anomaly_mask_iou": _required_metric(metrics, "calibrated_mean_anomaly_mask_iou"),
             "mean_anomaly_mask_precision": _required_metric(
                 metrics, "calibrated_mean_anomaly_mask_precision"
             ),
@@ -176,12 +166,8 @@ def _metric_fields(method: str, metrics: Mapping[str, object]) -> dict[str, obje
         "aggregate_pixel_iou": None,
         "mean_anomaly_mask_f1": _required_metric(metrics, "mean_anomaly_mask_f1"),
         "mean_anomaly_mask_iou": _required_metric(metrics, "mean_anomaly_mask_iou"),
-        "mean_anomaly_mask_precision": _required_metric(
-            metrics, "mean_anomaly_mask_precision"
-        ),
-        "mean_anomaly_mask_recall": _required_metric(
-            metrics, "mean_anomaly_mask_recall"
-        ),
+        "mean_anomaly_mask_precision": _required_metric(metrics, "mean_anomaly_mask_precision"),
+        "mean_anomaly_mask_recall": _required_metric(metrics, "mean_anomaly_mask_recall"),
     }
 
 

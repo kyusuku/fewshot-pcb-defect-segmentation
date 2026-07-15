@@ -120,9 +120,7 @@ def test_heatmap_commands_are_full_split_explicit_and_share_cache(tmp_path: Path
         assert command[command.index("--crop-sizes") + 1] == "32"
         assert command[command.index("--crop-overlap") + 1] == "0.25"
         assert command[command.index("--fusion") + 1] == "max"
-    assert commands[3][commands[3].index("--calibration-json") + 1].endswith(
-        "calibration.json"
-    )
+    assert commands[3][commands[3].index("--calibration-json") + 1].endswith("calibration.json")
 
 
 def test_patchcore_command_emits_every_frozen_method_parameter(tmp_path: Path) -> None:
@@ -130,8 +128,7 @@ def test_patchcore_command_emits_every_frozen_method_parameter(tmp_path: Path) -
     run = next(
         run
         for run in expand_matrix(config)
-        if run.method == "patchcore" and run.category == "pcb1"
-        and run.k == 1 and run.seed == 4880
+        if run.method == "patchcore" and run.category == "pcb1" and run.k == 1 and run.seed == 4880
     )
     command = build_commands(
         run, config, tmp_path / "out", tmp_path / "deps", "cpu", tmp_path / "cache"
@@ -178,8 +175,10 @@ def test_all_48_ablations_build_exact_commands_and_external_dependencies(
                 "min_iou": "--selective-min-iou",
                 "max_expansion": "--selective-max-expansion",
             }[key]
-            expected = ",".join(str(item) for item in value) if isinstance(value, list) else (
-                "none" if value is None else str(value)
+            expected = (
+                ",".join(str(item) for item in value)
+                if isinstance(value, list)
+                else ("none" if value is None else str(value))
             )
             assert any(
                 flag in command and command[command.index(flag) + 1] == expected
@@ -201,9 +200,7 @@ def test_sam2_hydra_identifier_is_preserved_and_resolved_from_installed_package(
 
     sys.modules.pop("sam2", None)
     importlib.invalidate_caches()
-    identity = resolve_sam2_model_config(
-        "configs/sam2.1/sam2.1_hiera_t.yaml", required=True
-    )
+    identity = resolve_sam2_model_config("configs/sam2.1/sam2.1_hiera_t.yaml", required=True)
     assert identity["path"] == "configs/sam2.1/sam2.1_hiera_t.yaml"
     assert len(identity["sha256"]) == 64
 
@@ -225,14 +222,18 @@ def test_guided_and_fusion_commands_use_real_dependency_columns_without_rerun(
     guided = next(
         run
         for run in runs
-        if run.method == "dinov2_multi_sam2" and run.category == "pcb1"
-        and run.k == 1 and run.seed == 4880
+        if run.method == "dinov2_multi_sam2"
+        and run.category == "pcb1"
+        and run.k == 1
+        and run.seed == 4880
     )
     fusion = next(
         run
         for run in runs
-        if run.method == "anomaly_consistent_sam2" and run.category == "pcb1"
-        and run.k == 1 and run.seed == 4880
+        if run.method == "anomaly_consistent_sam2"
+        and run.category == "pcb1"
+        and run.k == 1
+        and run.seed == 4880
     )
     guided_commands = build_commands(
         guided, config, tmp_path / "out", tmp_path / "deps", "cuda", tmp_path / "cache"
@@ -299,28 +300,20 @@ def test_mask_output_contract_only_claims_writer_owned_files() -> None:
         "pred_mask_path",
         "sam2_mask_path",
     ]
-    assert [reference.path_column for reference in output_references(fusion)] == [
-        "pred_mask_path"
-    ]
+    assert [reference.path_column for reference in output_references(fusion)] == ["pred_mask_path"]
 
 
 def test_calibration_contract_uses_serialized_val_split() -> None:
-    _validate_calibration_payload(
-        {"source_split": "val", "num_images": 1, "num_pixels": 4096}
-    )
+    _validate_calibration_payload({"source_split": "val", "num_images": 1, "num_pixels": 4096})
     with pytest.raises(ValueError, match="validation"):
-        _validate_calibration_payload(
-            {"source_split": "test", "num_images": 1, "num_pixels": 4096}
-        )
+        _validate_calibration_payload({"source_split": "test", "num_images": 1, "num_pixels": 4096})
 
 
 def test_output_identity_is_recorded_relative_to_run_root(tmp_path: Path) -> None:
     artifact = tmp_path / "test" / "heatmap.npy"
     artifact.parent.mkdir()
     artifact.write_bytes(b"heatmap")
-    normalized = _normalize_output_identity(
-        {"path": str(artifact), "sha256": "a" * 64}, tmp_path
-    )
+    normalized = _normalize_output_identity({"path": str(artifact), "sha256": "a" * 64}, tmp_path)
     assert normalized == {"path": "test/heatmap.npy", "sha256": "a" * 64}
     with pytest.raises(ValueError, match="escapes"):
         _normalize_output_identity(
@@ -345,9 +338,9 @@ def test_execution_identity_contains_exact_git_state(tmp_path: Path) -> None:
     )
     assert len(identity["git"]["commit"]) == 40
     assert isinstance(identity["git"]["dirty"], bool)
-    assert identity["manifest"]["sha256"] == "unavailable" or len(
-        identity["manifest"]["sha256"]
-    ) == 64
+    assert (
+        identity["manifest"]["sha256"] == "unavailable" or len(identity["manifest"]["sha256"]) == 64
+    )
     assert len(identity["config_canonical_sha256"]) == 64
     assert identity["device_identity"]["kind"] == "cpu"
     assert identity["cache_identity"]["schema"] == "feature-cache-v2"
@@ -701,9 +694,7 @@ def test_manifest_row_semantics_reject_wrong_label_and_mask_identity(tmp_path: P
         _validate_manifest_output_rows(wrong_label, expected, tmp_path, tmp_path, "scores")
     wrong_mask_row = [dict(valid[0], mask_path=str(wrong_mask))]
     with pytest.raises(ValueError, match="mask identity"):
-        _validate_manifest_output_rows(
-            wrong_mask_row, expected, tmp_path, tmp_path, "scores"
-        )
+        _validate_manifest_output_rows(wrong_mask_row, expected, tmp_path, tmp_path, "scores")
 
 
 def test_calibration_contract_rejects_incomplete_and_pixel_count_mismatch(
@@ -777,9 +768,7 @@ def test_per_image_rows_reject_nan_confusion_and_mean_mismatch() -> None:
     }
     _validate_heatmap_per_image_rows([row], expected, 0.5, metrics)
     with pytest.raises(ValueError, match="finite"):
-        _validate_heatmap_per_image_rows(
-            [dict(row, mask_f1="nan")], expected, 0.5, metrics
-        )
+        _validate_heatmap_per_image_rows([dict(row, mask_f1="nan")], expected, 0.5, metrics)
     with pytest.raises(ValueError, match="confusion"):
         _validate_heatmap_per_image_rows(
             [dict(row, pred_positive_pixels="3")], expected, 0.5, metrics
@@ -825,9 +814,7 @@ def test_mask_per_rows_reject_wrong_label_nan_count_and_mean_mismatch() -> None:
     with pytest.raises(ValueError, match="finite"):
         _validate_mask_per_rows([dict(row, mask_iou="inf")], expected, metrics)
     with pytest.raises(ValueError, match="integral"):
-        _validate_mask_per_rows(
-            [dict(row, pred_positive_pixels="1.5")], expected, metrics
-        )
+        _validate_mask_per_rows([dict(row, pred_positive_pixels="1.5")], expected, metrics)
     with pytest.raises(ValueError, match="mean"):
         _validate_mask_per_rows([row], expected, dict(metrics, mean_mask_f1=0.1))
     with pytest.raises(ValueError, match="numeric"):

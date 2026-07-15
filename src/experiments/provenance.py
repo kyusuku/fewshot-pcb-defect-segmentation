@@ -90,9 +90,7 @@ def git_state(repo_root: str | Path) -> dict[str, object]:
 def _dirty_identity(root: Path) -> dict[str, object]:
     staged = _git_bytes(root, "diff", "--cached", "--binary", "--no-ext-diff")
     unstaged = _git_bytes(root, "diff", "--binary", "--no-ext-diff")
-    untracked_output = _git_bytes(
-        root, "ls-files", "--others", "--exclude-standard", "-z"
-    )
+    untracked_output = _git_bytes(root, "ls-files", "--others", "--exclude-standard", "-z")
     untracked: list[dict[str, str]] = []
     for raw_path in sorted(value for value in untracked_output.split(b"\0") if value):
         try:
@@ -405,8 +403,7 @@ def resolve_referenced_artifacts(
         headers = reader.fieldnames
         if headers is None or reference.path_column not in headers:
             raise ValueError(
-                f"{reference.csv_path} is missing referenced column "
-                f"{reference.path_column!r}"
+                f"{reference.csv_path} is missing referenced column {reference.path_column!r}"
             )
         if len(headers) != len(set(headers)):
             raise ValueError(f"{reference.csv_path} has duplicate CSV columns")
@@ -531,9 +528,7 @@ def _validate_effective_hash_inputs(provenance: Mapping[str, object]) -> None:
     )
     for run_id, identity in dependencies.items():
         _validate_sha256(identity, f"dependency {run_id}")
-    _validate_sha256(
-        provenance.get("dependency_identities_sha256"), "dependency identities"
-    )
+    _validate_sha256(provenance.get("dependency_identities_sha256"), "dependency identities")
     if sha256_json(dependencies) != provenance.get("dependency_identities_sha256"):
         raise ValueError("dependency identities SHA-256 does not match content")
     git = _required_mapping(provenance.get("git"), "git")
@@ -574,15 +569,19 @@ def _required_mapping(value: object, context: str) -> Mapping[str, object]:
 
 
 def _validate_sha256(value: object, context: str) -> None:
-    if not isinstance(value, str) or len(value) != 64 or any(
-        character not in _SHA256_CHARACTERS for character in value
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in _SHA256_CHARACTERS for character in value)
     ):
         raise ValueError(f"{context} must be a lowercase 64-character SHA-256")
 
 
 def _validate_git_commit(value: object) -> None:
-    if not isinstance(value, str) or len(value) not in {40, 64} or any(
-        character not in _SHA256_CHARACTERS for character in value
+    if (
+        not isinstance(value, str)
+        or len(value) not in {40, 64}
+        or any(character not in _SHA256_CHARACTERS for character in value)
     ):
         raise ValueError("git_commit must be a lowercase 40- or 64-character hash")
 
@@ -659,9 +658,7 @@ def _contains_sensitive_fragment(value: str) -> bool:
 
 
 def _library_versions(names: Sequence[str]) -> dict[str, str | None]:
-    if isinstance(names, (str, bytes)) or not all(
-        isinstance(name, str) and name for name in names
-    ):
+    if isinstance(names, (str, bytes)) or not all(isinstance(name, str) and name for name in names):
         raise ValueError("library_names must be a sequence of non-empty strings")
     if len(names) != len(set(names)):
         raise ValueError("library_names must not contain duplicates")

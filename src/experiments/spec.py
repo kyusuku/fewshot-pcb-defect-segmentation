@@ -67,6 +67,7 @@ _FROZEN_CONFIG_SHA256 = {
     "arxiv_smoke": "2467bab225c1c9cb0a50bc928cb45a5b9fcf8fc3ef79661a5cec84bab7069f28",
 }
 
+
 class _UniqueKeySafeLoader(yaml.SafeLoader):
     """Safe YAML loader that fails rather than silently replacing duplicate keys."""
 
@@ -264,10 +265,7 @@ class RunSpec:
 
     @property
     def run_id(self) -> str:
-        base = (
-            f"{self.method}__{self.category}__fold{self.fold_id}"
-            f"__k{self.k}__seed{self.seed}"
-        )
+        base = f"{self.method}__{self.category}__fold{self.fold_id}__k{self.k}__seed{self.seed}"
         return base if self.variant == "primary" else f"{base}__{self.variant}"
 
     @property
@@ -335,9 +333,7 @@ def load_yaml_mapping(path: str | Path) -> dict[str, object]:
 
     config_path = Path(path)
     try:
-        payload = yaml.load(
-            config_path.read_text(encoding="utf-8"), Loader=_UniqueKeySafeLoader
-        )
+        payload = yaml.load(config_path.read_text(encoding="utf-8"), Loader=_UniqueKeySafeLoader)
     except yaml.YAMLError as exc:
         raise ValueError(f"invalid YAML in {config_path.name}: {exc}") from exc
     config = _require_mapping(payload, "YAML document")
@@ -456,9 +452,7 @@ def _primary_dependencies(
     return ()
 
 
-def _make_primary_run_spec(
-    method: str, category: str, fold_id: int, k: int, seed: int
-) -> RunSpec:
+def _make_primary_run_spec(method: str, category: str, fold_id: int, k: int, seed: int) -> RunSpec:
     return RunSpec(
         method,
         category,
@@ -482,9 +476,7 @@ def _validate_config(config: Mapping[str, object]) -> None:
         _validate_primary_config(config)
     observed = hashlib.sha256(_canonical_json(dict(config)).encode("utf-8")).hexdigest()
     if observed != _FROZEN_CONFIG_SHA256[name]:
-        raise ValueError(
-            f"{name} differs from its frozen, pre-registered experiment specification"
-        )
+        raise ValueError(f"{name} differs from its frozen, pre-registered experiment specification")
 
 
 def _validate_primary_config(config: Mapping[str, object]) -> None:
@@ -693,9 +685,7 @@ def _validate_sam2_only(config: Mapping[str, object]) -> None:
     _require_choice(config["device"], "sam2_only.device", {"auto", "cpu", "cuda"})
 
 
-def _validate_overrides(
-    overrides: Mapping[str, object], method: str, context: str
-) -> None:
+def _validate_overrides(overrides: Mapping[str, object], method: str, context: str) -> None:
     if not overrides:
         return
     allowed_by_method = {
@@ -848,9 +838,7 @@ def _validate_ascii_text(value: str, field_name: str) -> None:
         raise ValueError(f"{field_name} must contain printable ASCII text")
 
 
-def _require_exact_fields(
-    payload: Mapping[str, object], expected: set[str], context: str
-) -> None:
+def _require_exact_fields(payload: Mapping[str, object], expected: set[str], context: str) -> None:
     _require_fields(payload, expected, expected, context)
 
 

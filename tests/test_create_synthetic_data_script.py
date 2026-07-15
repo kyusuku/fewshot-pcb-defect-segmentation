@@ -30,7 +30,9 @@ class CreateSyntheticDataScriptTest(unittest.TestCase):
             self.assertIn("visa_root:", result.stdout)
             self.assertIn("deeppcb_root:", result.stdout)
             self.assertTrue(
-                (output_dir / "VisA" / "pcb1" / "test" / "anomaly" / "pcb1_anomaly_000.png").is_file()
+                (
+                    output_dir / "VisA" / "pcb1" / "test" / "anomaly" / "pcb1_anomaly_000.png"
+                ).is_file()
             )
             self.assertTrue(
                 (output_dir / "DeepPCB" / "PCBData" / "group00000" / "00000000_test.jpg").is_file()

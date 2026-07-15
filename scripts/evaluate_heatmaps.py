@@ -93,9 +93,7 @@ def read_score_rows(path: str | Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def write_per_image_csv(
-    rows: list[dict[str, str | float]], output_path: str | Path
-) -> Path:
+def write_per_image_csv(rows: list[dict[str, str | float]], output_path: str | Path) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="") as handle:

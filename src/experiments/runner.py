@@ -188,9 +188,7 @@ def build_commands(
         )
     if run.method == "sam2_only":
         common = _baseline_common(run, manifest, python_executable)
-        return _sam2_only_commands(
-            run, config, common, run_dir, device, python_executable
-        )
+        return _sam2_only_commands(run, config, common, run_dir, device, python_executable)
     dependency_dirs = {
         dependency.run_id: (
             output_root / dependency.run_id
@@ -200,13 +198,9 @@ def build_commands(
         for dependency in run.dependencies
     }
     if run.method in GUIDED_METHODS:
-        return _guided_commands(
-            run, config, run_dir, dependency_dirs, device, python_executable
-        )
+        return _guided_commands(run, config, run_dir, dependency_dirs, device, python_executable)
     if run.method == "anomaly_consistent_sam2":
-        return _fusion_commands(
-            run, config, run_dir, dependency_dirs, device, python_executable
-        )
+        return _fusion_commands(run, config, run_dir, dependency_dirs, device, python_executable)
     raise ValueError(f"unsupported method: {run.method}")
 
 
@@ -248,8 +242,10 @@ def _heatmap_commands(
         patch_size = dinov2["patch_size"]
         coreset_ratio = config["patchcore"]["coreset_ratio"]
         projection_dim = config["patchcore"]["projection_dim"]
-        crop_sizes = "" if run.method == "dinov2_single" else ",".join(
-            str(value) for value in multi["crop_sizes"]
+        crop_sizes = (
+            ""
+            if run.method == "dinov2_single"
+            else ",".join(str(value) for value in multi["crop_sizes"])
         )
         patchcore_explicit = []
     explicit = [
@@ -482,9 +478,7 @@ def _refinement_command(
     return command
 
 
-def _mask_evaluation_command(
-    run_dir: Path, python: str, source_scores: Path | None
-) -> list[str]:
+def _mask_evaluation_command(run_dir: Path, python: str, source_scores: Path | None) -> list[str]:
     command = [
         python,
         str(PROJECT_ROOT / "scripts" / "evaluate_masks.py"),
@@ -595,9 +589,7 @@ def run_matrix(
             print(f"COMPLETE {run.run_id}")
         except BaseException as exc:
             if not entered_execute:
-                _record_matrix_preflight_failure(
-                    run, output_root, preflight_identity, exc
-                )
+                _record_matrix_preflight_failure(run, output_root, preflight_identity, exc)
             raise
         finally:
             release_run_lock(lock)
@@ -621,8 +613,7 @@ def execute_run(
         raise ValueError(f"run directory must not be a symlink: {run.run_id}")
     staging = _create_owned_staging(output_root, run, execution)
     staged_commands = [
-        [value.replace(str(run_dir), str(staging)) for value in command]
-        for command in commands
+        [value.replace(str(run_dir), str(staging)) for value in command] for command in commands
     ]
     provenance_path = staging / "provenance.json"
     status_path = staging / "status.json"
@@ -692,9 +683,7 @@ def execute_run(
         final["effective_execution_sha256"] = compute_effective_execution_sha256(final)
         atomic_write_json(provenance_path, final)
         _validate_staged_success(run, staging, execution, manifest_path)
-        _write_final_ownership_marker(
-            staging, run, str(final["effective_execution_sha256"])
-        )
+        _write_final_ownership_marker(staging, run, str(final["effective_execution_sha256"]))
         complete_status = {
             "state": "complete",
             "effective_execution_sha256": final["effective_execution_sha256"],
@@ -770,9 +759,7 @@ def execution_identity(
         "model_configs": _execution_file_identities(model_configs),
         "run_spec_sha256": run.identity_sha256,
         "evidence_class": (
-            "smoke_debug_only"
-            if loaded_config["name"] == "arxiv_smoke"
-            else "paper_evidence"
+            "smoke_debug_only" if loaded_config["name"] == "arxiv_smoke" else "paper_evidence"
         ),
         "calibration_quantile": method_config["calibration"]["quantile"],
     }
@@ -866,9 +853,7 @@ def validate_dependency(dependency, run_dir: Path, _visited: set[str] | None = N
     ):
         raise ValueError(f"dependency {dependency.run_id} observed identity is stale")
     current_ancestors = {
-        ancestor.run_id: validate_dependency(
-            ancestor, run_dir.parent / ancestor.run_id, visited
-        )
+        ancestor.run_id: validate_dependency(ancestor, run_dir.parent / ancestor.run_id, visited)
         for ancestor in recorded_spec.dependencies
     }
     execution = provenance.get("execution")
@@ -939,15 +924,9 @@ def _validate_data_artifacts_in(
             run_dir / "test" / "per_image.csv", {"sample_id", "mask_f1"}
         )
         if expected:
-            _validate_sample_rows(
-                val_rows, set(expected["val"]), run.category, "val", "scores"
-            )
-            _validate_sample_rows(
-                test_rows, set(expected["test"]), run.category, "test", "scores"
-            )
-            _validate_sample_rows(
-                per_image, set(expected["test"]), run.category, None, "per_image"
-            )
+            _validate_sample_rows(val_rows, set(expected["val"]), run.category, "val", "scores")
+            _validate_sample_rows(test_rows, set(expected["test"]), run.category, "test", "scores")
+            _validate_sample_rows(per_image, set(expected["test"]), run.category, None, "per_image")
             _validate_manifest_output_rows(
                 val_rows,
                 expected["val"],
@@ -973,16 +952,10 @@ def _validate_data_artifacts_in(
         mask_rows = _read_validated_csv(
             run_dir / "test" / "mask_scores.csv", {"sample_id", "pred_mask_path"}
         )
-        per_mask = _read_validated_csv(
-            run_dir / "test" / "mask_per_image.csv", {"sample_id"}
-        )
+        per_mask = _read_validated_csv(run_dir / "test" / "mask_per_image.csv", {"sample_id"})
         if expected:
-            _validate_sample_rows(
-                mask_rows, set(expected["test"]), run.category, "test", "masks"
-            )
-            _validate_sample_rows(
-                per_mask, set(expected["test"]), run.category, None, "per_mask"
-            )
+            _validate_sample_rows(mask_rows, set(expected["test"]), run.category, "test", "masks")
+            _validate_sample_rows(per_mask, set(expected["test"]), run.category, None, "per_mask")
             _validate_manifest_output_rows(
                 mask_rows,
                 expected["test"],
@@ -1016,13 +989,9 @@ def collect_artifact_identities(run: RunSpec, root: str | Path) -> list[dict[str
     return _collect_artifact_identities_in(run, run_dir)
 
 
-def _collect_artifact_identities_in(
-    run: RunSpec, run_dir: Path
-) -> list[dict[str, object]]:
+def _collect_artifact_identities_in(run: RunSpec, run_dir: Path) -> list[dict[str, object]]:
     paths = [
-        path
-        for path in _expected_artifacts_in(run, run_dir)[:-2]
-        if path.name != OWNERSHIP_MARKER
+        path for path in _expected_artifacts_in(run, run_dir)[:-2] if path.name != OWNERSHIP_MARKER
     ]
     identities = [
         {"path": path.relative_to(run_dir).as_posix(), "sha256": sha256_file(path)}
@@ -1056,9 +1025,7 @@ def collect_observed_identities(run: RunSpec, root: str | Path) -> dict[str, obj
     return _collect_observed_identities_in(run, run_dir)
 
 
-def _collect_observed_identities_in(
-    run: RunSpec, run_dir: Path
-) -> dict[str, object]:
+def _collect_observed_identities_in(run: RunSpec, run_dir: Path) -> dict[str, object]:
     observed: dict[str, object] = {"source_revisions": source_revisions()}
     if run.method in HEATMAP_METHODS:
         memory_records = []
@@ -1095,9 +1062,7 @@ def is_complete(run: RunSpec, root: str | Path, execution: Mapping[str, object])
     return True
 
 
-def validate_completed_run(
-    run: RunSpec, root: str | Path, execution: Mapping[str, object]
-) -> None:
+def validate_completed_run(run: RunSpec, root: str | Path, execution: Mapping[str, object]) -> None:
     run_dir = Path(root) / run.run_id
     if run_dir.is_symlink():
         raise ValueError(f"run {run.run_id} directory must not be a symlink")
@@ -1607,13 +1572,9 @@ def _validate_reported_means(
     anomaly = [item for item in parsed if item[0].get("label") == "1"]
     for metric in ("precision", "recall", "f1", "iou"):
         all_mean = float(np.mean([values[f"mask_{metric}"] for _, values in parsed]))
-        anomaly_mean = float(
-            np.mean([values[f"mask_{metric}"] for _, values in anomaly])
-        )
+        anomaly_mean = float(np.mean([values[f"mask_{metric}"] for _, values in anomaly]))
         _require_close_metric(metrics, f"{prefix}mean_mask_{metric}", all_mean)
-        _require_close_metric(
-            metrics, f"{prefix}mean_anomaly_mask_{metric}", anomaly_mean
-        )
+        _require_close_metric(metrics, f"{prefix}mean_anomaly_mask_{metric}", anomaly_mean)
 
 
 def _finite_float(value: object, context: str) -> float:
@@ -1631,17 +1592,13 @@ def _require_nonnegative_integral(value: float, context: str) -> None:
         raise ValueError(f"{context} must be nonnegative integral data")
 
 
-def _require_close_metric(
-    metrics: Mapping[str, object], key: str, expected: float
-) -> None:
+def _require_close_metric(metrics: Mapping[str, object], key: str, expected: float) -> None:
     observed = _finite_float(metrics.get(key), f"metric {key}")
     if not math.isclose(observed, expected, rel_tol=1e-10, abs_tol=1e-12):
         raise ValueError(f"metric mean/count reconciliation failed for {key}")
 
 
-def _validate_evidence_class(
-    run: RunSpec, run_dir: Path, execution: Mapping[str, object]
-) -> None:
+def _validate_evidence_class(run: RunSpec, run_dir: Path, execution: Mapping[str, object]) -> None:
     if run.method not in {*GUIDED_METHODS, "anomaly_consistent_sam2"}:
         return
     rows = _read_validated_csv(
@@ -1867,9 +1824,7 @@ def _model_files(
         {"sam2": _project_path(section["checkpoint"])},
         {
             "sam2": Path(
-                resolve_sam2_model_config(section["model_config"], required=True)[
-                    "resolved_path"
-                ]
+                resolve_sam2_model_config(section["model_config"], required=True)["resolved_path"]
             )
         },
     )
@@ -2195,9 +2150,7 @@ def _validate_lock_marker(owner: Mapping[str, object], run: RunSpec) -> None:
         raise RuntimeError("stale lock identity is invalid; manual reclaim required")
 
 
-def _prune_owned_archives(
-    output_root: Path, run: RunSpec | str, *, retain: int
-) -> None:
+def _prune_owned_archives(output_root: Path, run: RunSpec | str, *, retain: int) -> None:
     run_id = run.run_id if isinstance(run, RunSpec) else run
     candidates = []
     for path in output_root.glob(f".archive-{run_id}-*"):
@@ -2216,9 +2169,7 @@ def _prune_owned_archives(
         shutil.rmtree(path)
 
 
-def _prune_owned_failures(
-    output_root: Path, run: RunSpec | str, *, retain: int
-) -> None:
+def _prune_owned_failures(output_root: Path, run: RunSpec | str, *, retain: int) -> None:
     run_id = run.run_id if isinstance(run, RunSpec) else run
     candidates = []
     for path in output_root.glob(f".failure-{run_id}-*"):

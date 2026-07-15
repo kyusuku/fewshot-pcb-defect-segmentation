@@ -60,9 +60,7 @@ def test_ablation_preserves_overrides_without_mutable_aliases() -> None:
 def test_ablation_dependencies_are_machine_readable() -> None:
     runs = expand_matrix(load_experiment_config(CONFIG_ROOT / "arxiv_ablations.yaml"))
     prompt = next(run for run in runs if run.category == "pcb1" and run.variant == "prompt_box")
-    fusion = next(
-        run for run in runs if run.category == "pcb1" and run.variant == "fusion_union"
-    )
+    fusion = next(run for run in runs if run.category == "pcb1" and run.variant == "fusion_union")
 
     assert [dependency.run_id for dependency in prompt.dependencies] == [
         "dinov2_multi__pcb1__fold0__k4__seed4880"

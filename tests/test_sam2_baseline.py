@@ -35,12 +35,15 @@ class SAM2OnlyBaselinePromptTest(unittest.TestCase):
             box_scale=1.0,
         )
 
-        self.assertEqual([region.box_xyxy for region in regions], [
-            (0, 0, 4, 3),
-            (4, 0, 8, 3),
-            (0, 3, 4, 6),
-            (4, 3, 8, 6),
-        ])
+        self.assertEqual(
+            [region.box_xyxy for region in regions],
+            [
+                (0, 0, 4, 3),
+                (4, 0, 8, 3),
+                (0, 3, 4, 6),
+                (4, 3, 8, 6),
+            ],
+        )
         self.assertEqual(regions[0].point_xy, (2.0, 1.5))
         self.assertEqual(regions[0].area, 12)
         self.assertEqual(regions[0].score, 1.0)
@@ -85,6 +88,7 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
         self.assertIn("--all", help_result.stdout)
         self.assertNotEqual(invalid_result.returncode, 0)
         self.assertIn("positive", invalid_result.stderr)
+
     def test_script_writes_mask_scores_without_support_images_or_heatmaps(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmpdir:

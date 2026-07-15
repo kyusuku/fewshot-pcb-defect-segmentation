@@ -96,12 +96,8 @@ def format_stage4_markdown(rows: list[dict[str, float | str | None]]) -> str:
                 aggregate_pixel_iou=_format_metric(row.get("aggregate_pixel_iou")),
                 mean_anomaly_mask_f1=_format_metric(row.get("mean_anomaly_mask_f1")),
                 mean_anomaly_mask_iou=_format_metric(row.get("mean_anomaly_mask_iou")),
-                mean_anomaly_mask_precision=_format_metric(
-                    row.get("mean_anomaly_mask_precision")
-                ),
-                mean_anomaly_mask_recall=_format_metric(
-                    row.get("mean_anomaly_mask_recall")
-                ),
+                mean_anomaly_mask_precision=_format_metric(row.get("mean_anomaly_mask_precision")),
+                mean_anomaly_mask_recall=_format_metric(row.get("mean_anomaly_mask_recall")),
             )
         )
     return "\n".join(lines) + "\n"
@@ -130,15 +126,9 @@ def _row_from_metrics(
             "image_auroc": _optional_float(metrics.get("image_auroc")),
             "pixel_auroc": _optional_float(metrics.get("pixel_auroc")),
             "aupro": _optional_float(metrics.get("aupro")),
-            "aggregate_pixel_f1": _optional_float(
-                metrics.get("calibrated_aggregate_pixel_f1")
-            ),
-            "aggregate_pixel_iou": _optional_float(
-                metrics.get("calibrated_aggregate_pixel_iou")
-            ),
-            "mean_anomaly_mask_f1": _optional_float(
-                metrics.get("calibrated_mean_anomaly_mask_f1")
-            ),
+            "aggregate_pixel_f1": _optional_float(metrics.get("calibrated_aggregate_pixel_f1")),
+            "aggregate_pixel_iou": _optional_float(metrics.get("calibrated_aggregate_pixel_iou")),
+            "mean_anomaly_mask_f1": _optional_float(metrics.get("calibrated_mean_anomaly_mask_f1")),
             "mean_anomaly_mask_iou": _optional_float(
                 metrics.get("calibrated_mean_anomaly_mask_iou")
             ),
@@ -160,12 +150,8 @@ def _row_from_metrics(
         "aggregate_pixel_iou": None,
         "mean_anomaly_mask_f1": _optional_float(metrics.get("mean_anomaly_mask_f1")),
         "mean_anomaly_mask_iou": _optional_float(metrics.get("mean_anomaly_mask_iou")),
-        "mean_anomaly_mask_precision": _optional_float(
-            metrics.get("mean_anomaly_mask_precision")
-        ),
-        "mean_anomaly_mask_recall": _optional_float(
-            metrics.get("mean_anomaly_mask_recall")
-        ),
+        "mean_anomaly_mask_precision": _optional_float(metrics.get("mean_anomaly_mask_precision")),
+        "mean_anomaly_mask_recall": _optional_float(metrics.get("mean_anomaly_mask_recall")),
     }
 
 

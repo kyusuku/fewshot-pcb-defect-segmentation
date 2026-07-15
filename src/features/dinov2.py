@@ -52,11 +52,7 @@ class PatchFeatureMap:
 
         source_size = self.image_size if self.source_size is None else self.source_size
         source_size = _positive_integer_tuple(source_size, "source_size", 2)
-        content_box = (
-            (0, 0, width, height)
-            if self.content_box is None
-            else self.content_box
-        )
+        content_box = (0, 0, width, height) if self.content_box is None else self.content_box
         content_box = _integer_tuple(content_box, "content_box", 4)
         x1, y1, x2, y2 = content_box
         if not (0 <= x1 < x2 <= width and 0 <= y1 < y2 <= height):
@@ -87,8 +83,7 @@ class PatchFeatureMap:
 class PatchFeatureExtractor(Protocol):
     patch_size: int
 
-    def extract(self, image: Image.Image) -> PatchFeatureMap:
-        ...
+    def extract(self, image: Image.Image) -> PatchFeatureMap: ...
 
 
 class ColorPatchFeatureExtractor:

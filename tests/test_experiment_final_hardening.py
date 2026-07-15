@@ -70,9 +70,7 @@ def test_declared_references_resolve_real_writer_fixtures(tmp_path: Path) -> Non
     )
     heatmap_reference = guided.dependencies[0].referenced_artifacts[0]
     assert heatmap_reference.path_scope == "csv_parent"
-    assert resolve_referenced_artifacts(heatmap_root, heatmap_reference)[0]["path"] == str(
-        heatmap
-    )
+    assert resolve_referenced_artifacts(heatmap_root, heatmap_reference)[0]["path"] == str(heatmap)
 
     mask_root = tmp_path / fusion.dependencies[1].run_id
     mask_dir = mask_root / "test"
@@ -86,9 +84,7 @@ def test_declared_references_resolve_real_writer_fixtures(tmp_path: Path) -> Non
     mask_reference = fusion.dependencies[1].referenced_artifacts[0]
     assert mask_reference.path_column == "sam2_mask_path"
     assert mask_reference.path_scope == "csv_parent"
-    assert resolve_referenced_artifacts(mask_root, mask_reference)[0]["path"] == str(
-        sam2_mask
-    )
+    assert resolve_referenced_artifacts(mask_root, mask_reference)[0]["path"] == str(sam2_mask)
     assert "test/raw_masks" not in fusion.dependencies[1].artifacts
 
     sam2_only_root = tmp_path / "sam2_only"
@@ -133,9 +129,7 @@ def test_effective_execution_hash_covers_every_result_affecting_identity(
         lambda value: value["checkpoints"]["sam2"].update(sha256="3" * 64),
         lambda value: value["model_configs"]["sam2"].update(sha256="4" * 64),
         lambda value: _mutate_mapping_identity(value, "cache_identity", "changed-cache"),
-        lambda value: _mutate_mapping_identity(
-            value, "artifact_identities", "changed-source"
-        ),
+        lambda value: _mutate_mapping_identity(value, "artifact_identities", "changed-source"),
         lambda value: value["environment"]["libraries"].update(numpy="changed"),
         lambda value: value.update(platform="changed-platform"),
         lambda value: value["execution"].update(selected_device="cuda"),
@@ -242,9 +236,7 @@ def test_referenced_artifact_cannot_escape_base_through_symlink(tmp_path: Path) 
     outside = tmp_path / "private.npy"
     outside.write_bytes(b"private")
     (test_dir / "escaped.npy").symlink_to(outside)
-    (test_dir / "scores.csv").write_text(
-        "sample_id,heatmap_path\npcb1/a,escaped.npy\n"
-    )
+    (test_dir / "scores.csv").write_text("sample_id,heatmap_path\npcb1/a,escaped.npy\n")
     reference = ReferencedArtifact("test/scores.csv", "heatmap_path")
 
     with pytest.raises(ValueError, match="outside declared csv_parent base"):
@@ -288,9 +280,7 @@ def _mutate_dependency(value: dict[str, object]) -> None:
     value["dependency_identities_sha256"] = sha256_json(dependencies)
 
 
-def _mutate_mapping_identity(
-    value: dict[str, object], field_name: str, replacement: str
-) -> None:
+def _mutate_mapping_identity(value: dict[str, object], field_name: str, replacement: str) -> None:
     identity = value[field_name]
     identity["canonical"] = {"identity": replacement}
     identity["sha256"] = sha256_json(identity["canonical"])
@@ -299,9 +289,7 @@ def _mutate_mapping_identity(
 def _guided_run():
     return next(
         run
-        for run in expand_matrix(
-            load_experiment_config(CONFIG_ROOT / "arxiv_primary.yaml")
-        )
+        for run in expand_matrix(load_experiment_config(CONFIG_ROOT / "arxiv_primary.yaml"))
         if run.method == "dinov2_multi_sam2"
         and run.category == "pcb1"
         and run.k == 1

@@ -20,7 +20,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", choices=("visa", "deeppcb", "all"), default="all")
     parser.add_argument("--output-dir", type=Path, default=Path("data/raw"))
     parser.add_argument("--extract", action="store_true", help="Extract archives after download.")
-    parser.add_argument("--force", action="store_true", help="Overwrite existing downloaded archives.")
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite existing downloaded archives."
+    )
     return parser.parse_args()
 
 
