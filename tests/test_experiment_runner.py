@@ -116,7 +116,7 @@ def test_heatmap_commands_are_full_split_explicit_and_share_cache(tmp_path: Path
     for command in (commands[0], commands[2]):
         assert "--all" in command
         assert command[command.index("--feature-cache-dir") + 1] == str(cache)
-        assert command[command.index("--heatmap-format") + 1] == "npz_compressed"
+        assert command[command.index("--heatmap-format") + 1] == "npz_components"
         assert command[command.index("--debug-limit") + 1] == "0"
         assert command[command.index("--feature-backbone") + 1] == "color_patch"
         assert command[command.index("--crop-sizes") + 1] == "32"

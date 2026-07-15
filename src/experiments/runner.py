@@ -275,7 +275,7 @@ def _heatmap_commands(
         "--feature-cache-dir",
         str(cache_dir),
         "--heatmap-format",
-        "npz_compressed",
+        "npz_components",
         "--debug-limit",
         "0",
         "--all",

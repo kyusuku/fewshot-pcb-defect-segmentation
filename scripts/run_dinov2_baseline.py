@@ -21,7 +21,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from anomaly.heatmap import save_heatmap_debug_panel
 from anomaly.memory_bank import build_memory_bank, select_greedy_coreset
-from anomaly.multiscale import compute_anomaly_heatmap, parse_crop_sizes
+from anomaly.multiscale import compute_anomaly_heatmap_components, parse_crop_sizes
 from features.cache import (
     FeatureCache,
     FeatureCacheIdentity,
@@ -212,7 +212,7 @@ def main(
                 patch_size=extractor_patch_size,
                 view_prefix="query:",
             )
-        heatmap_for_eval = compute_anomaly_heatmap(
+        heatmap_components = compute_anomaly_heatmap_components(
             image=image,
             extractor=extractor,
             memory_bank=memory_bank,
@@ -223,12 +223,16 @@ def main(
             feature_cache=feature_cache,
             cache_key_for_view=cache_key_for_view,
         )
+        heatmap_for_eval = heatmap_components.render()
         image_score = float(heatmap_for_eval.max())
         output_stem = f"{rank:03d}_{safe_filename(row['sample_id'])}"
         output_path = args.output_dir / f"{output_stem}.png"
-        heatmap_suffix = ".npz" if args.heatmap_format == "npz_compressed" else ".npy"
+        heatmap_suffix = ".npy" if args.heatmap_format == "npy" else ".npz"
         heatmap_path = args.output_dir / f"{output_stem}_heatmap{heatmap_suffix}"
-        save_heatmap(heatmap_path, heatmap_for_eval, storage=args.heatmap_format)
+        heatmap_to_store = (
+            heatmap_components if args.heatmap_format == "npz_components" else heatmap_for_eval
+        )
+        save_heatmap(heatmap_path, heatmap_to_store, storage=args.heatmap_format)
         debug_path = ""
         if rank < args.debug_limit:
             save_heatmap_debug_panel(

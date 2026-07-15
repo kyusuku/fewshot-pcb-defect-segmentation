@@ -18,6 +18,7 @@ from anomaly.multiscale import (
 )
 from features.dinov2 import ColorPatchFeatureExtractor
 from tests.test_anomaly_baseline import _read_csv, _write_tiny_visa_fold_manifest
+from utils.heatmap_io import load_heatmap
 from utils.synthetic_data import create_synthetic_debug_datasets
 
 
@@ -151,6 +152,8 @@ class MultiScaleBaselineScriptTest(unittest.TestCase):
                     "0.5",
                     "--fusion",
                     "max",
+                    "--heatmap-format",
+                    "npz_components",
                     "--output-dir",
                     str(output_dir),
                 ],
@@ -164,10 +167,15 @@ class MultiScaleBaselineScriptTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             scores_path = output_dir / "scores.csv"
             rows = _read_csv(scores_path)
-            heatmap = np.load(scores_path.parent / rows[0]["heatmap_path"])
+            heatmap_path = scores_path.parent / rows[0]["heatmap_path"]
+            heatmap = load_heatmap(heatmap_path)
+            with np.load(heatmap_path, allow_pickle=False) as payload:
+                storage_kind = str(payload["storage_kind"])
 
         self.assertEqual(heatmap.shape, (64, 64))
         self.assertGreater(float(heatmap.max()), 0.0)
+        self.assertAlmostEqual(float(rows[0]["image_score"]), float(heatmap.max()), places=7)
+        self.assertEqual(storage_kind, "projected_patch_components")
 
 
 if __name__ == "__main__":

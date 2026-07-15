@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import shutil
+import uuid
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 import experiments.spec as experiment_spec
@@ -19,10 +22,12 @@ from utils.synthetic_data import create_synthetic_debug_datasets
 def test_arxiv_smoke_builds_checked_analysis_and_evidence(
     tmp_path: Path,
     monkeypatch,
+    request,
 ) -> None:
     repo = Path(__file__).resolve().parents[1]
-    fixture_root = repo / "outputs" / f"pytest-arxiv-smoke-{tmp_path.name}"
+    fixture_root = repo / "outputs" / f"pytest-arxiv-smoke-{uuid.uuid4().hex}"
     fixture_root.mkdir(parents=True, exist_ok=False)
+    request.addfinalizer(lambda: shutil.rmtree(fixture_root, ignore_errors=True))
     fixture = create_synthetic_debug_datasets(fixture_root / "fixture")
     manifest_path = fixture_root / "visa_pcb_folds.csv"
     _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
@@ -66,7 +71,15 @@ def test_arxiv_smoke_builds_checked_analysis_and_evidence(
         "cpu",
         cache,
     )
-    assert report["ok"] is True
+    assert report["ok"] is True, report
+    heatmap_run = next(run for run in runs if run.method == "dinov2_multi")
+    scores_path = output_root / heatmap_run.run_id / "test" / "scores.csv"
+    with scores_path.open(newline="", encoding="utf-8") as handle:
+        first_heatmap = Path(next(csv.DictReader(handle))["heatmap_path"])
+    if not first_heatmap.is_absolute():
+        first_heatmap = scores_path.parent / first_heatmap
+    with np.load(first_heatmap, allow_pickle=False) as payload:
+        assert str(payload["storage_kind"]) == "projected_patch_components"
     analyze_paper_results(
         config_path=config_path,
         output_root=output_root,
@@ -88,4 +101,3 @@ def test_arxiv_smoke_builds_checked_analysis_and_evidence(
 
     assert (evidence_dir / "completion_manifest.json").exists()
     assert "anomaly_consistent_sam2" in (evidence_dir / "primary_results.md").read_text()
-    shutil.rmtree(fixture_root)
