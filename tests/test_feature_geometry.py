@@ -3,9 +3,16 @@ from __future__ import annotations
 from unittest import mock
 
 import numpy as np
+import pytest
 from PIL import Image
 
-from anomaly.heatmap import project_patch_heatmap_to_source, resize_heatmap_to_image
+from anomaly.heatmap import (
+    PatchHeatmapComponent,
+    PositionedHeatmap,
+    ProjectedHeatmap,
+    project_patch_heatmap_to_source,
+    resize_heatmap_to_image,
+)
 from anomaly.memory_bank import build_memory_bank
 from anomaly.multiscale import compute_anomaly_heatmap
 from features.dinov2 import (
@@ -213,3 +220,99 @@ def test_full_frame_projection_matches_historical_single_resize() -> None:
     )
 
     np.testing.assert_array_equal(projected, historical)
+
+
+def _component(
+    patch_scores: np.ndarray,
+    *,
+    source_size: tuple[int, int],
+) -> PatchHeatmapComponent:
+    feature_map = PatchFeatureMap(
+        features=patch_scores[..., None],
+        image_size=(4, 4),
+        patch_size=2,
+        source_size=source_size,
+        content_box=(0, 0, 4, 4),
+    )
+    return PatchHeatmapComponent.from_feature_map(patch_scores, feature_map)
+
+
+def test_projected_single_component_matches_existing_projection_bit_for_bit() -> None:
+    patch_scores = np.array([[0.0, 1.0], [2.0, 4.0]], dtype=np.float32)
+    component = _component(patch_scores, source_size=(8, 6))
+    projected = ProjectedHeatmap(
+        source_size=(8, 6),
+        fusion="max",
+        components=(PositionedHeatmap((0, 0, 8, 6), component),),
+    )
+    feature_map = PatchFeatureMap(
+        features=patch_scores[..., None],
+        image_size=(4, 4),
+        patch_size=2,
+        source_size=(8, 6),
+        content_box=(0, 0, 4, 4),
+    )
+
+    expected = project_patch_heatmap_to_source(patch_scores, feature_map)
+
+    np.testing.assert_array_equal(projected.render(), expected)
+    assert projected.render().dtype == np.float32
+
+
+@pytest.mark.parametrize("fusion", ["max", "mean"])
+def test_projected_crop_fusion_matches_existing_operations_bit_for_bit(fusion: str) -> None:
+    global_scores = np.array([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32)
+    crop_scores = np.array([[4.0, 0.0], [1.0, 5.0]], dtype=np.float32)
+    global_component = _component(global_scores, source_size=(8, 6))
+    crop_component = _component(crop_scores, source_size=(4, 4))
+    projected = ProjectedHeatmap(
+        source_size=(8, 6),
+        fusion=fusion,
+        components=(
+            PositionedHeatmap((0, 0, 8, 6), global_component),
+            PositionedHeatmap((2, 1, 6, 5), crop_component),
+        ),
+    )
+    expected = global_component.render()
+    crop = crop_component.render()
+    if fusion == "max":
+        expected[1:5, 2:6] = np.maximum(expected[1:5, 2:6], crop)
+    else:
+        counts = np.ones_like(expected, dtype=np.float32)
+        expected[1:5, 2:6] += crop
+        counts[1:5, 2:6] += 1.0
+        expected = expected / counts
+
+    np.testing.assert_array_equal(projected.render(), expected)
+
+
+def test_projected_heatmap_rejects_malformed_geometry_and_scores() -> None:
+    component = _component(np.ones((2, 2), dtype=np.float32), source_size=(8, 6))
+    with pytest.raises(ValueError, match="full source canvas"):
+        ProjectedHeatmap(
+            source_size=(8, 6),
+            fusion="max",
+            components=(PositionedHeatmap((0, 0, 7, 6), component),),
+        )
+    with pytest.raises(ValueError, match="fusion"):
+        ProjectedHeatmap(
+            source_size=(8, 6),
+            fusion="median",
+            components=(PositionedHeatmap((0, 0, 8, 6), component),),
+        )
+    with pytest.raises(ValueError, match="float32"):
+        PatchHeatmapComponent(
+            patch_scores=np.ones((2, 2), dtype=np.float64),
+            image_size=(4, 4),
+            patch_size=2,
+            source_size=(8, 6),
+            content_box=(0, 0, 4, 4),
+        )
+    with pytest.raises(ValueError, match="finite"):
+        PatchHeatmapComponent(
+            patch_scores=np.array([[0.0, np.nan], [1.0, 2.0]], dtype=np.float32),
+            image_size=(4, 4),
+            patch_size=2,
+            source_size=(8, 6),
+            content_box=(0, 0, 4, 4),
+        )
