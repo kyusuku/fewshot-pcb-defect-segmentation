@@ -56,7 +56,7 @@ def test_public_repo_does_not_track_private_artifacts_or_secret_markers() -> Non
         re.compile(r"s" + r"k-[A-Za-z0-9_-]{20,}"),
         re.compile(r"OPENAI_" + r"API_KEY\s*=\s*[A-Za-z0-9_./+-]{8,}"),
         re.compile(r"SUPABASE_" + r"SERVICE_ROLE_KEY\s*=\s*[A-Za-z0-9_./+-]{8,}"),
-        re.compile(r"course_report_private"),
+        re.compile(r"course_" + r"report_private"),
     ]
     leaks = []
     for path in tracked:
