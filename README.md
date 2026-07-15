@@ -126,6 +126,14 @@ PYTHONPATH=src python scripts/check_experiment_matrix.py \
   --output-json outputs/arxiv_primary/matrix_summary.json
 ```
 
+Paper-matrix DINOv2 and PatchCore heatmaps are retained as versioned exact
+component archives. Each archive stores the global/local patch-score grids,
+projection geometry, crop order, and fusion rule; the shared loader reconstructs
+the same full-resolution float32 heatmap used by calibration, SAM2 prompting,
+evaluation, and curation. This is not quantization or lower-resolution
+evaluation. Legacy materialized `.npy` and `.npz` heatmaps remain readable, and
+all archives remain covered by per-run SHA-256 provenance.
+
 Ablations, analysis, assets, and compact evidence:
 
 ```bash

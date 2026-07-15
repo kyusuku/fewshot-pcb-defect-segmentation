@@ -166,6 +166,22 @@ PYTHONPATH=src python scripts/check_experiment_matrix.py \
   --output-json outputs/arxiv_primary/matrix_summary.json
 ```
 
+The matrix runner stores DINOv2/PatchCore anomaly maps as exact component NPZ
+archives rather than redundant materialized full-resolution float arrays. The
+archive keeps every patch-score grid and all projection/fusion geometry, and
+`load_heatmap` reconstructs the original float32 map deterministically for
+calibration, refinement, evaluation, and curation. Do not manually prune these
+archives: the checker verifies every CSV-referenced file and its recorded
+SHA-256. This representation changes disk use only; it does not quantize,
+downsample, or change the frozen protocol.
+
+Check free space while the matrix runs:
+
+```bash
+df -h /root/autodl-tmp
+du -sh outputs/.feature_cache outputs/arxiv_primary
+```
+
 Then run ablations against the completed primary outputs:
 
 ```bash
