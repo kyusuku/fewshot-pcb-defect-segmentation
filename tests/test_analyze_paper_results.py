@@ -20,7 +20,6 @@ def test_analyze_paper_results_writes_paired_failure_outputs(tmp_path: Path) -> 
 
     mask = np.asarray([[255, 255, 0], [0, 0, 0]], dtype=np.uint8)
     heatmap = np.asarray([[1.0, 0.8, 0.0], [0.0, 0.7, 0.0]], dtype=np.float32)
-    anomaly = np.asarray([[255, 0, 0], [0, 0, 0]], dtype=np.uint8)
     sam2 = np.asarray([[255, 255, 0], [0, 255, 0]], dtype=np.uint8)
     fused = np.asarray([[255, 255, 0], [0, 0, 0]], dtype=np.uint8)
 

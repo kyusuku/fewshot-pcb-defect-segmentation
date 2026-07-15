@@ -903,7 +903,7 @@ def validate_data_artifacts(
         raise ValueError(f"run {run.run_id} directory must not be a symlink")
     if (run_dir / "status.json").is_symlink() or (run_dir / "provenance.json").is_symlink():
         raise ValueError(f"run {run.run_id} metadata must not be symlinked")
-    marker = _read_ownership_marker(run_dir)
+    _read_ownership_marker(run_dir)
     _validate_data_artifacts_in(
         run,
         run_dir,
