@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from utils.heatmap_io import load_heatmap
+
 
 @dataclass(frozen=True)
 class NormalThreshold:
@@ -84,7 +86,7 @@ def fit_normal_threshold(
 
 
 def _load_heatmap(row_index: int, path: str) -> np.ndarray:
-    heatmap = np.load(path)
+    heatmap = load_heatmap(path)
     context = f"heatmap row {row_index} at {path!r}"
     if heatmap.ndim != 2:
         raise ValueError(f"{context} must be exactly 2-D; got shape {heatmap.shape}")

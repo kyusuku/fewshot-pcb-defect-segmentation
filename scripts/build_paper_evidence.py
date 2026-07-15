@@ -23,6 +23,7 @@ from evaluation.paper_tables import (
     aggregate_primary_rows,
     collect_primary_rows,
     format_primary_markdown,
+    metric_fields,
 )
 from experiments.runner import matrix_report
 from experiments.spec import RunSpec, expand_matrix, load_experiment_config
@@ -67,6 +68,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ablation-output-root", type=Path, required=True)
     parser.add_argument("--analysis-dir", type=Path, required=True)
     parser.add_argument("--evidence-dir", type=Path, required=True)
+    parser.add_argument("--qualitative-manifest", type=Path, required=True)
+    parser.add_argument("--method-figure-layout", type=Path, required=True)
     parser.add_argument("--dependency-root", type=Path)
     parser.add_argument("--ablation-dependency-root", type=Path)
     parser.add_argument("--feature-cache-dir", type=Path)
@@ -84,6 +87,8 @@ def main() -> None:
             ablation_output_root=args.ablation_output_root,
             analysis_dir=args.analysis_dir,
             evidence_dir=args.evidence_dir,
+            qualitative_manifest=args.qualitative_manifest,
+            method_figure_layout=args.method_figure_layout,
             validate_matrices=True,
             config_path=args.config,
             ablation_config_path=args.ablation_config,
@@ -106,6 +111,8 @@ def build_paper_evidence(
     ablation_output_root: str | Path,
     analysis_dir: str | Path,
     evidence_dir: str | Path,
+    qualitative_manifest: str | Path | None = None,
+    method_figure_layout: str | Path | None = None,
     validate_matrices: bool = True,
     config_path: str | Path | None = None,
     ablation_config_path: str | Path | None = None,
@@ -148,9 +155,26 @@ def build_paper_evidence(
             ),
             device,
         )
+        if qualitative_manifest is None or method_figure_layout is None:
+            raise ValueError("complete evidence requires qualitative and method figure manifests")
+
+    if qualitative_manifest is not None or method_figure_layout is not None:
+        if qualitative_manifest is None or method_figure_layout is None:
+            raise ValueError("qualitative and method figure manifests must be supplied together")
+        _validate_paper_assets(
+            Path(qualitative_manifest),
+            Path(method_figure_layout),
+            categories=[str(value) for value in config["categories"]],  # type: ignore[index]
+        )
 
     evidence_dir.mkdir(parents=True, exist_ok=True)
     primary_rows = collect_primary_rows(config, output_root)
+    if validate_matrices:
+        _validate_analysis_manifest(
+            analysis_dir,
+            primary_rows,
+            config_path=Path(config_path) if config_path is not None else None,
+        )
     ablation_rows = _collect_ablation_rows(ablation_config, ablation_output_root)
     generated_paths = [
         _write_csv(evidence_dir / "primary_results.csv", primary_rows, PRIMARY_FIELDS),
@@ -165,18 +189,47 @@ def build_paper_evidence(
             analysis_dir / "paired_statistics.json",
             evidence_dir / "paired_statistics.json",
         ),
-        _copy_required(
+        _write_public_csv(
             analysis_dir / "per_image_failure_analysis.csv",
             evidence_dir / "failure_strata.csv",
         ),
     ]
-    generated_paths.append(_write_index(evidence_dir / "evidence_index.md", generated_paths))
+    if qualitative_manifest is not None and method_figure_layout is not None:
+        generated_paths.extend(
+            [
+                _write_public_csv(
+                    Path(qualitative_manifest),
+                    evidence_dir / "qualitative_manifest.csv",
+                ),
+                _copy_required(
+                    Path(method_figure_layout),
+                    evidence_dir / "method_figure_layout.json",
+                ),
+            ]
+        )
+    analysis_manifest = analysis_dir / "analysis_manifest.json"
+    if analysis_manifest.is_file():
+        generated_paths.append(
+            _copy_required(analysis_manifest, evidence_dir / "analysis_manifest.json")
+        )
+    ready_for_writing = (
+        validate_matrices and qualitative_manifest is not None and method_figure_layout is not None
+    )
+    generated_paths.append(
+        _write_index(
+            evidence_dir / "evidence_index.md",
+            generated_paths,
+            generation_command=generation_command,
+            ready_for_writing=ready_for_writing,
+        )
+    )
     manifest = _completion_manifest(
         primary_rows=primary_rows,
         ablation_rows=ablation_rows,
         generated_paths=generated_paths,
         evidence_dir=evidence_dir,
         generation_command=generation_command,
+        ready_for_writing=ready_for_writing,
     )
     manifest_path = evidence_dir / "completion_manifest.json"
     manifest_path.write_text(
@@ -247,16 +300,7 @@ def _collect_ablation_rows(
                     "category": run.category,
                     "k": run.k,
                     "seed": run.seed,
-                    "threshold_policy": "binary_model_output",
-                    "image_auroc": None,
-                    "pixel_auroc": None,
-                    "aupro": None,
-                    "aggregate_pixel_f1": None,
-                    "aggregate_pixel_iou": None,
-                    "mean_anomaly_mask_f1": metrics.get("mean_anomaly_mask_f1"),
-                    "mean_anomaly_mask_iou": metrics.get("mean_anomaly_mask_iou"),
-                    "mean_anomaly_mask_precision": metrics.get("mean_anomaly_mask_precision"),
-                    "mean_anomaly_mask_recall": metrics.get("mean_anomaly_mask_recall"),
+                    **metric_fields(method, metrics),
                     "git_commit": provenance.get("git_commit", ""),
                     "git_dirty": bool(provenance.get("git_dirty", False)),
                     "manifest_path": _manifest_value(provenance, "path"),
@@ -321,8 +365,185 @@ def _copy_required(source: Path, destination: Path) -> Path:
     return destination
 
 
-def _write_index(path: Path, generated_paths: Sequence[Path]) -> Path:
-    lines = ["# Evidence Index", "", "Generated compact paper evidence:", ""]
+def _write_public_csv(source: Path, destination: Path) -> Path:
+    """Copy compact evidence while removing local/raw artifact path columns."""
+
+    if not source.is_file():
+        raise ValueError(f"missing required analysis artifact: {source.name}")
+    with source.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames:
+            raise ValueError(f"evidence CSV has no header: {source.name}")
+        public_fields = [
+            field
+            for field in reader.fieldnames
+            if not field.endswith("_path")
+            and not field.endswith("_panel_path")
+            and not field.endswith("_paths_json")
+        ]
+        rows = list(reader)
+    with destination.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=public_fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    return destination
+
+
+def _validate_paper_assets(
+    qualitative_manifest: Path,
+    method_figure_layout: Path,
+    *,
+    categories: Sequence[str],
+) -> None:
+    if not qualitative_manifest.is_file():
+        raise ValueError("missing qualitative asset manifest")
+    with qualitative_manifest.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    required_roles = {
+        (category, role) for category in categories for role in ("success", "failure")
+    }
+    observed_roles = {(row.get("category", ""), row.get("role", "")) for row in rows}
+    if not required_roles.issubset(observed_roles):
+        raise ValueError("qualitative manifest must contain success and failure for every category")
+    panel_names = ("image", "mask", "anomaly_panel", "sam2_panel", "fusion_panel")
+    for row_index, row in enumerate(rows):
+        try:
+            copied_paths = json.loads(row.get("copied_paths_json", ""))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"qualitative row {row_index} has invalid copied paths") from exc
+        if not isinstance(copied_paths, Mapping):
+            raise ValueError(f"qualitative row {row_index} copied paths must be an object")
+        for panel_name in panel_names:
+            value = copied_paths.get(panel_name)
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"qualitative row {row_index} is missing {panel_name}")
+            path = Path(value)
+            if not path.is_absolute():
+                path = PROJECT_ROOT / path
+            if not path.is_file():
+                raise ValueError(f"qualitative row {row_index} {panel_name} does not exist")
+            if row.get(f"sha256_{panel_name}", "") != _sha256_file(path):
+                raise ValueError(f"qualitative row {row_index} {panel_name} checksum mismatch")
+
+    if not method_figure_layout.is_file():
+        raise ValueError("missing method figure layout manifest")
+    layout = json.loads(method_figure_layout.read_text(encoding="utf-8"))
+    if not isinstance(layout, Mapping):
+        raise ValueError("method figure layout must be a JSON object")
+    output_value = layout.get("output_png")
+    if not isinstance(output_value, str) or not output_value:
+        raise ValueError("method figure layout must identify output_png")
+    output_png = Path(output_value)
+    if not output_png.is_absolute():
+        output_png = method_figure_layout.parent / output_png
+    if not output_png.is_file():
+        raise ValueError("method figure PNG does not exist")
+    if layout.get("output_png_sha256") != _sha256_file(output_png):
+        raise ValueError("method figure PNG checksum mismatch")
+
+
+def _validate_analysis_manifest(
+    analysis_dir: Path,
+    primary_rows: Sequence[Mapping[str, object]],
+    *,
+    config_path: Path | None,
+) -> None:
+    manifest_path = analysis_dir / "analysis_manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError("missing analysis manifest")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, Mapping) or manifest.get("schema_version") != 1:
+        raise ValueError("analysis manifest is malformed")
+    if config_path is not None:
+        if not config_path.is_file() or manifest.get("config_sha256") != _sha256_file(config_path):
+            raise ValueError("analysis manifest config checksum mismatch")
+
+    expected_rows = {
+        str(row["run_id"]): str(row.get("effective_execution_sha256", ""))
+        for row in primary_rows
+        if str(row.get("method", ""))
+        in {"dinov2_multi", "dinov2_multi_sam2", "anomaly_consistent_sam2"}
+    }
+    source_runs = manifest.get("source_runs")
+    if not isinstance(source_runs, list):
+        raise ValueError("analysis manifest source_runs must be a list")
+    observed_rows: dict[str, str] = {}
+    for item in source_runs:
+        if not isinstance(item, Mapping):
+            raise ValueError("analysis manifest source run must be an object")
+        run_id = str(item.get("run_id", ""))
+        if not run_id or run_id in observed_rows:
+            raise ValueError("analysis manifest has missing or duplicate run IDs")
+        observed_rows[run_id] = str(item.get("effective_execution_sha256", ""))
+    if observed_rows != expected_rows:
+        raise ValueError("analysis manifest source run identities are incomplete or stale")
+
+    generated_files = manifest.get("generated_files")
+    if not isinstance(generated_files, list):
+        raise ValueError("analysis manifest generated_files must be a list")
+    expected_names = {"per_image_failure_analysis.csv", "paired_statistics.json"}
+    observed_names: set[str] = set()
+    for item in generated_files:
+        if not isinstance(item, Mapping):
+            raise ValueError("analysis manifest generated file must be an object")
+        name = str(item.get("path", ""))
+        if name in observed_names:
+            raise ValueError("analysis manifest has duplicate generated files")
+        observed_names.add(name)
+        path = analysis_dir / name
+        if not path.is_file() or item.get("sha256") != _sha256_file(path):
+            raise ValueError(f"analysis generated file checksum mismatch: {name}")
+    if observed_names != expected_names:
+        raise ValueError("analysis manifest generated file set is incomplete")
+
+
+def _write_index(
+    path: Path,
+    generated_paths: Sequence[Path],
+    *,
+    generation_command: str,
+    ready_for_writing: bool,
+) -> Path:
+    status = "complete paper evidence" if ready_for_writing else "smoke or test evidence only"
+    lines = [
+        "# Evidence Index",
+        "",
+        f"Readiness scope: **{status}**.",
+        "",
+        "Generation command:",
+        "",
+        f"`{generation_command}`",
+        "",
+        "## Planned claim mapping",
+        "",
+        "| Planned claim | Evidence source | Guardrail |",
+        "| --- | --- | --- |",
+        "| Multi-scale DINOv2 versus single-scale proposals | `primary_results.csv` | "
+        "Per-category and category-macro, fixed primary geometry |",
+        "| PatchCore reference baseline | `primary_results.csv` | Same support protocol and split |",
+        "| Unconditional SAM2 helps or hurts conditionally | `paired_statistics.json`, "
+        "`failure_strata.csv` | Anomaly images only; paired repeated-measures CI |",
+        "| Anomaly-consistent SAM2 versus proposal and SAM2 masks | `paired_statistics.json`, "
+        "`primary_results.md` | No improvement claim when delta CI includes zero |",
+        "| Pre-registered sensitivity results | `ablation_results.csv` | Alternatives remain "
+        "ablations, not replacement primaries |",
+        "| Oracle threshold diagnostics | `oracle_diagnostics.csv` | Diagnostic only; never "
+        "presented as deployable |",
+        "",
+        "## Planned table and figure mapping",
+        "",
+        "| Artifact | Evidence source |",
+        "| --- | --- |",
+        "| Primary quantitative table | `primary_results.csv`, `primary_results.md` |",
+        "| Ablation table | `ablation_results.csv` |",
+        "| Paired statistical table | `paired_statistics.json` |",
+        "| Failure-stratified table | `failure_strata.csv` |",
+        "| Category success/failure figure set | `qualitative_manifest.csv` |",
+        "| Method/pipeline figure | `method_figure_layout.json` |",
+        "",
+        "## Generated compact files",
+        "",
+    ]
     for generated in generated_paths:
         lines.append(f"- `{generated.name}`")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -336,10 +557,15 @@ def _completion_manifest(
     generated_paths: Sequence[Path],
     evidence_dir: Path,
     generation_command: str,
+    ready_for_writing: bool,
 ) -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generation_command": generation_command,
+        "ready_for_writing": ready_for_writing,
+        "readiness_scope": (
+            "complete_paper_evidence" if ready_for_writing else "smoke_or_test_only"
+        ),
         "source_runs": [_source_run(row) for row in [*primary_rows, *ablation_rows]],
         "generated_files": [
             {

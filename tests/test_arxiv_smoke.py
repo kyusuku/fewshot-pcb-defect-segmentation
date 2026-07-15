@@ -1,72 +1,80 @@
 from __future__ import annotations
 
-import subprocess
-import sys
+import hashlib
+import json
+import shutil
 from pathlib import Path
 
-from experiments.spec import load_experiment_config
+import yaml
+
+import experiments.spec as experiment_spec
+from experiments.runner import matrix_report, run_matrix
+from experiments.spec import expand_matrix, load_experiment_config, load_yaml_mapping
+from scripts.analyze_paper_results import analyze_paper_results
 from scripts.build_paper_evidence import build_paper_evidence
+from tests.test_anomaly_baseline import _write_tiny_visa_fold_manifest
+from utils.synthetic_data import create_synthetic_debug_datasets
 
 
-def test_arxiv_smoke_builds_checked_analysis_and_evidence(tmp_path: Path) -> None:
+def test_arxiv_smoke_builds_checked_analysis_and_evidence(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     repo = Path(__file__).resolve().parents[1]
-    config_path = repo / "configs" / "experiments" / "arxiv_smoke.yaml"
-    output_root = tmp_path / "outputs"
-    analysis_dir = tmp_path / "analysis"
-    evidence_dir = tmp_path / "evidence"
-    env = {"PYTHONPATH": str(repo / "src")}
-
-    _run(
-        [
-            sys.executable,
-            str(repo / "scripts" / "run_experiment_matrix.py"),
-            "--config",
-            str(config_path),
-            "--output-root",
-            str(output_root),
-            "--device",
-            "cpu",
-            "--allow-dirty",
-        ],
-        repo,
-        env,
-    )
-    checker = _run(
-        [
-            sys.executable,
-            str(repo / "scripts" / "check_experiment_matrix.py"),
-            "--config",
-            str(config_path),
-            "--output-root",
-            str(output_root),
-            "--device",
-            "cpu",
-            "--output-json",
-            str(output_root / "matrix_summary.json"),
-        ],
-        repo,
-        env,
-    )
-    assert checker.returncode == 0
-    assert (output_root / "matrix_summary.json").exists()
-    _run(
-        [
-            sys.executable,
-            str(repo / "scripts" / "analyze_paper_results.py"),
-            "--config",
-            str(config_path),
-            "--output-root",
-            str(output_root),
-            "--analysis-dir",
-            str(analysis_dir),
-            "--device",
-            "cpu",
-        ],
-        repo,
-        env,
-    )
+    fixture_root = repo / "outputs" / f"pytest-arxiv-smoke-{tmp_path.name}"
+    fixture_root.mkdir(parents=True, exist_ok=False)
+    fixture = create_synthetic_debug_datasets(fixture_root / "fixture")
+    manifest_path = fixture_root / "visa_pcb_folds.csv"
+    _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+    base_config = load_yaml_mapping(repo / "configs" / "experiments" / "arxiv_smoke.yaml")
+    base_config["manifest"] = manifest_path.relative_to(repo).as_posix()
+    frozen_sha = hashlib.sha256(
+        json.dumps(
+            base_config,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    monkeypatch.setitem(experiment_spec._FROZEN_CONFIG_SHA256, "arxiv_smoke", frozen_sha)
+    config_path = fixture_root / "arxiv_smoke.yaml"
+    config_path.write_text(yaml.safe_dump(base_config, sort_keys=False), encoding="utf-8")
+    output_root = fixture_root / "outputs"
+    analysis_dir = fixture_root / "analysis"
+    evidence_dir = fixture_root / "evidence"
+    cache = fixture_root / "feature-cache"
 
     config = load_experiment_config(config_path)
+    runs = expand_matrix(config)
+    run_matrix(
+        runs,
+        config,
+        config_path,
+        output_root,
+        output_root,
+        "cpu",
+        cache,
+        allow_dirty=True,
+    )
+    report = matrix_report(
+        runs,
+        output_root,
+        output_root,
+        config,
+        config_path,
+        "cpu",
+        cache,
+    )
+    assert report["ok"] is True
+    analyze_paper_results(
+        config_path=config_path,
+        output_root=output_root,
+        analysis_dir=analysis_dir,
+        feature_cache_dir=cache,
+        device="cpu",
+    )
+
     build_paper_evidence(
         config=config,
         output_root=output_root,
@@ -80,16 +88,4 @@ def test_arxiv_smoke_builds_checked_analysis_and_evidence(tmp_path: Path) -> Non
 
     assert (evidence_dir / "completion_manifest.json").exists()
     assert "anomaly_consistent_sam2" in (evidence_dir / "primary_results.md").read_text()
-
-
-def _run(command: list[str], cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    return result
+    shutil.rmtree(fixture_root)

@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from utils.heatmap_io import load_heatmap
+
 from scripts.run_sam2_baseline import (
     _optional_fraction,
     build_grid_prompt_regions,
@@ -122,6 +124,10 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
                     "1",
                     "--refiner",
                     "fallback",
+                    "--debug-limit",
+                    "0",
+                    "--heatmap-format",
+                    "npz_compressed",
                     "--output-dir",
                     str(output_dir),
                 ],
@@ -137,7 +143,7 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
             pred_mask_path = output_dir / rows[0]["pred_mask_path"]
             heatmap_path = output_dir / rows[0]["heatmap_path"]
             pred_mask = np.asarray(Image.open(pred_mask_path).convert("L")) > 0
-            heatmap = np.load(heatmap_path)
+            heatmap = load_heatmap(heatmap_path)
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly_000")
@@ -149,6 +155,8 @@ class SAM2OnlyBaselineScriptTest(unittest.TestCase):
         self.assertEqual(pred_mask.shape, (8, 12))
         self.assertEqual(int(pred_mask.sum()), 96)
         self.assertEqual(heatmap.shape, (8, 12))
+        self.assertEqual(heatmap_path.suffix, ".npz")
+        self.assertEqual(rows[0]["debug_path"], "")
 
 
 def _write_manifest_without_support(

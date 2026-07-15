@@ -20,10 +20,12 @@ if str(SRC_ROOT) not in sys.path:
 from evaluation.failure_analysis import describe_mask_pair
 from evaluation.masks import mask_confusion_metrics, resolve_mask_row_paths
 from evaluation.metrics import resolve_score_row_paths
-from evaluation.statistics import paired_bootstrap_delta
+from evaluation.statistics import repeated_measures_paired_delta
+from experiments.provenance import sha256_file
 from experiments.runner import matrix_report
 from experiments.spec import RunSpec, expand_matrix, load_experiment_config
 from sam_refine.artifacts import anomaly_mask_from_heatmap
+from utils.heatmap_io import load_heatmap
 from utils.image import load_binary_mask
 
 
@@ -39,6 +41,8 @@ FAILURE_FIELDS = [
     "image_path",
     "mask_path",
     "heatmap_path",
+    "sam2_mask_path",
+    "fusion_mask_path",
     "anomaly_panel_path",
     "sam2_panel_path",
     "fusion_panel_path",
@@ -145,13 +149,27 @@ def analyze_paper_results(
     strata = _assign_strata(rows)
     statistics = _paired_statistics(rows, strata, bootstrap_samples=bootstrap_samples)
     analysis_dir.mkdir(parents=True, exist_ok=True)
-    _write_csv(analysis_dir / "per_image_failure_analysis.csv", rows, FAILURE_FIELDS)
-    _write_json(analysis_dir / "paired_statistics.json", statistics)
+    per_image_path = analysis_dir / "per_image_failure_analysis.csv"
+    statistics_path = analysis_dir / "paired_statistics.json"
+    _write_csv(per_image_path, rows, FAILURE_FIELDS)
+    _write_json(statistics_path, statistics)
+    analysis_manifest_path = analysis_dir / "analysis_manifest.json"
+    _write_json(
+        analysis_manifest_path,
+        _analysis_manifest(
+            rows,
+            output_root=output_root,
+            config_path=Path(config_path) if config_path is not None else None,
+            per_image_path=per_image_path,
+            statistics_path=statistics_path,
+        ),
+    )
     return {
         "rows": rows,
         "statistics": statistics,
         "per_image_csv": str(analysis_dir / "per_image_failure_analysis.csv"),
         "paired_statistics_json": str(analysis_dir / "paired_statistics.json"),
+        "analysis_manifest_json": str(analysis_manifest_path),
     }
 
 
@@ -233,7 +251,7 @@ def _collect_run_triplet(
         sample_id = heatmap_row["sample_id"]
         if sample_id not in sam2_rows or sample_id not in fusion_rows:
             raise ValueError(f"missing paired SAM2/fusion rows for {sample_id}")
-        heatmap = np.load(heatmap_row["heatmap_path"]).astype(np.float32, copy=False)
+        heatmap = load_heatmap(heatmap_row["heatmap_path"]).astype(np.float32, copy=False)
         target = _target_mask(heatmap_row, heatmap.shape)
         threshold = _proposal_threshold(
             heatmap_metrics.get(sample_id, {}), output_root / heatmap_run.run_id
@@ -262,6 +280,8 @@ def _collect_run_triplet(
                 "image_path": heatmap_row.get("image_path", ""),
                 "mask_path": heatmap_row.get("mask_path", ""),
                 "heatmap_path": heatmap_row.get("heatmap_path", ""),
+                "sam2_mask_path": sam2_rows[sample_id].get("sam2_mask_path", ""),
+                "fusion_mask_path": fusion_rows[sample_id].get("pred_mask_path", ""),
                 "anomaly_panel_path": heatmap_row.get("debug_path", ""),
                 "sam2_panel_path": sam2_rows[sample_id].get("debug_path", ""),
                 "fusion_panel_path": fusion_rows[sample_id].get("debug_path", ""),
@@ -347,19 +367,98 @@ def _paired_statistics(
     *,
     bootstrap_samples: int,
 ) -> dict[str, object]:
+    anomaly_rows = [row for row in rows if str(row.get("label", "")) == "1"]
+    if not anomaly_rows:
+        raise ValueError("paired paper statistics require anomalous test rows")
     return {
         "comparisons": {
-            "dinov2_multi_vs_dinov2_multi_sam2": _comparison(
-                rows, "anomaly", "sam2", bootstrap_samples
+            "dinov2_multi_vs_dinov2_multi_sam2": _comparison_breakdown(
+                anomaly_rows,
+                "anomaly",
+                "sam2",
+                bootstrap_samples,
+                excluded_normal_rows=len(rows) - len(anomaly_rows),
             ),
-            "dinov2_multi_vs_anomaly_consistent_sam2": _comparison(
-                rows, "anomaly", "fusion", bootstrap_samples
+            "dinov2_multi_vs_anomaly_consistent_sam2": _comparison_breakdown(
+                anomaly_rows,
+                "anomaly",
+                "fusion",
+                bootstrap_samples,
+                excluded_normal_rows=len(rows) - len(anomaly_rows),
             ),
-            "dinov2_multi_sam2_vs_anomaly_consistent_sam2": _comparison(
-                rows, "sam2", "fusion", bootstrap_samples
+            "dinov2_multi_sam2_vs_anomaly_consistent_sam2": _comparison_breakdown(
+                anomaly_rows,
+                "sam2",
+                "fusion",
+                bootstrap_samples,
+                excluded_normal_rows=len(rows) - len(anomaly_rows),
             ),
         },
         "strata": dict(strata),
+        "statistical_design": {
+            "sample_inclusion": "anomaly_images_only",
+            "paired_unit": "category_k_seed_sample_id",
+            "resampling_unit": "support_seed_and_test_image",
+            "fixed_strata": ["category", "k"],
+            "category_aggregation": "macro_average",
+        },
+    }
+
+
+def _comparison_breakdown(
+    rows: list[dict[str, str | float | int]],
+    baseline: str,
+    candidate: str,
+    bootstrap_samples: int,
+    *,
+    excluded_normal_rows: int,
+) -> dict[str, object]:
+    by_k = {
+        str(k): _comparison(
+            [row for row in rows if int(row["k"]) == k],
+            baseline,
+            candidate,
+            bootstrap_samples,
+        )
+        for k in sorted({int(row["k"]) for row in rows})
+    }
+    by_category = {
+        category: _comparison(
+            [row for row in rows if str(row["category"]) == category],
+            baseline,
+            candidate,
+            bootstrap_samples,
+        )
+        for category in sorted({str(row["category"]) for row in rows})
+    }
+    by_area_stratum = {
+        stratum: _comparison(
+            [row for row in rows if str(row["area_stratum"]) == stratum],
+            baseline,
+            candidate,
+            bootstrap_samples,
+        )
+        for stratum in sorted({str(row["area_stratum"]) for row in rows})
+    }
+    by_thinness_stratum = {
+        stratum: _comparison(
+            [row for row in rows if str(row["thinness_stratum"]) == stratum],
+            baseline,
+            candidate,
+            bootstrap_samples,
+        )
+        for stratum in sorted({str(row["thinness_stratum"]) for row in rows})
+    }
+    return {
+        "scope": {
+            "sample_inclusion": "anomaly_images_only",
+            "excluded_normal_rows": excluded_normal_rows,
+        },
+        "overall": _comparison(rows, baseline, candidate, bootstrap_samples),
+        "by_k": by_k,
+        "by_category": by_category,
+        "by_area_stratum": by_area_stratum,
+        "by_thinness_stratum": by_thinness_stratum,
     }
 
 
@@ -371,15 +470,17 @@ def _comparison(
 ) -> dict[str, object]:
     return {
         "num_pairs": len(rows),
-        "f1": paired_bootstrap_delta(
-            [float(row[f"{baseline}_f1"]) for row in rows],
-            [float(row[f"{candidate}_f1"]) for row in rows],
+        "f1": repeated_measures_paired_delta(
+            rows,
+            baseline_field=f"{baseline}_f1",
+            candidate_field=f"{candidate}_f1",
             samples=bootstrap_samples,
             seed=4880,
         ),
-        "iou": paired_bootstrap_delta(
-            [float(row[f"{baseline}_iou"]) for row in rows],
-            [float(row[f"{candidate}_iou"]) for row in rows],
+        "iou": repeated_measures_paired_delta(
+            rows,
+            baseline_field=f"{baseline}_iou",
+            candidate_field=f"{candidate}_iou",
             samples=bootstrap_samples,
             seed=4880,
         ),
@@ -408,6 +509,58 @@ def _write_csv(
 
 def _write_json(path: Path, payload: Mapping[str, object]) -> None:
     path.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def _analysis_manifest(
+    rows: Sequence[Mapping[str, object]],
+    *,
+    output_root: Path,
+    config_path: Path | None,
+    per_image_path: Path,
+    statistics_path: Path,
+) -> dict[str, object]:
+    if config_path is None:
+        portable_config_path = ""
+    else:
+        try:
+            portable_config_path = config_path.resolve().relative_to(PROJECT_ROOT).as_posix()
+        except ValueError:
+            portable_config_path = config_path.name
+    run_ids = sorted(
+        {
+            str(row[field])
+            for row in rows
+            for field in ("anomaly_run_id", "sam2_run_id", "fusion_run_id")
+        }
+    )
+    source_runs = []
+    for run_id in run_ids:
+        provenance_path = output_root / run_id / "provenance.json"
+        provenance = (
+            json.loads(provenance_path.read_text(encoding="utf-8"))
+            if provenance_path.is_file()
+            else {}
+        )
+        source_runs.append(
+            {
+                "run_id": run_id,
+                "effective_execution_sha256": provenance.get("effective_execution_sha256", ""),
+                "run_spec_sha256": provenance.get("run_spec_sha256", ""),
+                "git_commit": provenance.get("git_commit", ""),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "config_path": portable_config_path,
+        "config_sha256": (
+            sha256_file(config_path) if config_path is not None and config_path.is_file() else ""
+        ),
+        "source_runs": source_runs,
+        "generated_files": [
+            {"path": per_image_path.name, "sha256": sha256_file(per_image_path)},
+            {"path": statistics_path.name, "sha256": sha256_file(statistics_path)},
+        ],
+    }
 
 
 def _finite_float(value: object, context: str) -> float:

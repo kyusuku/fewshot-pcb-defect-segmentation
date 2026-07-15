@@ -20,6 +20,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from utils.heatmap_io import load_heatmap
 from utils.visualize import safe_filename
 
 
@@ -130,7 +131,7 @@ def curate_assets(
             if source is None or not source.is_file():
                 raise ValueError(f"missing required {panel_name} panel for {row['sample_id']}")
             destination = output_dir / f"{panel_name}.png"
-            if panel_name == "anomaly_panel" and source.suffix == ".npy":
+            if panel_name == "anomaly_panel" and source.suffix in {".npy", ".npz"}:
                 _render_heatmap_panel(source, destination)
             else:
                 shutil.copyfile(source, destination)
@@ -171,11 +172,15 @@ def _panel_source(
         return Path(value)
     if panel_name == "anomaly_panel" and row.get("heatmap_path"):
         return Path(row["heatmap_path"])
+    if panel_name == "sam2_panel" and row.get("sam2_mask_path"):
+        return Path(row["sam2_mask_path"])
+    if panel_name == "fusion_panel" and row.get("fusion_mask_path"):
+        return Path(row["fusion_mask_path"])
     return None
 
 
 def _render_heatmap_panel(source: Path, destination: Path) -> None:
-    heatmap = np.load(source).astype(np.float32, copy=False)
+    heatmap = load_heatmap(source).astype(np.float32, copy=False)
     minimum = float(np.min(heatmap))
     maximum = float(np.max(heatmap))
     if maximum > minimum:

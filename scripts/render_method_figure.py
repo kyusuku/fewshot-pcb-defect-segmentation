@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -96,11 +97,17 @@ def render_method_figure(
     output_png.parent.mkdir(parents=True, exist_ok=True)
     layout_json.parent.mkdir(parents=True, exist_ok=True)
     image.save(output_png)
+    try:
+        portable_output = output_png.relative_to(layout_json.parent).as_posix()
+    except ValueError:
+        portable_output = str(output_png)
     layout_json.write_text(
         json.dumps(
             {
                 "canvas": list(CANVAS_SIZE),
                 "generation_command": generation_command,
+                "output_png": portable_output,
+                "output_png_sha256": _sha256_file(output_png),
                 "blocks": BLOCKS,
                 "arrows": [
                     ["supports", "memory"],
@@ -116,6 +123,14 @@ def render_method_figure(
         + "\n",
         encoding="utf-8",
     )
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _arrow(draw: ImageDraw.ImageDraw, start: tuple[int, int], end: tuple[int, int]) -> None:

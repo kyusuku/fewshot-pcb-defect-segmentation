@@ -3,7 +3,11 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
+
 from scripts.curate_paper_assets import curate_assets, select_examples
+from utils.heatmap_io import save_heatmap
 
 
 def test_select_examples_returns_success_and_failure_per_category() -> None:
@@ -61,6 +65,55 @@ def test_curate_assets_copies_required_panels_and_writes_manifest(tmp_path: Path
     assert (copied / "image.png").read_bytes() == b"image-data"
     assert (copied / "anomaly_panel.png").read_bytes() == b"anomaly-data"
     assert rows[0]["sha256_image"]
+
+
+def test_curate_assets_renders_panels_from_compact_raw_artifacts(tmp_path: Path) -> None:
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    image_path = sources / "image.png"
+    target_path = sources / "target.png"
+    sam2_path = sources / "sam2.png"
+    fusion_path = sources / "fusion.png"
+    heatmap_path = sources / "heatmap.npz"
+    Image.new("RGB", (8, 6), (20, 40, 60)).save(image_path)
+    target = np.zeros((6, 8), dtype=np.uint8)
+    target[1:4, 2:6] = 255
+    Image.fromarray(target, mode="L").save(target_path)
+    Image.fromarray(target, mode="L").save(sam2_path)
+    Image.fromarray(np.flipud(target), mode="L").save(fusion_path)
+    save_heatmap(
+        heatmap_path,
+        np.linspace(0.0, 1.0, num=48, dtype=np.float32).reshape(6, 8),
+        storage="npz_compressed",
+    )
+    analysis_csv = tmp_path / "per_image_failure_analysis.csv"
+    _write_csv(
+        analysis_csv,
+        [
+            {
+                "category": "pcb1",
+                "sample_id": "pcb1/a",
+                "sam2_delta_f1": "0.4",
+                "image_path": str(image_path),
+                "mask_path": str(target_path),
+                "heatmap_path": str(heatmap_path),
+                "sam2_mask_path": str(sam2_path),
+                "fusion_mask_path": str(fusion_path),
+                "anomaly_panel_path": "",
+                "sam2_panel_path": "",
+                "fusion_panel_path": "",
+            }
+        ],
+    )
+
+    manifest_path = curate_assets(analysis_csv, tmp_path / "paper_assets")
+
+    copied = manifest_path.parent / "qualitative" / "pcb1" / "success" / "pcb1_a"
+    for name in ("image", "mask", "anomaly_panel", "sam2_panel", "fusion_panel"):
+        rendered = copied / f"{name}.png"
+        assert rendered.is_file()
+        with Image.open(rendered) as panel:
+            panel.verify()
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:

@@ -23,9 +23,24 @@ def test_aggregate_primary_rows_macro_averages_categories_then_seeds() -> None:
 
     summary = aggregate_primary_rows(rows, metric="metric")
 
-    assert summary[0]["mean"] == pytest.approx(0.5)
-    assert summary[0]["num_categories"] == 2
-    assert summary[0]["num_seeds"] == 2
+    macro = next(row for row in summary if row["category"] == "macro")
+    assert macro["mean"] == pytest.approx(0.5)
+    assert macro["seed_std"] == pytest.approx(0.02**0.5)
+    assert macro["num_categories"] == 2
+    assert macro["num_seeds"] == 2
+    assert macro["ci_resampling_unit"] == "support_seed"
+    assert {row["category"] for row in summary} == {"macro", "pcb1", "pcb2"}
+
+
+def test_aggregate_primary_rows_rejects_incomplete_category_seed_grid() -> None:
+    rows = [
+        {"method": "a", "category": "pcb1", "seed": 1, "k": 1, "metric": 0.2},
+        {"method": "a", "category": "pcb1", "seed": 2, "k": 1, "metric": 0.4},
+        {"method": "a", "category": "pcb2", "seed": 1, "k": 1, "metric": 0.6},
+    ]
+
+    with pytest.raises(ValueError, match="same support seeds"):
+        aggregate_primary_rows(rows, metric="metric")
 
 
 def test_collect_primary_rows_requires_complete_method_category_seed_grid(

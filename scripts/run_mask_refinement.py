@@ -73,6 +73,12 @@ def parse_args() -> argparse.Namespace:
         help="Reject SAM2 mask candidates covering more than this image fraction.",
     )
     parser.add_argument("--device", default="auto")
+    parser.add_argument(
+        "--debug-limit",
+        type=_nonnegative_int,
+        default=8,
+        help="Render at most this many debug panels; use 0 to render none.",
+    )
     return parser.parse_args()
 
 
@@ -82,6 +88,13 @@ def _optional_fraction(value: str) -> float | None:
     parsed = float(value)
     if not 0.0 < parsed <= 1.0:
         raise argparse.ArgumentTypeError("fraction must be in (0, 1] or 'none'")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
     return parsed
 
 
@@ -146,10 +159,13 @@ def main() -> None:
         output_stem = f"{index:03d}_{safe_filename(row['sample_id'])}"
         sam2_mask_path = args.output_dir / f"{output_stem}_sam2_mask.png"
         pred_mask_path = args.output_dir / f"{output_stem}_pred_mask.png"
-        debug_path = args.output_dir / f"{output_stem}_refined.png"
         save_mask(sam2_mask, sam2_mask_path)
         save_mask(pred_mask, pred_mask_path)
-        save_refinement_debug(image, heatmap, pred_mask, debug_path)
+        debug_path = ""
+        if index < args.debug_limit:
+            rendered_debug = args.output_dir / f"{output_stem}_refined.png"
+            save_refinement_debug(image, heatmap, pred_mask, rendered_debug)
+            debug_path = str(rendered_debug)
         mask_score = max((prediction.score for prediction in predictions), default=0.0)
         output_rows.append(
             {
@@ -183,7 +199,7 @@ def main() -> None:
                 "sam2_mask_path": str(sam2_mask_path),
                 "pred_mask_path": str(pred_mask_path),
                 "heatmap_path": row["heatmap_path"],
-                "debug_path": str(debug_path),
+                "debug_path": debug_path,
                 **calibration_fields(calibration),
             }
         )

@@ -2230,7 +2230,9 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available(), tor
 PYTHONPATH=src python -m pytest -q
 PYTHONPATH=src python scripts/check_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
-  --output-root outputs/arxiv_primary
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda
 ```
 
 Expected before execution: Python 3.10-3.12, CUDA `True`, tests pass, and the
@@ -2242,16 +2244,19 @@ checker reports 364 missing runs rather than malformed configuration.
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --run-id dinov2_multi__pcb1__fold0__k1__seed4880 \
   --device cuda
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --run-id dinov2_multi_sam2__pcb1__fold0__k1__seed4880 \
   --device cuda
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --run-id anomaly_consistent_sam2__pcb1__fold0__k1__seed4880 \
   --device cuda
 ```
@@ -2274,12 +2279,14 @@ source venv/bin/activate
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --device cuda \
   --resume 2>&1 | tee outputs/arxiv_primary.log
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_ablations.yaml \
   --output-root outputs/arxiv_ablations \
   --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --device cuda \
   --resume 2>&1 | tee outputs/arxiv_ablations.log
 ```
@@ -2293,6 +2300,8 @@ interruption, rerun the interrupted matrix command with `--resume`.
 PYTHONPATH=src python scripts/check_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
   --output-json outputs/arxiv_primary/matrix_summary.json
 ```
 
@@ -2303,6 +2312,8 @@ PYTHONPATH=src python scripts/check_experiment_matrix.py \
   --config configs/experiments/arxiv_ablations.yaml \
   --output-root outputs/arxiv_ablations \
   --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
   --output-json outputs/arxiv_ablations/matrix_summary.json
 ```
 
@@ -2316,20 +2327,28 @@ other result stops evidence generation.
 PYTHONPATH=src python scripts/analyze_paper_results.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
-  --analysis-dir outputs/arxiv_primary/analysis
+  --analysis-dir outputs/arxiv_analysis \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda
 PYTHONPATH=src python scripts/curate_paper_assets.py \
-  --analysis-csv outputs/arxiv_primary/analysis/per_image_failure_analysis.csv \
-  --output-root outputs/arxiv_primary \
+  --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
   --asset-dir artifacts/paper_assets
 PYTHONPATH=src python scripts/render_method_figure.py \
-  --output artifacts/paper_assets/method_figure.png
+  --output-png artifacts/paper_assets/method_figure.png \
+  --layout-json artifacts/paper_assets/method_figure_layout.json
 PYTHONPATH=src python scripts/build_paper_evidence.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
   --ablation-config configs/experiments/arxiv_ablations.yaml \
   --ablation-output-root outputs/arxiv_ablations \
-  --analysis-dir outputs/arxiv_primary/analysis \
-  --evidence-dir docs/evidence/generated
+  --analysis-dir outputs/arxiv_analysis \
+  --evidence-dir docs/evidence/generated \
+  --dependency-root outputs/arxiv_primary \
+  --ablation-dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --qualitative-manifest artifacts/paper_assets/qualitative_manifest.csv \
+  --method-figure-layout artifacts/paper_assets/method_figure_layout.json \
+  --device cuda
 ```
 
 Expected: every declared table, statistical file, qualitative manifest, method

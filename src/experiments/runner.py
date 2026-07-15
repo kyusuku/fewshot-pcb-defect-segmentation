@@ -34,6 +34,7 @@ from experiments.provenance import (
     validate_support_manifest,
 )
 from experiments.spec import ReferencedArtifact, RunSpec, load_experiment_config
+from utils.heatmap_io import load_heatmap
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -273,6 +274,8 @@ def _heatmap_commands(
         str(multi["fusion"]),
         "--feature-cache-dir",
         str(cache_dir),
+        "--heatmap-format",
+        "npz_compressed",
         "--debug-limit",
         "0",
         "--all",
@@ -342,6 +345,10 @@ def _sam2_only_commands(
         device,
         "--output-dir",
         str(run_dir / "test"),
+        "--heatmap-format",
+        "npz_compressed",
+        "--debug-limit",
+        "0",
     ]
     if values["limit"] is None:
         command.append("--all")
@@ -414,6 +421,8 @@ def _fusion_commands(
         str(minimum_iou),
         "--selective-max-expansion",
         str(max_expansion),
+        "--debug-limit",
+        "0",
     ]
     if config["name"] == "arxiv_smoke":
         command.append("--smoke-debug-fallback")
@@ -465,6 +474,8 @@ def _refinement_command(
         _optional_number(sam2["max_mask_area_fraction"]),
         "--device",
         device,
+        "--debug-limit",
+        "0",
     ]
     if sam2["refiner"] == "sam2":
         command.extend(
@@ -1643,10 +1654,7 @@ def _validate_calibration_contract(
     pixels = 0
     flattened = []
     for row in normal_rows:
-        heatmap = np.load(
-            _resolve_data_path(row.get("heatmap_path", ""), scores_base),
-            allow_pickle=False,
-        )
+        heatmap = load_heatmap(_resolve_data_path(row.get("heatmap_path", ""), scores_base))
         if heatmap.ndim != 2 or not np.isfinite(heatmap).all():
             raise ValueError("validation heatmap must be finite and two-dimensional")
         pixels += int(heatmap.size)

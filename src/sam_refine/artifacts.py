@@ -13,6 +13,7 @@ import numpy as np
 from PIL import Image
 
 from evaluation.calibration import NormalThreshold
+from utils.heatmap_io import load_heatmap
 
 
 MASK_SCORE_FIELDS = [
@@ -113,7 +114,7 @@ def raw_mask_provenance(
 
 
 def load_validated_heatmap(path: str | Path, context: str) -> np.ndarray:
-    heatmap = np.load(path).astype(np.float32, copy=False)
+    heatmap = load_heatmap(path).astype(np.float32, copy=False)
     return validate_heatmap(heatmap, context=context)
 
 

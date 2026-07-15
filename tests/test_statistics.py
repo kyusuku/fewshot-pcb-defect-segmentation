@@ -5,7 +5,11 @@ from unittest import mock
 
 import numpy as np
 
-from evaluation.statistics import bootstrap_mean_ci, paired_bootstrap_delta
+from evaluation.statistics import (
+    bootstrap_mean_ci,
+    paired_bootstrap_delta,
+    repeated_measures_paired_delta,
+)
 
 
 class BootstrapStatisticsTest(unittest.TestCase):
@@ -119,6 +123,83 @@ class BootstrapStatisticsTest(unittest.TestCase):
             result,
             {"mean_delta": 1.0, "ci_low": 1.0, "ci_high": 1.0},
         )
+
+    def test_repeated_measures_bootstrap_clusters_images_and_support_seeds(self) -> None:
+        rows = []
+        for k in (1, 2):
+            for seed in (10, 11):
+                for sample_id, baseline in (("a", 0.1), ("b", 0.7)):
+                    rows.append(
+                        {
+                            "category": "pcb1",
+                            "k": k,
+                            "seed": seed,
+                            "sample_id": sample_id,
+                            "baseline": baseline,
+                            "candidate": baseline + (0.2 if sample_id == "a" else -0.1),
+                        }
+                    )
+
+        result = repeated_measures_paired_delta(
+            rows,
+            baseline_field="baseline",
+            candidate_field="candidate",
+            samples=64,
+            seed=7,
+        )
+
+        self.assertAlmostEqual(result["mean_delta"], 0.05)
+        self.assertEqual(result["seed_std_delta"], 0.0)
+        self.assertEqual(result["num_rows"], 8)
+        self.assertEqual(result["num_unique_images"], 2)
+        self.assertEqual(result["num_k"], 2)
+        self.assertEqual(result["num_seeds"], 2)
+        self.assertEqual(result["resampling_unit"], "support_seed_and_test_image")
+        self.assertEqual(result["aggregation"], "fixed_k_category_macro")
+
+    def test_repeated_measures_bootstrap_rejects_incomplete_image_grid(self) -> None:
+        rows = [
+            {
+                "category": "pcb1",
+                "k": 1,
+                "seed": 10,
+                "sample_id": "a",
+                "baseline": 0.1,
+                "candidate": 0.2,
+            },
+            {
+                "category": "pcb1",
+                "k": 1,
+                "seed": 11,
+                "sample_id": "b",
+                "baseline": 0.1,
+                "candidate": 0.2,
+            },
+        ]
+
+        with self.assertRaisesRegex(ValueError, "same paired test images"):
+            repeated_measures_paired_delta(
+                rows,
+                baseline_field="baseline",
+                candidate_field="candidate",
+            )
+
+    def test_repeated_measures_bootstrap_rejects_duplicate_cells(self) -> None:
+        row = {
+            "category": "pcb1",
+            "k": 1,
+            "seed": 10,
+            "sample_id": "a",
+            "baseline": 0.1,
+            "candidate": 0.2,
+        }
+
+        with self.assertRaisesRegex(ValueError, "duplicate repeated-measures cell"):
+            repeated_measures_paired_delta(
+                [row, dict(row)],
+                baseline_field="baseline",
+                candidate_field="candidate",
+            )
 
 
 if __name__ == "__main__":

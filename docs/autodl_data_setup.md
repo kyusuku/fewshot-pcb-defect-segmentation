@@ -192,6 +192,7 @@ PYTHONPATH=src python scripts/analyze_paper_results.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
   --analysis-dir outputs/arxiv_analysis \
+  --feature-cache-dir outputs/.feature_cache \
   --device cuda
 PYTHONPATH=src python scripts/curate_paper_assets.py \
   --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
@@ -204,6 +205,11 @@ PYTHONPATH=src python scripts/build_paper_evidence.py \
   --ablation-output-root outputs/arxiv_ablations \
   --analysis-dir outputs/arxiv_analysis \
   --evidence-dir docs/evidence/generated \
+  --dependency-root outputs/arxiv_primary \
+  --ablation-dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --qualitative-manifest artifacts/paper_assets/qualitative_manifest.csv \
+  --method-figure-layout artifacts/paper_assets/method_figure_layout.json \
   --device cuda
 tar -czf arxiv_compact_evidence.tar.gz docs/evidence/generated artifacts/paper_assets
 ```
@@ -211,3 +217,10 @@ tar -czf arxiv_compact_evidence.tar.gz docs/evidence/generated artifacts/paper_a
 Transfer `arxiv_compact_evidence.tar.gz` back to the local checkout. Do not
 archive raw `outputs/`, checkpoints, datasets, feature caches, or heatmaps for
 public release.
+
+The final matrix is a fold-0 repeated-support study, not five-fold
+cross-validation. Fold 0 partitions normal training images for support and
+normal-only calibration; the official VisA test set is unchanged across folds.
+The five seeds measure support-sampling variability rather than independent
+test sets. The report must also disclose prior development-time inspection of
+VisA test results.

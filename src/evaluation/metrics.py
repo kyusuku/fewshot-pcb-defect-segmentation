@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 
 from evaluation.masks import mask_confusion_metrics, summarize_binary_metrics
+from utils.heatmap_io import load_heatmap
 from utils.image import load_binary_mask
 
 
@@ -179,7 +180,7 @@ def evaluate_heatmap_rows(
     num_negative_pixels = 0
     num_regions = 0
     for info in row_infos:
-        heatmap = np.load(info.path).astype(np.float32, copy=False)
+        heatmap = load_heatmap(info.path).astype(np.float32, copy=False)
         mask = _load_evaluation_target(info.row, heatmap.shape)
         selected_start = int(np.searchsorted(selected_indices, info.offset, side="left"))
         selected_end = int(np.searchsorted(selected_indices, info.offset + info.size, side="left"))
@@ -254,7 +255,7 @@ def evaluate_heatmap_rows_at_threshold(
     per_image: list[dict[str, str | float]] = []
     for row in rows:
         heatmap_path = row["heatmap_path"]
-        heatmap = np.load(heatmap_path).astype(np.float32, copy=False)
+        heatmap = load_heatmap(heatmap_path).astype(np.float32, copy=False)
         label = row["label"]
         mask_path = row.get("mask_path") or ""
         if label == "0":
@@ -352,7 +353,7 @@ def _inspect_heatmap_rows(
         heatmap_path = row.get("heatmap_path") or ""
         if not heatmap_path:
             continue
-        heatmap = np.load(heatmap_path, mmap_mode="r")
+        heatmap = load_heatmap(heatmap_path, mmap_mode="r")
         if heatmap.ndim != 2 or heatmap.size == 0:
             raise ValueError(
                 f"heatmap at {heatmap_path!r} must be a nonempty 2-D array; "

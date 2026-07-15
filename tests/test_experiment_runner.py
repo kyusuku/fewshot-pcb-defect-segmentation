@@ -116,6 +116,8 @@ def test_heatmap_commands_are_full_split_explicit_and_share_cache(tmp_path: Path
     for command in (commands[0], commands[2]):
         assert "--all" in command
         assert command[command.index("--feature-cache-dir") + 1] == str(cache)
+        assert command[command.index("--heatmap-format") + 1] == "npz_compressed"
+        assert command[command.index("--debug-limit") + 1] == "0"
         assert command[command.index("--feature-backbone") + 1] == "color_patch"
         assert command[command.index("--crop-sizes") + 1] == "32"
         assert command[command.index("--crop-overlap") + 1] == "0.25"
@@ -212,6 +214,8 @@ def test_sam2_hydra_identifier_is_preserved_and_resolved_from_installed_package(
     assert command[command.index("--sam2-model-config") + 1] == (
         "configs/sam2.1/sam2.1_hiera_t.yaml"
     )
+    assert command[command.index("--heatmap-format") + 1] == "npz_compressed"
+    assert command[command.index("--debug-limit") + 1] == "0"
 
 
 def test_guided_and_fusion_commands_use_real_dependency_columns_without_rerun(
@@ -238,9 +242,11 @@ def test_guided_and_fusion_commands_use_real_dependency_columns_without_rerun(
     guided_commands = build_commands(
         guided, config, tmp_path / "out", tmp_path / "deps", "cuda", tmp_path / "cache"
     )
+    assert guided_commands[0][guided_commands[0].index("--debug-limit") + 1] == "0"
     fusion_commands = build_commands(
         fusion, config, tmp_path / "out", tmp_path / "deps", "cuda", tmp_path / "cache"
     )
+    assert fusion_commands[0][fusion_commands[0].index("--debug-limit") + 1] == "0"
     assert Path(guided_commands[0][1]).name == "run_mask_refinement.py"
     assert guided_commands[0][guided_commands[0].index("--mask-output") + 1] == "sam2"
     assert "--sam2-checkpoint" in guided_commands[0]

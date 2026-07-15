@@ -7,7 +7,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from scripts.analyze_paper_results import _assign_strata, analyze_paper_results
+from scripts.analyze_paper_results import (
+    _assign_strata,
+    _paired_statistics,
+    analyze_paper_results,
+)
 
 
 def test_analyze_paper_results_writes_paired_failure_outputs(tmp_path: Path) -> None:
@@ -138,6 +142,7 @@ def test_analyze_paper_results_writes_paired_failure_outputs(tmp_path: Path) -> 
     assert rows[0]["thinness_stratum"] == "single"
 
     statistics = json.loads((analysis / "paired_statistics.json").read_text())
+    analysis_manifest = json.loads((analysis / "analysis_manifest.json").read_text())
     assert set(statistics["comparisons"]) == {
         "dinov2_multi_vs_dinov2_multi_sam2",
         "dinov2_multi_vs_anomaly_consistent_sam2",
@@ -145,6 +150,20 @@ def test_analyze_paper_results_writes_paired_failure_outputs(tmp_path: Path) -> 
     }
     assert statistics["strata"]["area"]["edges"] == []
     assert statistics["strata"]["thinness"]["edges"] == []
+    comparison = statistics["comparisons"]["dinov2_multi_vs_dinov2_multi_sam2"]
+    assert comparison["scope"]["sample_inclusion"] == "anomaly_images_only"
+    assert comparison["overall"]["f1"]["num_unique_images"] == 1
+    assert set(comparison["by_k"]) == {"1"}
+    assert set(comparison["by_category"]) == {"pcb1"}
+    assert {item["path"] for item in analysis_manifest["generated_files"]} == {
+        "paired_statistics.json",
+        "per_image_failure_analysis.csv",
+    }
+    assert {item["run_id"] for item in analysis_manifest["source_runs"]} == {
+        heatmap_run,
+        sam2_run,
+        fusion_run,
+    }
 
 
 def test_strata_keep_normal_rows_out_of_defect_tertiles() -> None:
@@ -160,6 +179,51 @@ def test_strata_keep_normal_rows_out_of_defect_tertiles() -> None:
     assert rows[1]["area_stratum"] == "single"
     assert rows[1]["thinness_stratum"] == "single"
     assert strata["area"]["labels"] == ["normal", "single"]
+
+
+def test_paired_statistics_excludes_normal_rows_from_primary_mask_claims() -> None:
+    rows = [
+        {
+            "category": "pcb1",
+            "k": 1,
+            "seed": 4880,
+            "sample_id": "pcb1/anomaly",
+            "label": "1",
+            "area_stratum": "single",
+            "thinness_stratum": "single",
+            "anomaly_f1": 0.4,
+            "sam2_f1": 0.4,
+            "fusion_f1": 0.4,
+            "anomaly_iou": 0.3,
+            "sam2_iou": 0.3,
+            "fusion_iou": 0.3,
+        },
+        {
+            "category": "pcb1",
+            "k": 1,
+            "seed": 4880,
+            "sample_id": "pcb1/normal",
+            "label": "0",
+            "area_stratum": "normal",
+            "thinness_stratum": "normal",
+            "anomaly_f1": 0.0,
+            "sam2_f1": 1.0,
+            "fusion_f1": 1.0,
+            "anomaly_iou": 0.0,
+            "sam2_iou": 1.0,
+            "fusion_iou": 1.0,
+        },
+    ]
+
+    statistics = _paired_statistics(
+        rows,
+        {"area": {"labels": ["normal", "single"]}, "thinness": {"labels": []}},
+        bootstrap_samples=16,
+    )
+
+    comparison = statistics["comparisons"]["dinov2_multi_vs_dinov2_multi_sam2"]
+    assert comparison["overall"]["f1"]["mean_delta"] == 0.0
+    assert comparison["scope"]["excluded_normal_rows"] == 1
 
 
 def _save_mask(path: Path, data: np.ndarray) -> None:

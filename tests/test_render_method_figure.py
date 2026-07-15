@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -24,3 +25,5 @@ def test_render_method_figure_writes_nonblank_png_and_manifest(tmp_path: Path) -
     manifest = json.loads(manifest_path.read_text())
     assert manifest["generation_command"] == "test-render"
     assert len(manifest["blocks"]) == 5
+    assert manifest["output_png"] == "method_figure.png"
+    assert manifest["output_png_sha256"] == hashlib.sha256(png_path.read_bytes()).hexdigest()

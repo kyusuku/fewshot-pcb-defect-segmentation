@@ -104,6 +104,7 @@ Single primary run example:
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
   --device auto \
   --run-id dinov2_multi__pcb1__fold0__k1__seed4880
 ```
@@ -139,6 +140,7 @@ PYTHONPATH=src python scripts/analyze_paper_results.py \
   --config configs/experiments/arxiv_primary.yaml \
   --output-root outputs/arxiv_primary \
   --analysis-dir outputs/arxiv_analysis \
+  --feature-cache-dir outputs/.feature_cache \
   --device cuda
 PYTHONPATH=src python scripts/curate_paper_assets.py \
   --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
@@ -151,12 +153,25 @@ PYTHONPATH=src python scripts/build_paper_evidence.py \
   --ablation-output-root outputs/arxiv_ablations \
   --analysis-dir outputs/arxiv_analysis \
   --evidence-dir docs/evidence/generated \
+  --dependency-root outputs/arxiv_primary \
+  --ablation-dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --qualitative-manifest artifacts/paper_assets/qualitative_manifest.csv \
+  --method-figure-layout artifacts/paper_assets/method_figure_layout.json \
   --device cuda
 ```
 
 Primary paper tables use normal-validation calibrated binary masks
 (`normal_q995`) for heatmaps and binary model outputs for SAM2/fused masks.
 Oracle/test-optimal metrics are retained only as `oracle_*` diagnostics.
+
+Study-scope limitation: the paper matrix uses `fold_id=0`; it is not a
+five-fold cross-validation result. VisA's official test set is locked and is
+the same across fold IDs, while fold 0 partitions only normal training images
+for support and validation. The five seeds measure sensitivity to the sampled
+normal support set; they are not five independent dataset splits. Earlier
+development inspected VisA test results, so the report must disclose that the
+test set is not an untouched holdout.
 
 ## Debug Loaders
 

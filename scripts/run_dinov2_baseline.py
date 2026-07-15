@@ -31,6 +31,7 @@ from features.cache import (
 )
 from features.dinov2 import build_feature_extractor
 from utils.image import load_rgb_image
+from utils.heatmap_io import HEATMAP_STORAGE_FORMATS, save_heatmap
 from utils.visualize import safe_filename
 
 
@@ -103,6 +104,12 @@ def parse_args(
         type=_nonnegative_int,
         default=8,
         help="Render at most this many debug panels; use 0 to render none.",
+    )
+    parser.add_argument(
+        "--heatmap-format",
+        choices=HEATMAP_STORAGE_FORMATS,
+        default="npy",
+        help="Lossless heatmap storage encoding; compressed NPZ reduces matrix disk use.",
     )
     parser.add_argument(
         "--no-normalize",
@@ -219,8 +226,9 @@ def main(
         image_score = float(heatmap_for_eval.max())
         output_stem = f"{rank:03d}_{safe_filename(row['sample_id'])}"
         output_path = args.output_dir / f"{output_stem}.png"
-        heatmap_path = args.output_dir / f"{output_stem}_heatmap.npy"
-        np_save_heatmap(heatmap_path, heatmap_for_eval)
+        heatmap_suffix = ".npz" if args.heatmap_format == "npz_compressed" else ".npy"
+        heatmap_path = args.output_dir / f"{output_stem}_heatmap{heatmap_suffix}"
+        save_heatmap(heatmap_path, heatmap_for_eval, storage=args.heatmap_format)
         debug_path = ""
         if rank < args.debug_limit:
             save_heatmap_debug_panel(

@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selective-max-expansion", type=float, default=2.0)
     parser.add_argument("--allow-calibration-mismatch", action="store_true")
     parser.add_argument(
+        "--debug-limit",
+        type=_nonnegative_int,
+        default=8,
+        help="Render at most this many debug panels; use 0 to render none.",
+    )
+    parser.add_argument(
         "--smoke-debug-fallback",
         action="store_true",
         help="Allow only fallback-owned raw masks for non-paper smoke/debug fusion.",
@@ -104,7 +110,7 @@ def main() -> None:
 
         debug_path = ""
         image_path = row.get("image_path") or ""
-        if image_path:
+        if image_path and index < args.debug_limit:
             image_path = _required_existing_path(row, index, "image_path")
             debug_path = args.output_dir / f"{output_stem}_refined.png"
             save_refinement_debug(
@@ -228,6 +234,13 @@ def _required_existing_path(row: dict[str, str], index: int, field: str) -> str:
     if not Path(value).is_file():
         raise FileNotFoundError(f"row {index} {field} does not exist: {value}")
     return value
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return parsed
 
 
 if __name__ == "__main__":

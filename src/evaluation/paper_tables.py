@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Mapping
 
+import numpy as np
+
 from evaluation.statistics import bootstrap_mean_ci
 from experiments.spec import RunSpec
 
@@ -56,7 +58,7 @@ def collect_primary_rows(
                     "category": run.category,
                     "k": run.k,
                     "seed": run.seed,
-                    **_metric_fields(run.method, metrics),
+                    **metric_fields(run.method, metrics),
                     "git_commit": provenance.get("git_commit", ""),
                     "git_dirty": bool(provenance.get("git_dirty", False)),
                     "manifest_path": _manifest_value(provenance, "path"),
@@ -77,43 +79,104 @@ def aggregate_primary_rows(
         grouped.setdefault((str(row["method"]), int(row["k"])), []).append(row)
     output = []
     for (method, k), method_rows in sorted(grouped.items()):
-        values = [float(row[metric]) for row in method_rows]
-        interval = bootstrap_mean_ci(values, samples=2000, seed=4880)
+        categories = sorted({str(row["category"]) for row in method_rows})
+        seeds = sorted({int(row["seed"]) for row in method_rows})
+        by_cell: dict[tuple[str, int], float] = {}
+        for row in method_rows:
+            key = (str(row["category"]), int(row["seed"]))
+            if key in by_cell:
+                raise ValueError(f"duplicate primary summary cell: {key!r}")
+            by_cell[key] = float(row[metric])
+        for category in categories:
+            observed = {seed for cell_category, seed in by_cell if cell_category == category}
+            if observed != set(seeds):
+                raise ValueError("every category must contain the same support seeds")
+
+        seed_macro_values = [
+            float(np.mean([by_cell[(category, seed)] for category in categories])) for seed in seeds
+        ]
         output.append(
-            {
-                "method": method,
-                "k": k,
-                "metric": metric,
-                "mean": interval["mean"],
-                "ci_low": interval["ci_low"],
-                "ci_high": interval["ci_high"],
-                "num_categories": len({str(row["category"]) for row in method_rows}),
-                "num_seeds": len({int(row["seed"]) for row in method_rows}),
-            }
+            _aggregate_summary_row(
+                method=method,
+                k=k,
+                category="macro",
+                metric=metric,
+                seed_values=seed_macro_values,
+                num_categories=len(categories),
+            )
         )
+        for category in categories:
+            output.append(
+                _aggregate_summary_row(
+                    method=method,
+                    k=k,
+                    category=category,
+                    metric=metric,
+                    seed_values=[by_cell[(category, seed)] for seed in seeds],
+                    num_categories=1,
+                )
+            )
     return output
 
 
 def format_primary_markdown(rows: list[dict[str, object]]) -> str:
     lines = [
-        "| method | k | metric | mean | 95% CI | categories | seeds |",
-        "| --- | ---: | --- | ---: | ---: | ---: | ---: |",
+        "Support-seed summaries. Categories are fixed; `macro` gives each category equal weight.",
+        "",
+        "| method | k | category | metric | mean | seed std | support-seed 95% CI | seeds |",
+        "| --- | ---: | --- | --- | ---: | ---: | ---: | ---: |",
     ]
-    for row in sorted(rows, key=lambda item: (str(item["method"]), int(item["k"]))):
+    for row in sorted(
+        rows,
+        key=lambda item: (
+            str(item["method"]),
+            int(item["k"]),
+            0 if str(item["category"]) == "macro" else 1,
+            str(item["category"]),
+        ),
+    ):
         lines.append(
-            "| {method} | {k} | {metric} | {mean:.4f} | [{ci_low:.4f}, {ci_high:.4f}] | "
-            "{num_categories} | {num_seeds} |".format(
+            "| {method} | {k} | {category} | {metric} | {mean:.4f} | {seed_std:.4f} | "
+            "[{ci_low:.4f}, {ci_high:.4f}] | {num_seeds} |".format(
                 method=row["method"],
                 k=int(row["k"]),
+                category=row["category"],
                 metric=row["metric"],
                 mean=float(row["mean"]),
+                seed_std=float(row["seed_std"]),
                 ci_low=float(row["ci_low"]),
                 ci_high=float(row["ci_high"]),
-                num_categories=int(row["num_categories"]),
                 num_seeds=int(row["num_seeds"]),
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _aggregate_summary_row(
+    *,
+    method: str,
+    k: int,
+    category: str,
+    metric: str,
+    seed_values: list[float],
+    num_categories: int,
+) -> dict[str, float | int | str]:
+    interval = bootstrap_mean_ci(seed_values, samples=2000, seed=4880)
+    seed_std = float(np.std(seed_values, ddof=1)) if len(seed_values) > 1 else 0.0
+    return {
+        "method": method,
+        "k": k,
+        "category": category,
+        "metric": metric,
+        "mean": interval["mean"],
+        "seed_std": seed_std,
+        "ci_low": interval["ci_low"],
+        "ci_high": interval["ci_high"],
+        "num_categories": num_categories,
+        "num_seeds": len(seed_values),
+        "ci_resampling_unit": "support_seed",
+        "aggregation": "category_macro" if category == "macro" else "within_category",
+    }
 
 
 def _configured_runs(config: Mapping[str, object], method: str) -> list[RunSpec]:
@@ -139,7 +202,7 @@ def _metrics_path(run_dir: Path, method: str) -> Path:
     raise ValueError(f"unsupported method for paper table: {method}")
 
 
-def _metric_fields(method: str, metrics: Mapping[str, object]) -> dict[str, object]:
+def metric_fields(method: str, metrics: Mapping[str, object]) -> dict[str, object]:
     if method in HEATMAP_METHODS:
         return {
             "threshold_policy": "normal_q995",

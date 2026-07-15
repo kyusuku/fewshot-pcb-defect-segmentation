@@ -334,6 +334,8 @@ class MaskRefinementScriptTest(unittest.TestCase):
                     "0.5",
                     "--refiner",
                     "fallback",
+                    "--debug-limit",
+                    "0",
                 ],
                 check=False,
                 cwd=repo_root,
@@ -368,6 +370,7 @@ class MaskRefinementScriptTest(unittest.TestCase):
         self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["sam2_mask_path"]).is_absolute())
         self.assertFalse(Path(rows[0]["pred_mask_path"]).is_absolute())
+        self.assertEqual(rows[0]["debug_path"], "")
 
     def test_sam2_raw_mask_provenance_hashes_checkpoint_and_records_model_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -19,6 +19,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from sam_refine.prompts import PromptRegion
 from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
+from utils.heatmap_io import HEATMAP_STORAGE_FORMATS, save_heatmap
 from utils.image import load_rgb_image
 from utils.visualize import safe_filename
 
@@ -69,6 +70,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--device", default="auto")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/sam2_only_baseline"))
+    parser.add_argument(
+        "--debug-limit",
+        type=_nonnegative_int,
+        default=8,
+        help="Render at most this many debug panels; use 0 to render none.",
+    )
+    parser.add_argument(
+        "--heatmap-format",
+        choices=HEATMAP_STORAGE_FORMATS,
+        default="npy",
+        help="Lossless neutral-heatmap storage encoding.",
+    )
     return parser.parse_args()
 
 
@@ -106,11 +119,15 @@ def main() -> None:
         )
         output_stem = f"{index:03d}_{safe_filename(row['sample_id'])}"
         pred_mask_path = args.output_dir / f"{output_stem}_pred_mask.png"
-        heatmap_path = args.output_dir / f"{output_stem}_neutral_heatmap.npy"
-        debug_path = args.output_dir / f"{output_stem}_sam2_only.png"
-        np.save(heatmap_path, neutral_heatmap)
+        heatmap_suffix = ".npz" if args.heatmap_format == "npz_compressed" else ".npy"
+        heatmap_path = args.output_dir / f"{output_stem}_neutral_heatmap{heatmap_suffix}"
+        save_heatmap(heatmap_path, neutral_heatmap, storage=args.heatmap_format)
         save_mask(pred_mask, pred_mask_path)
-        save_debug_panel(image, pred_mask, debug_path)
+        debug_path = ""
+        if index < args.debug_limit:
+            rendered_debug = args.output_dir / f"{output_stem}_sam2_only.png"
+            save_debug_panel(image, pred_mask, rendered_debug)
+            debug_path = str(rendered_debug)
         mask_score = max((prediction.score for prediction in predictions), default=0.0)
         output_rows.append(
             {
@@ -126,7 +143,7 @@ def main() -> None:
                 "mask_score": f"{mask_score:.8f}",
                 "pred_mask_path": str(pred_mask_path),
                 "heatmap_path": str(heatmap_path),
-                "debug_path": str(debug_path),
+                "debug_path": debug_path,
             }
         )
         print(
@@ -170,6 +187,13 @@ def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
     return parsed
 
 
