@@ -21,6 +21,7 @@ from evaluation.masks import (
     resolve_mask_row_paths,
 )
 from evaluation.metrics import metrics_to_jsonable, resolve_score_row_paths
+from evaluation.reporting import relativize_report_paths
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,10 +63,15 @@ def read_csv(path: str | Path) -> list[dict[str, str]]:
 def write_per_row_csv(rows: list[dict[str, str | float]], output_path: str | Path) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    portable_rows = relativize_report_paths(
+        rows,
+        ("pred_mask_path", "mask_path"),
+        output_path,
+    )
     with output_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=PER_MASK_FIELDS)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(portable_rows)
     return output_path
 
 

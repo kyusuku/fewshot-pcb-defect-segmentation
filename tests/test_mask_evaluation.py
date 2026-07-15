@@ -210,6 +210,11 @@ class EvaluateMasksScriptTest(unittest.TestCase):
             metrics = json.loads(output_json.read_text())
             rows = _read_csv(output_csv)
 
+            self.assertFalse(Path(rows[0]["pred_mask_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+            self.assertTrue((output_csv.parent / rows[0]["pred_mask_path"]).samefile(pred_path))
+            self.assertTrue((output_csv.parent / rows[0]["mask_path"]).samefile(gt_path))
+
         self.assertAlmostEqual(metrics["mean_mask_f1"], 0.5)
         self.assertAlmostEqual(metrics["mean_anomaly_mask_iou"], 1.0 / 3.0)
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly")

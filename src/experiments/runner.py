@@ -932,7 +932,16 @@ def _validate_data_artifacts_in(
             run_dir / "test" / "scores.csv", {"sample_id", "heatmap_path"}
         )
         per_image = _read_validated_csv(
-            run_dir / "test" / "per_image.csv", {"sample_id", "mask_f1"}
+            run_dir / "test" / "per_image.csv",
+            {"sample_id", "mask_f1", "heatmap_path", "mask_path"},
+        )
+        _validate_report_path_rows(
+            per_image,
+            test_rows,
+            run_dir / "test",
+            run_dir / "test",
+            ("heatmap_path", "mask_path"),
+            "per_image",
         )
         if expected:
             _validate_sample_rows(val_rows, set(expected["val"]), run.category, "val", "scores")
@@ -963,7 +972,18 @@ def _validate_data_artifacts_in(
         mask_rows = _read_validated_csv(
             run_dir / "test" / "mask_scores.csv", {"sample_id", "pred_mask_path"}
         )
-        per_mask = _read_validated_csv(run_dir / "test" / "mask_per_image.csv", {"sample_id"})
+        per_mask = _read_validated_csv(
+            run_dir / "test" / "mask_per_image.csv",
+            {"sample_id", "pred_mask_path", "mask_path"},
+        )
+        _validate_report_path_rows(
+            per_mask,
+            mask_rows,
+            run_dir / "test",
+            run_dir / "test",
+            ("pred_mask_path", "mask_path"),
+            "per_mask",
+        )
         if expected:
             _validate_sample_rows(mask_rows, set(expected["test"]), run.category, "test", "masks")
             _validate_sample_rows(per_mask, set(expected["test"]), run.category, None, "per_mask")
@@ -1319,6 +1339,48 @@ def _validate_manifest_output_rows(
             f"{context} mask identity",
             required=anomaly,
         )
+
+
+def _validate_report_path_rows(
+    rows: Sequence[Mapping[str, str]],
+    source_rows: Sequence[Mapping[str, str]],
+    report_base: Path,
+    source_base: Path,
+    path_fields: Sequence[str],
+    context: str,
+) -> None:
+    """Require portable report paths that identify the canonical score artifacts."""
+
+    source_by_id = {row.get("sample_id", ""): row for row in source_rows}
+    for row in rows:
+        sample_id = row.get("sample_id", "")
+        source = source_by_id.get(sample_id)
+        if source is None:
+            raise ValueError(f"{context} sample is absent from canonical scores")
+        for field in path_fields:
+            observed = row.get(field, "")
+            expected = source.get(field, "")
+            if not expected:
+                if observed:
+                    raise ValueError(
+                        f"{context} {field} must be empty when canonical path is empty"
+                    )
+                continue
+            if not observed:
+                raise ValueError(f"{context} {field} is required")
+            observed_path = Path(observed)
+            if observed_path.is_absolute():
+                raise ValueError(f"{context} {field} must be a relative portable path")
+            if any(part.startswith(".staging-") for part in observed_path.parts):
+                raise ValueError(f"{context} {field} must not reference a staging directory")
+            _require_matching_file_identity(
+                observed,
+                expected,
+                report_base,
+                source_base,
+                f"{context} {field} identity",
+                required=True,
+            )
 
 
 def _require_matching_file_identity(

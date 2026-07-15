@@ -18,6 +18,7 @@ from experiments.runner import (
     _validate_method_metrics,
     _validate_heatmap_per_image_rows,
     _validate_mask_per_rows,
+    _validate_report_path_rows,
     _normalize_output_identity,
     _create_owned_staging,
     _promote_complete_attempt,
@@ -782,6 +783,48 @@ def test_per_image_rows_reject_nan_confusion_and_mean_mismatch() -> None:
     with pytest.raises(ValueError, match="mean"):
         _validate_heatmap_per_image_rows(
             [row], expected, 0.5, dict(metrics, calibrated_mean_mask_f1=0.0)
+        )
+
+
+def test_report_paths_must_be_portable_and_match_canonical_rows(tmp_path: Path) -> None:
+    artifact = tmp_path / "heatmap.npz"
+    mask = tmp_path / "mask.png"
+    artifact.write_bytes(b"heatmap")
+    mask.write_bytes(b"mask")
+    source = [
+        {
+            "sample_id": "pcb1/a",
+            "heatmap_path": artifact.name,
+            "mask_path": mask.name,
+        }
+    ]
+    valid = [dict(source[0])]
+
+    _validate_report_path_rows(
+        valid,
+        source,
+        tmp_path,
+        tmp_path,
+        ("heatmap_path", "mask_path"),
+        "per_image",
+    )
+    with pytest.raises(ValueError, match="relative"):
+        _validate_report_path_rows(
+            [dict(valid[0], heatmap_path=str(artifact))],
+            source,
+            tmp_path,
+            tmp_path,
+            ("heatmap_path", "mask_path"),
+            "per_image",
+        )
+    with pytest.raises(ValueError, match="staging"):
+        _validate_report_path_rows(
+            [dict(valid[0], heatmap_path="../.staging-run/heatmap.npz")],
+            source,
+            tmp_path,
+            tmp_path,
+            ("heatmap_path", "mask_path"),
+            "per_image",
         )
 
 

@@ -251,6 +251,15 @@ class EvaluateHeatmapsCalibrationScriptTest(unittest.TestCase):
                 rows = list(reader)
                 fieldnames = reader.fieldnames
 
+            self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+            self.assertTrue(
+                (per_image_csv.parent / rows[0]["heatmap_path"]).samefile(root / "heatmap.npy")
+            )
+            self.assertTrue(
+                (per_image_csv.parent / rows[0]["mask_path"]).samefile(root / "mask.png")
+            )
+
         self.assertEqual(metrics["calibration_quantile"], 0.995)
         self.assertEqual(metrics["calibration_threshold"], 0.5)
         self.assertEqual(metrics["calibration_source_split"], "val")

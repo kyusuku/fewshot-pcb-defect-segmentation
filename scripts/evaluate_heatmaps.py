@@ -21,6 +21,7 @@ from evaluation.metrics import (
     metrics_to_jsonable,
     resolve_score_row_paths,
 )
+from evaluation.reporting import relativize_report_paths
 
 
 PER_IMAGE_FIELDS = [
@@ -96,10 +97,15 @@ def read_score_rows(path: str | Path) -> list[dict[str, str]]:
 def write_per_image_csv(rows: list[dict[str, str | float]], output_path: str | Path) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    portable_rows = relativize_report_paths(
+        rows,
+        ("heatmap_path", "mask_path"),
+        output_path,
+    )
     with output_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=PER_IMAGE_FIELDS)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(portable_rows)
     return output_path
 
 

@@ -80,6 +80,23 @@ def test_arxiv_smoke_builds_checked_analysis_and_evidence(
         first_heatmap = scores_path.parent / first_heatmap
     with np.load(first_heatmap, allow_pickle=False) as payload:
         assert str(payload["storage_kind"]) == "projected_patch_components"
+    for run in runs:
+        report_name = (
+            "per_image.csv"
+            if run.method in {"patchcore", "dinov2_single", "dinov2_multi"}
+            else "mask_per_image.csv"
+        )
+        report_path = output_root / run.run_id / "test" / report_name
+        with report_path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        for row in rows:
+            for field in ("heatmap_path", "pred_mask_path", "mask_path"):
+                value = row.get(field, "")
+                if not value:
+                    continue
+                assert not Path(value).is_absolute(), (run.run_id, field, value)
+                assert ".staging-" not in value, (run.run_id, field, value)
+                assert (report_path.parent / value).is_file(), (run.run_id, field, value)
     analyze_paper_results(
         config_path=config_path,
         output_root=output_root,
