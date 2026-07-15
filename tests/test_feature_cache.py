@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from anomaly.multiscale import compute_anomaly_heatmap
+from anomaly.multiscale import compute_anomaly_heatmap, compute_anomaly_heatmap_components
 from features import cache as cache_module
 from features.cache import (
     FeatureCache,
@@ -558,7 +558,7 @@ class MultiScaleFeatureCacheTest(unittest.TestCase):
                     source_size=(x2 - x1, y2 - y1),
                 )
 
-            first = compute_anomaly_heatmap(
+            first_archive = compute_anomaly_heatmap_components(
                 image=image,
                 extractor=extractor,
                 memory_bank=memory_bank,
@@ -569,6 +569,8 @@ class MultiScaleFeatureCacheTest(unittest.TestCase):
                 cache_key_for_view=key_for_view,
             )
             first_call_count = extractor.calls
+            first = first_archive.render()
+            self.assertEqual(extractor.calls, first_call_count)
             second = compute_anomaly_heatmap(
                 image=image,
                 extractor=extractor,

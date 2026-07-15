@@ -10,7 +10,12 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from anomaly.memory_bank import build_memory_bank
-from anomaly.multiscale import compute_anomaly_heatmap, iter_crop_boxes, parse_crop_sizes
+from anomaly.multiscale import (
+    compute_anomaly_heatmap,
+    compute_anomaly_heatmap_components,
+    iter_crop_boxes,
+    parse_crop_sizes,
+)
 from features.dinov2 import ColorPatchFeatureExtractor
 from tests.test_anomaly_baseline import _read_csv, _write_tiny_visa_fold_manifest
 from utils.synthetic_data import create_synthetic_debug_datasets
@@ -66,6 +71,48 @@ class MultiScaleAnomalyTest(unittest.TestCase):
 
         self.assertGreater(float(heatmap.max()), 0.0)
         self.assertLess(float(heatmap.max()), 0.5)
+
+    def test_component_path_matches_compatibility_api_bit_for_bit(self) -> None:
+        support = Image.new("RGB", (8, 8), (0, 0, 0))
+        query = Image.new("RGB", (8, 8), (0, 0, 0))
+        ImageDraw.Draw(query).rectangle((4, 2, 7, 7), fill=(128, 64, 32))
+        extractor = ColorPatchFeatureExtractor(image_size=4, patch_size=2)
+        memory_bank = build_memory_bank([extractor.extract(support)], normalize=False)
+        cases = (([], "max"), ([4], "max"), ([4], "mean"))
+
+        for crop_sizes, fusion in cases:
+            with self.subTest(crop_sizes=crop_sizes, fusion=fusion):
+                archive = compute_anomaly_heatmap_components(
+                    image=query,
+                    extractor=extractor,
+                    memory_bank=memory_bank,
+                    crop_sizes=crop_sizes,
+                    crop_overlap=0.5,
+                    fusion=fusion,
+                    normalize_features=False,
+                )
+                expected = compute_anomaly_heatmap(
+                    image=query,
+                    extractor=extractor,
+                    memory_bank=memory_bank,
+                    crop_sizes=crop_sizes,
+                    crop_overlap=0.5,
+                    fusion=fusion,
+                    normalize_features=False,
+                )
+
+                np.testing.assert_array_equal(archive.render(), expected)
+                self.assertEqual(archive.source_size, query.size)
+                self.assertEqual(archive.fusion, fusion)
+                self.assertEqual(
+                    [item.box for item in archive.components],
+                    [
+                        (0, 0, query.width, query.height),
+                        *list(iter_crop_boxes(query.size, 4, 0.5)),
+                    ]
+                    if crop_sizes
+                    else [(0, 0, query.width, query.height)],
+                )
 
 
 class MultiScaleBaselineScriptTest(unittest.TestCase):
