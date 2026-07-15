@@ -140,7 +140,7 @@ class DINOv2PatchFeatureExtractor:
         self.model = (
             model
             if model is not None
-            else torch.hub.load("facebookresearch/dinov2", model_name)
+            else torch.hub.load("facebookresearch/dinov2:main", model_name)
         )
         if hasattr(self.model, "to"):
             self.model.to(self.device)

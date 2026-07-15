@@ -106,6 +106,19 @@ def test_falsey_injected_dinov2_model_does_not_trigger_network_loading() -> None
     assert isinstance(extractor.model, _FalseyFakeDINOv2)
 
 
+def test_dinov2_hub_load_uses_explicit_main_ref() -> None:
+    model = _FakeDINOv2()
+    with mock.patch("torch.hub.load", return_value=model) as hub_load:
+        extractor = DINOv2PatchFeatureExtractor(
+            image_size=56,
+            patch_size=14,
+            device="cpu",
+        )
+
+    hub_load.assert_called_once_with("facebookresearch/dinov2:main", "dinov2_vits14")
+    assert extractor.model is model
+
+
 def test_patchcore_fake_backbone_records_asymmetric_content_geometry() -> None:
     extractor = PatchCoreFeatureExtractor(
         image_size=64,
