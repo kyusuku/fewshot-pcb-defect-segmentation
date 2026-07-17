@@ -120,7 +120,7 @@ evidence, not on a universal benefit from multi-scale inference.
 | 3 | SAM2 Mask Refinement | Refine anomaly proposals into masks | complete | Real SAM2.1 Hiera Tiny runs are provenance-bound |
 | 4 | Baseline Comparison | Compare method variants fairly | complete | Matrix checkers pass 364/364 primary and 48/48 ablation runs |
 | 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | complete | Completion manifest says `ready_for_writing: true` |
-| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | final verification in progress | Fresh-clone tests, smoke, and hygiene pass |
+| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | complete | Fresh-clone tests, smoke, and hygiene pass |
 
 The current publication-readiness source of truth is
 [`docs/arxiv_readiness_checklist.md`](arxiv_readiness_checklist.md). The older
@@ -328,7 +328,6 @@ The frozen evidence has the following gate outcomes:
 
 ## Current Next Step
 
-Complete the final fresh-clone repository verification, then hand the frozen
-evidence package to the human authors for manuscript writing. No additional GPU
-run is required for the stated frozen study. Manuscript/report drafting remains
-outside this repository task.
+Hand the frozen evidence package to the human authors for manuscript writing. No
+additional GPU run is required for the stated frozen study. Manuscript/report
+drafting remains outside this repository task.

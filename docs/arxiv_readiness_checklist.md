@@ -1,10 +1,9 @@
 # ArXiv Readiness Checklist
 
 Current status: all frozen experimental evidence required to begin manuscript
-writing is present and checksum-bound. The generated completion manifest reports
-`ready_for_writing: true` for 364 primary runs and 48 ablation runs, with zero
-checker failures. A final fresh-clone release verification remains before the
-repository handoff is declared complete; manuscript drafting is intentionally
+writing is present, checksum-bound, and verified from a fresh clone. The generated
+completion manifest reports `ready_for_writing: true` for 364 primary runs and 48
+ablation runs, with zero checker failures. Manuscript drafting is intentionally
 outside this repository task.
 
 | Requirement | Status | Authoritative evidence | Verification command or contract | Notes |
@@ -25,7 +24,7 @@ outside this repository task.
 | Citation and novelty boundary | complete | `docs/citation_inventory.md` | Primary sources and closest-work boundaries reviewed | No “first” or state-of-the-art claim; DINOv2 scoring and SAM2 are not claimed as novel. |
 | End-to-end offline smoke | complete | `tests/test_arxiv_smoke.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_arxiv_smoke.py -q` | Uses synthetic data, color-patch features, and fallback refinement. |
 | Public repository hygiene | complete | `tests/test_public_hygiene.py` | `PYTHONPATH=src venv/bin/python -m pytest tests/test_public_hygiene.py -q` | Blocks raw data, weights, run archives, private paths, and key-shaped secrets. |
-| Final fresh-clone release check | pending | pushed feature-branch commit | Full tests, Ruff, deterministic smoke/checker, hash/path/secret/blob audits | This is the only remaining repository handoff gate. |
+| Final fresh-clone release check | complete | release candidate `a82366a6b21649d1a8c82eca89897592fdfe37f7` | 373 tests + 75 subtests, Ruff, format, smoke/checker/analysis, 35 hashes, path/secret/blob audits | Verified from an independent `git clone --no-local`; the documented smoke starts with no dataset or manifest. |
 
 ## Frozen decision
 
