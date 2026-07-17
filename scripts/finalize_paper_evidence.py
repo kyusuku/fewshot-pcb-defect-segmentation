@@ -15,8 +15,12 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from PIL import Image
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
@@ -850,7 +854,7 @@ def _reject_private_paths(root: Path) -> None:
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        content = path.read_bytes()
+        content = _private_path_scan_content(path)
         if (
             any(needle in content for needle in needles)
             or windows_absolute.search(content)
@@ -859,6 +863,22 @@ def _reject_private_paths(root: Path) -> None:
             hits.append(path.relative_to(root).as_posix())
     if hits:
         raise ValueError(f"private paths leaked into public evidence: {hits}")
+
+
+def _private_path_scan_content(path: Path) -> bytes:
+    if path.suffix.lower() != ".png":
+        return path.read_bytes()
+
+    text: list[str] = []
+    with Image.open(path) as image:
+        metadata_sources = [image.info, getattr(image, "text", {}), image.getexif()]
+        for metadata in metadata_sources:
+            for key, value in metadata.items():
+                if isinstance(key, str):
+                    text.append(key)
+                if isinstance(value, str):
+                    text.append(value)
+    return "\n".join(text).encode("utf-8")
 
 
 if __name__ == "__main__":

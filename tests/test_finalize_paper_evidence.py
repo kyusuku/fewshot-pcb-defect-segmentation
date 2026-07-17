@@ -4,14 +4,19 @@ import csv
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
+import zlib
 from pathlib import Path
 
 import pytest
 from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 from scripts.finalize_paper_evidence import (
     _copy_method_figure,
     _copy_qualitative_figures,
+    _reject_private_paths,
     _require_current_commit,
     finalize_paper_evidence,
 )
@@ -377,6 +382,52 @@ def test_require_current_commit_rejects_tracked_dirtiness(monkeypatch: pytest.Mo
     )
     with pytest.raises(ValueError, match="tracked worktree is dirty"):
         _require_current_commit(commit)
+
+
+def test_reject_private_paths_ignores_binary_png_chunks(tmp_path: Path) -> None:
+    public_dir = tmp_path / "public"
+    public_dir.mkdir()
+    png = public_dir / "figure.png"
+    Image.new("RGB", (16, 16), "white").save(png)
+
+    chunk_type = b"raNd"
+    chunk_data = b"C:\\compressed-pixel-bytes-are-not-a-path"
+    chunk = (
+        len(chunk_data).to_bytes(4, "big")
+        + chunk_type
+        + chunk_data
+        + zlib.crc32(chunk_type + chunk_data).to_bytes(4, "big")
+    )
+    content = png.read_bytes()
+    png.write_bytes(content[:-12] + chunk + content[-12:])
+
+    _reject_private_paths(public_dir)
+
+
+def test_reject_private_paths_checks_textual_png_metadata(tmp_path: Path) -> None:
+    public_dir = tmp_path / "public"
+    public_dir.mkdir()
+    png = public_dir / "figure.png"
+    metadata = PngInfo()
+    metadata.add_text("source", "/Users/private/figure.png")
+    Image.new("RGB", (16, 16), "white").save(png, pnginfo=metadata)
+
+    with pytest.raises(ValueError, match="private paths leaked"):
+        _reject_private_paths(public_dir)
+
+
+def test_finalize_paper_evidence_cli_help_runs_directly() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "scripts/finalize_paper_evidence.py", "--help"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--postprocessor-commit" in result.stdout
 
 
 def test_copy_method_figure_rejects_stale_layout_even_with_valid_png_hash(
