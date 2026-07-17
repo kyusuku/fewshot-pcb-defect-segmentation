@@ -112,9 +112,17 @@ The paper-facing protocol uses VisA PCB as the primary segmentation benchmark.
 DeepPCB is secondary because it provides boxes, not true masks. CLIP is not part
 of this method.
 
-Offline smoke, with no network, GPU, or checkpoint:
+Offline smoke, with no network, GPU, checkpoint, or pre-existing dataset. On a
+fresh clone, first create the ignored synthetic fixture and the manifest expected
+by the frozen smoke config. If they already exist, skip these two setup commands;
+no overwrite or deletion is required.
 
 ```bash
+PYTHONPATH=src python scripts/create_synthetic_data.py --output-dir data/debug_fixture
+PYTHONPATH=src python scripts/create_manifests.py \
+  --visa-root data/debug_fixture/VisA \
+  --visa-category pcb1 \
+  --output-dir data/manifests
 PYTHONPATH=src python scripts/run_experiment_matrix.py \
   --config configs/experiments/arxiv_smoke.yaml \
   --output-root outputs/arxiv_smoke \
