@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shlex
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -15,31 +17,31 @@ CANVAS_SIZE = (1800, 700)
 BLOCKS = [
     {
         "id": "supports",
-        "label": "Few normal supports",
+        "label": "Few normal\nsupports",
         "rect": (80, 110, 360, 230),
         "color": "#d7e9ff",
     },
     {
         "id": "memory",
-        "label": "DINOv2 memory bank",
+        "label": "DINOv2\nmemory bank",
         "rect": (470, 110, 760, 230),
         "color": "#d7e9ff",
     },
     {
         "id": "anomaly",
-        "label": "Multi-scale anomaly map",
+        "label": "Multi-scale\nanomaly map",
         "rect": (870, 110, 1200, 230),
         "color": "#ffe3ae",
     },
     {
         "id": "sam2",
-        "label": "SAM2 prompts/refinement",
+        "label": "Anomaly-guided\nSAM2 refinement",
         "rect": (870, 380, 1200, 500),
         "color": "#ccebd7",
     },
     {
         "id": "final",
-        "label": "Proposal intersection + SAM2 mask -> final mask",
+        "label": "Proposal and SAM2\nintersection mask",
         "rect": (1280, 380, 1710, 500),
         "color": "#ccebd7",
     },
@@ -66,7 +68,7 @@ def main() -> None:
     render_method_figure(
         args.output_png,
         args.layout_json,
-        generation_command=" ".join(["scripts/render_method_figure.py", *([])]),
+        generation_command=shlex.join(sys.argv),
     )
 
 
@@ -104,8 +106,10 @@ def render_method_figure(
     layout_json.write_text(
         json.dumps(
             {
+                "schema_version": 2,
                 "canvas": list(CANVAS_SIZE),
                 "generation_command": generation_command,
+                "renderer_source_sha256": _sha256_file(Path(__file__)),
                 "output_png": portable_output,
                 "output_png_sha256": _sha256_file(output_png),
                 "blocks": BLOCKS,

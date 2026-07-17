@@ -520,8 +520,10 @@ def _write_index(
         "| --- | --- | --- |",
         "| Multi-scale DINOv2 versus single-scale proposals | `primary_results.csv` | "
         "Per-category and category-macro, fixed primary geometry |",
-        "| PatchCore reference baseline | `primary_results.csv` | Same support protocol and split |",
-        "| Unconditional SAM2 helps or hurts conditionally | `paired_statistics.json`, "
+        "| PatchCore-style baseline | `primary_results.csv` | Same support protocol and split; "
+        "repository implementation, not the reference PatchCore code |",
+        "| Anomaly-guided SAM2 refinement helps or hurts conditionally | "
+        "`paired_statistics.json`, "
         "`failure_strata.csv` | Anomaly images only; paired repeated-measures CI |",
         "| Anomaly-consistent SAM2 versus proposal and SAM2 masks | `paired_statistics.json`, "
         "`primary_results.md` | No improvement claim when delta CI includes zero |",

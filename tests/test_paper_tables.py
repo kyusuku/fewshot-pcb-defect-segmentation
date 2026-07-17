@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from evaluation.paper_tables import (
+    aggregate_ablation_rows,
+    aggregate_all_primary_metrics,
     aggregate_primary_rows,
     collect_primary_rows,
     format_primary_markdown,
@@ -41,6 +43,90 @@ def test_aggregate_primary_rows_rejects_incomplete_category_seed_grid() -> None:
 
     with pytest.raises(ValueError, match="same support seeds"):
         aggregate_primary_rows(rows, metric="metric")
+
+
+def test_aggregate_all_primary_metrics_keeps_applicable_metrics_and_scope_labels() -> None:
+    rows = [
+        {
+            "method": "dinov2_multi",
+            "category": category,
+            "seed": seed,
+            "k": 1,
+            "image_auroc": 0.8 + 0.01 * seed,
+            "mean_anomaly_mask_f1": 0.4 + 0.01 * seed,
+        }
+        for category in ("pcb1", "pcb2")
+        for seed in (1, 2)
+    ] + [
+        {
+            "method": "sam2_only",
+            "category": category,
+            "seed": 0,
+            "k": 0,
+            "image_auroc": None,
+            "mean_anomaly_mask_f1": 0.2,
+        }
+        for category in ("pcb1", "pcb2")
+    ]
+
+    summary = aggregate_all_primary_metrics(
+        rows,
+        metrics=["image_auroc", "mean_anomaly_mask_f1"],
+    )
+
+    assert any(
+        row["method"] == "dinov2_multi"
+        and row["metric"] == "image_auroc"
+        and row["category"] == "macro"
+        and row["uncertainty_scope"] == "support_seed_interval"
+        for row in summary
+    )
+    assert not any(
+        row["method"] == "sam2_only" and row["metric"] == "image_auroc" for row in summary
+    )
+    sam2 = next(
+        row
+        for row in summary
+        if row["method"] == "sam2_only"
+        and row["metric"] == "mean_anomaly_mask_f1"
+        and row["category"] == "macro"
+    )
+    assert sam2["uncertainty_scope"] == "descriptive_single_run"
+    assert sam2["num_seeds"] == 1
+
+
+def test_aggregate_ablation_rows_reports_categories_and_macro_without_seed_ci() -> None:
+    rows = [
+        {
+            "variant": "fusion_union",
+            "method": "anomaly_consistent_sam2",
+            "category": "pcb1",
+            "k": 4,
+            "seed": 4880,
+            "mean_anomaly_mask_f1": 0.2,
+            "image_auroc": None,
+        },
+        {
+            "variant": "fusion_union",
+            "method": "anomaly_consistent_sam2",
+            "category": "pcb2",
+            "k": 4,
+            "seed": 4880,
+            "mean_anomaly_mask_f1": 0.6,
+            "image_auroc": None,
+        },
+    ]
+
+    summary = aggregate_ablation_rows(
+        rows,
+        metrics=["image_auroc", "mean_anomaly_mask_f1"],
+    )
+
+    assert {row["category"] for row in summary} == {"pcb1", "pcb2", "macro"}
+    macro = next(row for row in summary if row["category"] == "macro")
+    assert macro["mean"] == pytest.approx(0.4)
+    assert macro["uncertainty_scope"] == "descriptive_single_support_seed"
+    assert "ci_low" not in macro
 
 
 def test_collect_primary_rows_requires_complete_method_category_seed_grid(

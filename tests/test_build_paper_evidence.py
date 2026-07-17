@@ -90,6 +90,10 @@ def test_build_paper_evidence_writes_compact_manifest(tmp_path: Path) -> None:
     index = (evidence / "evidence_index.md").read_text()
     assert "Planned claim mapping" in index
     assert "Multi-scale DINOv2" in index
+    assert "PatchCore-style baseline" in index
+    assert "Anomaly-guided SAM2 refinement helps or hurts conditionally" in index
+    assert "PatchCore reference baseline" not in index
+    assert "Unconditional SAM2" not in index
     assert "test-command" in index
     failure_text = (evidence / "failure_strata.csv").read_text()
     assert "image_path" not in failure_text

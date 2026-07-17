@@ -119,6 +119,87 @@ def aggregate_primary_rows(
     return output
 
 
+def aggregate_all_primary_metrics(
+    rows: list[dict[str, object]],
+    *,
+    metrics: list[str] | None = None,
+) -> list[dict[str, float | int | str]]:
+    """Aggregate every applicable paper metric without mixing unavailable fields."""
+
+    output: list[dict[str, float | int | str]] = []
+    for metric in metrics or METRIC_COLUMNS:
+        metric_rows = [row for row in rows if row.get(metric) not in (None, "")]
+        if not metric_rows:
+            continue
+        for summary in aggregate_primary_rows(metric_rows, metric=metric):
+            if int(summary["num_seeds"]) == 1:
+                summary["uncertainty_scope"] = "descriptive_single_run"
+                summary["seed_std"] = ""
+                summary["ci_low"] = ""
+                summary["ci_high"] = ""
+            else:
+                summary["uncertainty_scope"] = "support_seed_interval"
+            output.append(summary)
+    return output
+
+
+def aggregate_ablation_rows(
+    rows: list[dict[str, object]],
+    *,
+    metrics: list[str] | None = None,
+) -> list[dict[str, float | int | str]]:
+    """Summarize single-seed ablations descriptively by category and macro mean."""
+
+    output: list[dict[str, float | int | str]] = []
+    for metric in metrics or METRIC_COLUMNS:
+        metric_rows = [row for row in rows if row.get(metric) not in (None, "")]
+        grouped: dict[tuple[str, str, int, int], dict[str, float]] = {}
+        for row in metric_rows:
+            key = (
+                str(row["variant"]),
+                str(row["method"]),
+                int(row["k"]),
+                int(row["seed"]),
+            )
+            category = str(row["category"])
+            category_values = grouped.setdefault(key, {})
+            if category in category_values:
+                raise ValueError(f"duplicate ablation summary cell: {key!r}, {category!r}")
+            value = float(row[metric])
+            if not np.isfinite(value):
+                raise ValueError(f"ablation metric {metric} must be finite")
+            category_values[category] = value
+        for (variant, method, k, seed), category_values in sorted(grouped.items()):
+            common = {
+                "variant": variant,
+                "method": method,
+                "k": k,
+                "seed": seed,
+                "metric": metric,
+                "uncertainty_scope": "descriptive_single_support_seed",
+            }
+            output.append(
+                {
+                    **common,
+                    "category": "macro",
+                    "mean": float(np.mean(list(category_values.values()))),
+                    "num_categories": len(category_values),
+                    "aggregation": "category_macro",
+                }
+            )
+            for category, value in sorted(category_values.items()):
+                output.append(
+                    {
+                        **common,
+                        "category": category,
+                        "mean": value,
+                        "num_categories": 1,
+                        "aggregation": "within_category",
+                    }
+                )
+    return output
+
+
 def format_primary_markdown(rows: list[dict[str, object]]) -> str:
     lines = [
         "Support-seed summaries. Categories are fixed; `macro` gives each category equal weight.",
