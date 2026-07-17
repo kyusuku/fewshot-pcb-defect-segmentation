@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from scripts.audit_frozen_runs import write_audit_bundle
+from scripts.audit_frozen_runs import main, write_audit_bundle
 from evaluation.frozen_run_audit import (
     audit_method_invariants,
     paired_baseline_statistics,
@@ -295,6 +295,7 @@ def test_write_audit_bundle_is_checksum_backed_and_non_overwriting(tmp_path: Pat
     manifest = write_audit_bundle(
         output,
         source_commit="f" * 40,
+        postprocessor_commit="a" * 40,
         generation_command="test audit",
         baseline_statistics={"comparisons": {}},
         method_invariants={"ok": True, "images_checked": 1},
@@ -303,6 +304,7 @@ def test_write_audit_bundle_is_checksum_backed_and_non_overwriting(tmp_path: Pat
     )
 
     assert manifest["source_commit"] == "f" * 40
+    assert manifest["postprocessor_commit"] == "a" * 40
     assert {item["path"] for item in manifest["generated_files"]} == {
         "baseline_paired_statistics.json",
         "method_invariants.json",
@@ -315,12 +317,98 @@ def test_write_audit_bundle_is_checksum_backed_and_non_overwriting(tmp_path: Pat
         write_audit_bundle(
             output,
             source_commit="f" * 40,
+            postprocessor_commit="a" * 40,
             generation_command="test audit",
             baseline_statistics={},
             method_invariants={},
             runtime_provenance={},
             config_bindings={},
         )
+
+
+def test_audit_cli_wires_postprocessor_commit_only_to_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary = {
+        "kind": "primary",
+        "categories": ["pcb1"],
+        "shots": [1],
+        "seeds": [4880],
+        "fold_id": 0,
+    }
+    ablation = {"kind": "ablation"}
+    run = RunSpec("dinov2_multi", "pcb1", 0, 1, 4880)
+    observed: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "scripts.audit_frozen_runs.load_experiment_config",
+        lambda path: primary if Path(path).name == "primary.yaml" else ablation,
+    )
+    monkeypatch.setattr("scripts.audit_frozen_runs.expand_matrix", lambda config: [run])
+    monkeypatch.setattr(
+        "scripts.audit_frozen_runs._require_current_commit",
+        lambda commit: observed.update(required_commit=commit),
+    )
+    monkeypatch.setattr(
+        "scripts.audit_frozen_runs.paired_baseline_statistics", lambda *args, **kwargs: {}
+    )
+    monkeypatch.setattr(
+        "scripts.audit_frozen_runs.audit_method_invariants",
+        lambda *args, **kwargs: {"ok": True},
+    )
+
+    def runtime_stub(
+        output_root: Path,
+        *,
+        category: str,
+        k: int,
+        seed: int,
+        fold_id: int,
+        source_commit: str,
+    ) -> dict[str, object]:
+        return {"source_commit": source_commit, "category": category}
+
+    monkeypatch.setattr("scripts.audit_frozen_runs.runtime_provenance_summary", runtime_stub)
+    monkeypatch.setattr(
+        "scripts.audit_frozen_runs.validate_run_config_binding",
+        lambda *args, **kwargs: {"run_count": 1},
+    )
+    monkeypatch.setattr("scripts.audit_frozen_runs.sha256_file", lambda path: "a" * 64)
+    monkeypatch.setattr("scripts.audit_frozen_runs.sha256_json", lambda payload: "b" * 64)
+
+    def bundle_stub(output_dir: Path, **kwargs: object) -> dict[str, object]:
+        observed.update(bundle_output=output_dir, bundle_kwargs=kwargs)
+        return {}
+
+    monkeypatch.setattr("scripts.audit_frozen_runs.write_audit_bundle", bundle_stub)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "scripts/audit_frozen_runs.py",
+            "--primary-config",
+            "primary.yaml",
+            "--ablation-config",
+            "ablation.yaml",
+            "--primary-output-root",
+            "primary-out",
+            "--ablation-output-root",
+            "ablation-out",
+            "--audit-dir",
+            "audit-out",
+            "--source-commit",
+            "f" * 40,
+            "--postprocessor-commit",
+            "a" * 40,
+        ],
+    )
+
+    main()
+
+    assert observed["required_commit"] == "a" * 40
+    bundle_kwargs = observed["bundle_kwargs"]
+    assert isinstance(bundle_kwargs, dict)
+    assert bundle_kwargs["source_commit"] == "f" * 40
+    assert bundle_kwargs["postprocessor_commit"] == "a" * 40
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:

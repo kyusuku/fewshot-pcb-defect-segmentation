@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 from typing import Mapping
@@ -33,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ablation-output-root", type=Path, required=True)
     parser.add_argument("--audit-dir", type=Path, required=True)
     parser.add_argument("--source-commit", required=True)
+    parser.add_argument("--postprocessor-commit", required=True)
     parser.add_argument("--bootstrap-samples", type=int, default=2000)
     return parser.parse_args()
 
@@ -40,6 +43,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     try:
+        _require_current_commit(args.postprocessor_commit)
         primary_config = load_experiment_config(args.primary_config)
         ablation_config = load_experiment_config(args.ablation_config)
         primary_runs = expand_matrix(primary_config)
@@ -90,6 +94,7 @@ def main() -> None:
         write_audit_bundle(
             args.audit_dir,
             source_commit=args.source_commit,
+            postprocessor_commit=args.postprocessor_commit,
             generation_command=shlex.join(sys.argv),
             baseline_statistics=baseline,
             method_invariants=invariants,
@@ -107,6 +112,7 @@ def write_audit_bundle(
     output_dir: str | Path,
     *,
     source_commit: str,
+    postprocessor_commit: str,
     generation_command: str,
     baseline_statistics: Mapping[str, object],
     method_invariants: Mapping[str, object],
@@ -131,8 +137,9 @@ def write_audit_bundle(
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         generated.append({"path": name, "sha256": sha256_file(path)})
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_commit": source_commit,
+        "postprocessor_commit": postprocessor_commit,
         "generation_command": generation_command,
         "generated_files": generated,
     }
@@ -141,6 +148,23 @@ def write_audit_bundle(
         encoding="utf-8",
     )
     return manifest
+
+
+def _require_current_commit(expected: str) -> None:
+    if not re.fullmatch(r"[0-9a-f]{40}", expected):
+        raise ValueError("postprocessor commit must be a lowercase 40-character Git SHA")
+    observed = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True
+    ).strip()
+    if observed != expected:
+        raise ValueError("postprocessor commit does not match current repository HEAD")
+    tracked_status = subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=PROJECT_ROOT,
+        text=True,
+    ).strip()
+    if tracked_status:
+        raise ValueError("postprocessor tracked worktree is dirty")
 
 
 if __name__ == "__main__":

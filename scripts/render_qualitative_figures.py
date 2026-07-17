@@ -127,8 +127,9 @@ def render_qualitative_figures(
             }
         )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generation_command": generation_command,
+        "renderer_source_sha256": sha256_file(Path(__file__)),
         "source_manifest_sha256": sha256_file(source_manifest),
         "role_definition": {
             "success": "selected anomalous case with strictly positive guided-SAM2 delta F1",

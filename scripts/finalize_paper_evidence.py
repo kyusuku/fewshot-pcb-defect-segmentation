@@ -155,8 +155,12 @@ def finalize_paper_evidence(
     audit_manifest_path = audit_dir / "audit_manifest.json"
     audit_manifest = _read_json(audit_manifest_path)
     _validate_generated_hashes(audit_dir, audit_manifest)
+    if audit_manifest.get("schema_version") != 2:
+        raise ValueError("frozen audit manifest schema is stale")
     if audit_manifest.get("source_commit") != source_commit:
         raise ValueError("frozen audit source commit mismatch")
+    if audit_manifest.get("postprocessor_commit") != postprocessor_commit:
+        raise ValueError("frozen audit postprocessor commit mismatch")
     invariants = _read_json(audit_dir / "method_invariants.json")
     if invariants.get("ok") is not True:
         raise ValueError("frozen method invariant audit is not clean")
@@ -355,8 +359,13 @@ def _copy_qualitative_figures(
 ) -> list[Path]:
     manifest_path = source_dir / "qualitative_figure_manifest.json"
     manifest = _read_json(manifest_path)
-    if manifest.get("source_manifest_sha256") != sha256_file(source_selection):
-        raise ValueError("qualitative figure/source selection checksum mismatch")
+    renderer_path = PROJECT_ROOT / "scripts/render_qualitative_figures.py"
+    if (
+        manifest.get("schema_version") != 2
+        or manifest.get("renderer_source_sha256") != sha256_file(renderer_path)
+        or not re.fullmatch(r"[0-9a-f]{64}", str(manifest.get("source_manifest_sha256", "")))
+    ):
+        raise ValueError("qualitative figure does not match the current renderer contract")
     selection_rows = _read_csv(source_selection)
     expected_selection = {}
     for row in selection_rows:
@@ -415,6 +424,10 @@ def _copy_qualitative_figures(
         raise ValueError("qualitative figure roles are incomplete")
     destination_manifest = destination_dir / manifest_path.name
     published_manifest = dict(manifest)
+    published_manifest["asset_selection_manifest_sha256"] = published_manifest.pop(
+        "source_manifest_sha256"
+    )
+    published_manifest["public_selection_manifest_sha256"] = sha256_file(source_selection)
     published_manifest["figures"] = [
         {**dict(item), "path": Path(str(item["path"])).name}
         for item in figures

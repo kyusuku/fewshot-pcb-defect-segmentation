@@ -152,8 +152,9 @@ def test_finalize_paper_evidence_validates_freeze_and_builds_revision_package(
     for name, payload in audit_files.items():
         (audit / name).write_text(json.dumps(payload) + "\n")
     audit_manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_commit": source_commit,
+        "postprocessor_commit": postprocessor_commit,
         "generated_files": [{"path": name, "sha256": _sha(audit / name)} for name in audit_files],
     }
     (audit / "audit_manifest.json").write_text(json.dumps(audit_manifest) + "\n")
@@ -243,8 +244,9 @@ def test_finalize_paper_evidence_validates_freeze_and_builds_revision_package(
     (qualitative_figures / "qualitative_figure_manifest.json").write_text(
         json.dumps(
             {
-                "schema_version": 1,
-                "source_manifest_sha256": _sha(qualitative_selection),
+                "schema_version": 2,
+                "source_manifest_sha256": "1" * 64,
+                "renderer_source_sha256": _sha(repo_root / "scripts/render_qualitative_figures.py"),
                 "figures": figure_entries,
             }
         )
@@ -444,7 +446,11 @@ def test_copy_qualitative_figures_rejects_stale_source_panel_hashes(
     (figure_dir / "qualitative_figure_manifest.json").write_text(
         json.dumps(
             {
+                "schema_version": 2,
                 "source_manifest_sha256": _sha(selection),
+                "renderer_source_sha256": _sha(
+                    Path(__file__).resolve().parents[1] / "scripts/render_qualitative_figures.py"
+                ),
                 "figures": figures,
             }
         )

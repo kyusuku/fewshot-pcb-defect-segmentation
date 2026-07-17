@@ -51,6 +51,15 @@ def test_render_qualitative_figures_validates_panels_and_writes_public_montages(
     )
 
     assert manifest["generation_command"] == "test qualitative renderer"
+    assert manifest["schema_version"] == 2
+    assert (
+        manifest["renderer_source_sha256"]
+        == hashlib.sha256(
+            (
+                Path(__file__).resolve().parents[1] / "scripts/render_qualitative_figures.py"
+            ).read_bytes()
+        ).hexdigest()
+    )
     assert len(manifest["figures"]) == 2
     assert {(item["category"], item["role"]) for item in manifest["figures"]} == {
         ("pcb1", "success"),
