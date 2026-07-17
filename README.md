@@ -4,17 +4,26 @@ Research codebase for **Few-Shot PCB Defect Segmentation via Multi-Scale DINOv2 
 
 Repository name: `fewshot-pcb-defect-segmentation`
 
-This project implements a few-shot PCB defect detection and segmentation pipeline. The intended method learns normal PCB appearance from a small number of normal images, detects anomalous regions with DINOv2 patch features, improves small-defect localization with multi-scale crops, and refines candidate regions into masks with SAM2.
+This project implements a training-free few-shot PCB defect detection and
+segmentation pipeline. It represents normal PCB appearance using frozen features
+from a small set of normal images, detects anomalous regions with DINOv2 patch
+features, combines global and local anomaly evidence, and refines candidate
+regions with frozen SAM2 masks. No model parameters are trained or fine-tuned.
 
-Current status: the local arXiv evidence pipeline is implemented through compact
-paper tables, paired SAM2 failure analysis, deterministic figure tooling, and an
-offline smoke test. Full primary/ablation numbers still require the AutoDL matrix
-run described below.
+Current status: the frozen AutoDL study and compact evidence package are complete.
+The primary checker passed all 364 runs, the ablation checker passed all 48 runs,
+and the completion manifest reports `ready_for_writing: true`. The source runs are
+frozen at commit `ff4c07208278376b27a4954d560c715f51453c5e`; the evidence
+postprocessor is frozen at `45a5f93c556e1c1a7a9e39f535434f9244ea1a7a`.
 
 See [docs/PRD.md](docs/PRD.md) for the staged research plan, exit criteria, and
 publishability gates.
 See [docs/arxiv_readiness_checklist.md](docs/arxiv_readiness_checklist.md) for
 the current arXiv-readiness audit.
+See [docs/evidence/generated/evidence_index.md](docs/evidence/generated/evidence_index.md)
+for the claim-to-evidence map and
+[docs/citation_inventory.md](docs/citation_inventory.md) for the scoped novelty
+and citation boundary.
 
 ## Benchmarks
 
@@ -22,6 +31,31 @@ the current arXiv-readiness audit.
 - **DeepPCB**: aligned template/test PCB pairs with box annotations.
 
 VisA is the main segmentation benchmark. DeepPCB is secondary and should not be treated as pixel-level segmentation ground truth because it provides boxes, not masks.
+
+## Frozen Findings
+
+On anomalous VisA PCB test images, anomaly-consistent SAM2 improves over the
+calibrated multi-scale DINOv2 mask by **0.0666 F1** (95% CI
+`[0.0538, 0.0788]`) and **0.0565 IoU** (95% CI `[0.0462, 0.0665]`). These
+paired intervals resample both normal-support seeds and test-image clusters while
+treating category and shot count as fixed strata.
+
+The supporting comparisons delimit the claim:
+
+- Multi-scale versus single-scale DINOv2 is inconclusive: F1 `+0.0045`, 95% CI
+  `[-0.0058, 0.0142]`; IoU `+0.0041`, 95% CI `[-0.0030, 0.0109]`.
+- Multi-scale DINOv2 improves over the repository's PatchCore-style baseline:
+  F1 `+0.0365`, 95% CI `[0.0206, 0.0505]`; IoU `+0.0254`, 95% CI
+  `[0.0145, 0.0352]`.
+- Multi-scale-guided versus single-scale-guided raw SAM2 is inconclusive: F1
+  `+0.0120`, 95% CI `[-0.0052, 0.0289]`; IoU `+0.0127`, 95% CI
+  `[-0.0004, 0.0260]`.
+
+The defensible contribution is the controlled PCB protocol, proposal-to-prompt
+bridge, and exact anomaly-consistency constraint—not a new backbone, a “first”
+claim, or a state-of-the-art claim. The frozen study uses fold 0 with five
+repeated normal-support samples; it is not five-fold cross-validation, and prior
+VisA test-set exposure must be disclosed.
 
 ## Pipeline
 
@@ -133,6 +167,10 @@ the same full-resolution float32 heatmap used by calibration, SAM2 prompting,
 evaluation, and curation. This is not quantization or lower-resolution
 evaluation. Legacy materialized `.npy` and `.npz` heatmaps remain readable, and
 all archives remain covered by per-run SHA-256 provenance.
+
+No cleanup policy is required for the frozen study: datasets and prior outputs
+were not deleted. The compact archives make the paper matrix fit while preserving
+exact regeneration of dependent heatmaps and masks.
 
 Ablations, analysis, assets, and compact evidence:
 

@@ -1,0 +1,90 @@
+{
+  "arrows": [
+    [
+      "supports",
+      "memory"
+    ],
+    [
+      "memory",
+      "anomaly"
+    ],
+    [
+      "anomaly",
+      "sam2"
+    ],
+    [
+      "sam2",
+      "final"
+    ],
+    [
+      "query",
+      "sam2"
+    ]
+  ],
+  "blocks": [
+    {
+      "color": "#d7e9ff",
+      "id": "supports",
+      "label": "Few normal\nsupports",
+      "rect": [
+        80,
+        110,
+        360,
+        230
+      ]
+    },
+    {
+      "color": "#d7e9ff",
+      "id": "memory",
+      "label": "DINOv2\nmemory bank",
+      "rect": [
+        470,
+        110,
+        760,
+        230
+      ]
+    },
+    {
+      "color": "#ffe3ae",
+      "id": "anomaly",
+      "label": "Multi-scale\nanomaly map",
+      "rect": [
+        870,
+        110,
+        1200,
+        230
+      ]
+    },
+    {
+      "color": "#ccebd7",
+      "id": "sam2",
+      "label": "Anomaly-guided\nSAM2 refinement",
+      "rect": [
+        870,
+        380,
+        1200,
+        500
+      ]
+    },
+    {
+      "color": "#ccebd7",
+      "id": "final",
+      "label": "Proposal and SAM2\nintersection mask",
+      "rect": [
+        1280,
+        380,
+        1710,
+        500
+      ]
+    }
+  ],
+  "canvas": [
+    1800,
+    700
+  ],
+  "generation_command": "scripts/render_method_figure.py --output-png outputs/arxiv_postfreeze_assets_bbb2240/method_figure.png --layout-json outputs/arxiv_postfreeze_assets_bbb2240/method_figure_layout.json",
+  "output_png": "method_figure.png",
+  "output_png_sha256": "e288e971fef3a7369594b9dc34d6c8e3579f9c9bca5d22e5e58af5c7ae37f502",
+  "renderer_source_sha256": "32e1d0bcaa667d6410fbc6e0a9c426788dbd1f65478444ce02ed38508d9b19c5",
+  "schema_version": 2
+}

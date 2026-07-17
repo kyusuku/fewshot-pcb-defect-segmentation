@@ -1,0 +1,2 @@
+# Preserve checksum-bound generated CSV bytes exactly as finalized.
+docs/evidence/generated/*.csv binary

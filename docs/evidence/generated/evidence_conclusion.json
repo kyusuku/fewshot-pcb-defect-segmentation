@@ -1,0 +1,42 @@
+{
+  "comparison": "anomaly_consistent_sam2 minus calibrated dinov2_multi",
+  "decision_rule": {
+    "otherwise": "mixed_or_inconclusive",
+    "robust_improvement": "both 95% confidence interval lower bounds are above zero",
+    "robustly_inferior": "both 95% confidence interval upper bounds are below zero"
+  },
+  "delta_definition": "candidate_minus_baseline",
+  "f1": {
+    "aggregation": "fixed_k_category_macro",
+    "bootstrap_samples": 2000,
+    "ci_high": 0.07879064833302009,
+    "ci_low": 0.053798811697808646,
+    "confidence": 0.95,
+    "mean_delta": 0.06664446687355506,
+    "num_categories": 4,
+    "num_k": 3,
+    "num_rows": 6000,
+    "num_seeds": 5,
+    "num_unique_images": 400,
+    "resampling_unit": "support_seed_and_test_image",
+    "seed_std_delta": 0.010082120980937699
+  },
+  "iou": {
+    "aggregation": "fixed_k_category_macro",
+    "bootstrap_samples": 2000,
+    "ci_high": 0.06654617114428095,
+    "ci_low": 0.04624032040163985,
+    "confidence": 0.95,
+    "mean_delta": 0.05650546376886057,
+    "num_categories": 4,
+    "num_k": 3,
+    "num_rows": 6000,
+    "num_seeds": 5,
+    "num_unique_images": 400,
+    "resampling_unit": "support_seed_and_test_image",
+    "seed_std_delta": 0.007595869808976201
+  },
+  "outcome": "anomaly_consistent_sam2_improves_robustly",
+  "sample_inclusion": "anomaly_images_only",
+  "schema_version": 1
+}

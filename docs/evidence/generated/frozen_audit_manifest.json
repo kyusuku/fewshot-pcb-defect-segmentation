@@ -1,0 +1,24 @@
+{
+  "generated_files": [
+    {
+      "path": "baseline_paired_statistics.json",
+      "sha256": "bf4f553fcfe78c8aa5a903ed4e3d6021e90b4ea0f808fa3cd4d7c66b70a29f79"
+    },
+    {
+      "path": "method_invariants.json",
+      "sha256": "bd48800028aab3fbc6002b0c71702d43dd512085843e8a1c0025410b9945575e"
+    },
+    {
+      "path": "runtime_provenance.json",
+      "sha256": "27d1994baaf96d5394fb484be63150c8c7ef5a9051c29f2663f6dbc4e2017406"
+    },
+    {
+      "path": "config_bindings.json",
+      "sha256": "720eb398f4faa4c0dbecb8fbab2d0e1d12336bf7a3028617e45c711ae4ff9703"
+    }
+  ],
+  "generation_command": "scripts/audit_frozen_runs.py --primary-config configs/experiments/arxiv_primary.yaml --ablation-config configs/experiments/arxiv_ablations.yaml --primary-output-root outputs/arxiv_primary_ff4c072 --ablation-output-root outputs/arxiv_ablations_ff4c072 --audit-dir outputs/arxiv_final_audit_ff4c072_45a5f93 --source-commit ff4c07208278376b27a4954d560c715f51453c5e --postprocessor-commit 45a5f93c556e1c1a7a9e39f535434f9244ea1a7a --bootstrap-samples 2000",
+  "postprocessor_commit": "45a5f93c556e1c1a7a9e39f535434f9244ea1a7a",
+  "schema_version": 2,
+  "source_commit": "ff4c07208278376b27a4954d560c715f51453c5e"
+}

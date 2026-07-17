@@ -14,10 +14,11 @@ focus.
 
 ## Research Objective
 
-Build a reproducible few-shot PCB defect segmentation pipeline that learns normal
-PCB appearance from a small support set, proposes anomalous regions with DINOv2
-patch features, improves small-defect localization with multi-scale crops, and
-uses SAM2 to refine candidate regions into masks.
+Build a reproducible few-shot PCB defect segmentation pipeline that represents
+normal PCB appearance with a small frozen-feature support set, proposes anomalous
+regions with DINOv2 patch features, tests multi-scale crops, and uses SAM2 to
+refine candidate regions into masks. No model parameters are trained or
+fine-tuned.
 
 The project should answer one main research question:
 
@@ -77,6 +78,28 @@ The intended contribution is the PCB-specific bridge between these ideas:
 multi-scale anomaly maps generate prompts for SAM2, and the resulting masks are
 evaluated under few-shot normal-only PCB inspection constraints.
 
+The complete citation and closest-work boundary is maintained in
+[`docs/citation_inventory.md`](citation_inventory.md). The project does not make
+a “first” or state-of-the-art claim.
+
+## Frozen Evidence Outcome
+
+The 364-run primary matrix and 48-run ablation matrix are complete with zero
+checker failures. The pre-declared decision rule selects the exact
+anomaly-consistent intersection of guided SAM2 and the calibrated multi-scale
+DINOv2 mask:
+
+- F1 versus calibrated multi-scale DINOv2: `+0.066644`, 95% CI
+  `[0.053799, 0.078791]`.
+- IoU versus calibrated multi-scale DINOv2: `+0.056505`, 95% CI
+  `[0.046240, 0.066546]`.
+
+Multi-scale DINOv2 versus single-scale DINOv2 is inconclusive, as is
+multi-scale-guided versus single-scale-guided raw SAM2. Multi-scale DINOv2 does
+improve over the repository's PatchCore-style baseline. The final paper story
+must therefore center on the anomaly-consistency constraint and controlled PCB
+evidence, not on a universal benefit from multi-scale inference.
+
 ## Non-Goals
 
 - Do not implement CLIP unless explicitly added later.
@@ -91,13 +114,13 @@ evaluated under few-shot normal-only PCB inspection constraints.
 
 | Stage | Name | Goal | Current Status | Exit Criteria |
 | --- | --- | --- | --- | --- |
-| 0 | Repo and Data Foundation | Reproducible public repo, loaders, manifests, debug views | Mostly complete | Real data manifests and debug PNGs verified |
-| 1 | DINOv2-Only Baseline | Few-shot memory bank and heatmap scoring | Initial implementation complete | Per-category VisA metrics saved and summarized |
-| 2 | Multi-Scale DINOv2 Proposals | Improve small-defect localization with crops | Initial implementation complete | Single-scale vs multi-scale ablation complete |
-| 3 | SAM2 Mask Refinement | Refine anomaly proposals into masks | Adapter/fallback implemented | Real SAM2 run works on a small subset |
-| 4 | Baseline Comparison | Compare method variants fairly | Frozen primary and ablation matrices implemented; full AutoDL results pending | Matrix checker passes on all primary/ablation runs |
-| 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | Local smoke, analysis, evidence builder, and figure tooling implemented | `docs/evidence/generated/completion_manifest.json` from full matrix |
-| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | README, evidence policy, and hygiene tests active | Full arXiv checklist complete |
+| 0 | Repo and Data Foundation | Reproducible public repo, loaders, manifests, debug views | complete | Real-data manifests and alignment checks are bound into frozen runs |
+| 1 | DINOv2-Only Baseline | Few-shot memory bank and heatmap scoring | complete | Per-category VisA metrics saved and summarized |
+| 2 | Multi-Scale DINOv2 Proposals | Test small-defect localization with crops | complete | Single-scale versus multi-scale comparison is complete and inconclusive overall |
+| 3 | SAM2 Mask Refinement | Refine anomaly proposals into masks | complete | Real SAM2.1 Hiera Tiny runs are provenance-bound |
+| 4 | Baseline Comparison | Compare method variants fairly | complete | Matrix checkers pass 364/364 primary and 48/48 ablation runs |
+| 5 | Evaluation and Report Assets | Produce final tables, figures, and notebook | complete | Completion manifest says `ready_for_writing: true` |
+| 6 | Public Release Polish | Make repo and paper artifacts publication-safe | final verification in progress | Fresh-clone tests, smoke, and hygiene pass |
 
 The current publication-readiness source of truth is
 [`docs/arxiv_readiness_checklist.md`](arxiv_readiness_checklist.md). The older
@@ -279,19 +302,20 @@ Make the repository safe and useful for public release.
 
 ## Publishability Gates
 
-Before calling this arXiv-worthy, the project should pass these gates:
+The frozen evidence has the following gate outcomes:
 
-1. **Novelty gate:** The report clearly identifies anomaly-guided SAM2 prompting
-   and multi-scale proposal fusion as the contribution, not the existence of
-   DINOv2 or SAM2.
-2. **Evidence gate:** Multi-scale DINOv2 + SAM2 is compared against DINOv2-only
-   and single-scale DINOv2 + SAM2 on the same split.
-3. **Ablation gate:** The report shows which component matters: k-shot support
-   size, crop scale, prompt type, mask scoring, or SAM2 refinement.
-4. **Failure gate:** The report includes cases where SAM2 worsens masks or where
-   anomaly maps produce misleading prompts.
-5. **Reproducibility gate:** Dataset acquisition, manifests, commands, configs,
-   and metrics are documented well enough for another student to rerun.
+1. **Novelty gate — passed with scoped wording:** contribution is the controlled
+   PCB protocol, proposal-to-prompt bridge, and exact anomaly-consistency
+   constraint—not DINOv2, SAM2, or nearest-neighbor scoring.
+2. **Evidence gate — passed:** all primary comparisons use identical frozen
+   category/k/seed/test pairing.
+3. **Ablation gate — passed with limitations:** the planned variants are present;
+   one-seed ablations remain descriptive.
+4. **Failure gate — passed:** one positive and one negative guided-SAM2 delta
+   example is retained for every PCB category, with quantitative geometry strata.
+5. **Reproducibility gate — passed for the evidence package:** acquisition,
+   manifests, commands, configs, source revisions, runtime identities, metrics,
+   and public evidence checksums are documented.
 
 ## Main Risks
 
@@ -304,6 +328,7 @@ Before calling this arXiv-worthy, the project should pass these gates:
 
 ## Current Next Step
 
-Run real SAM2 on a small VisA PCB subset using saved DINOv2 heatmaps, then
-evaluate whether refined masks improve best pixel F1 or IoU over the DINOv2-only
-heatmap threshold baseline.
+Complete the final fresh-clone repository verification, then hand the frozen
+evidence package to the human authors for manuscript writing. No additional GPU
+run is required for the stated frozen study. Manuscript/report drafting remains
+outside this repository task.

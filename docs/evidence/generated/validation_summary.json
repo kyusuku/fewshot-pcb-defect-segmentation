@@ -1,0 +1,21 @@
+{
+  "ablations": {
+    "bad": 0,
+    "complete": 48,
+    "expected": 48,
+    "ok": true
+  },
+  "method_invariants": {
+    "images_checked": 12030,
+    "ok": true,
+    "runs_checked": 60
+  },
+  "primary": {
+    "bad": 0,
+    "complete": 364,
+    "expected": 364,
+    "ok": true
+  },
+  "schema_version": 1,
+  "source_commit": "ff4c07208278376b27a4954d560c715f51453c5e"
+}
