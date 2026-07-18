@@ -1,0 +1,189 @@
+{
+  "environment": {
+    "libraries": {
+      "Pillow": "12.2.0",
+      "PyYAML": "6.0.3",
+      "numpy": "2.2.6",
+      "torch": "2.5.1+cu121",
+      "torchvision": "0.20.1+cu121"
+    },
+    "platform": {
+      "machine": "x86_64",
+      "release": "5.4.0-153-generic",
+      "system": "Linux"
+    },
+    "python": {
+      "implementation": "CPython",
+      "version": "3.10.8"
+    }
+  },
+  "execution_environment": {
+    "cuda_available": true,
+    "cuda_version": "12.1",
+    "device_identity": {
+      "kind": "cuda",
+      "name": "NVIDIA GeForce RTX 4090"
+    },
+    "runtime": {
+      "libraries": {
+        "Pillow": "12.2.0",
+        "PyYAML": "6.0.3",
+        "numpy": "2.2.6",
+        "torch": "2.5.1+cu121",
+        "torchvision": "0.20.1+cu121"
+      },
+      "python_executable": "python",
+      "python_version": "3.10.8"
+    },
+    "selected_device": "cuda"
+  },
+  "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+  "representative_runs": {
+    "dinov2_multi": {
+      "checkpoints": {},
+      "effective_execution_sha256": "f436698c4495e61dd376b96c6b158b2dbcaf57739e6a021f21e28b372cdf1a4d",
+      "extractors": [
+        {
+          "configuration": {
+            "image_size": 518,
+            "model_name": "dinov2_vits14",
+            "patch_size": 14
+          },
+          "coreset_applied": false,
+          "coreset_projection_dim": 64,
+          "coreset_ratio": 0.01,
+          "coreset_seed": 4880,
+          "device": "cuda",
+          "extractor_class": "features.dinov2.DINOv2PatchFeatureExtractor",
+          "memory_bank_size_full": 1073,
+          "memory_bank_size_used": 1073,
+          "model_class": "dinov2.models.vision_transformer.DinoVisionTransformer",
+          "model_state": {
+            "available": true,
+            "dtypes": [
+              "torch.float32"
+            ],
+            "num_bytes": 88226304,
+            "sha256": "45d45b4cf4582a5664586cd1d36f1d0d0c8bdeb9152647227765990e950b46df",
+            "tensor_count": 175
+          }
+        },
+        {
+          "configuration": {
+            "image_size": 518,
+            "model_name": "dinov2_vits14",
+            "patch_size": 14
+          },
+          "coreset_applied": false,
+          "coreset_projection_dim": 64,
+          "coreset_ratio": 0.01,
+          "coreset_seed": 4880,
+          "device": "cuda",
+          "extractor_class": "features.dinov2.DINOv2PatchFeatureExtractor",
+          "memory_bank_size_full": 1073,
+          "memory_bank_size_used": 1073,
+          "model_class": "dinov2.models.vision_transformer.DinoVisionTransformer",
+          "model_state": {
+            "available": true,
+            "dtypes": [
+              "torch.float32"
+            ],
+            "num_bytes": 88226304,
+            "sha256": "45d45b4cf4582a5664586cd1d36f1d0d0c8bdeb9152647227765990e950b46df",
+            "tensor_count": 175
+          }
+        }
+      ],
+      "model_configs": {},
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4880",
+      "run_spec_sha256": "67f6edd8ddb355558b9e9ce59b0441f339b0cd4b6e03a0f53c195d13af40e2fe"
+    },
+    "dinov2_multi_sam2": {
+      "checkpoints": {
+        "sam2": {
+          "path": "weights/sam2.1_hiera_tiny.pt",
+          "sha256": "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69"
+        }
+      },
+      "effective_execution_sha256": "c176b1564ff40e3ddd16ffe5fda04efdb7f3379fda0cd82719d34ef68b0476c3",
+      "extractors": [],
+      "model_configs": {
+        "sam2": {
+          "path": "external/sam2/sam2/configs/sam2.1/sam2.1_hiera_t.yaml",
+          "sha256": "f932eac1c6241e910031b2f000a81cd9f8a8d4896e2277ab5ffb721f378b188d"
+        }
+      },
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4880",
+      "run_spec_sha256": "0c6c595979608ce2283c41af61cae7e81f1df58a92da0612a429a4b75b871543"
+    },
+    "patchcore": {
+      "checkpoints": {},
+      "effective_execution_sha256": "16171f4ac0ccfcbb00688cff890032d5fc69219dc6ef4f440d1058ef67e3a4be",
+      "extractors": [
+        {
+          "configuration": {
+            "image_size": 512,
+            "model_name": null,
+            "patch_size": 8
+          },
+          "coreset_applied": true,
+          "coreset_projection_dim": 64,
+          "coreset_ratio": 0.01,
+          "coreset_seed": 4880,
+          "device": "cuda",
+          "extractor_class": "features.patchcore.PatchCoreFeatureExtractor",
+          "memory_bank_size_full": 3072,
+          "memory_bank_size_used": 31,
+          "model_class": "torch.fx.graph_module.GraphModule.__new__.<locals>.GraphModuleImpl",
+          "model_state": {
+            "available": true,
+            "dtypes": [
+              "torch.float32",
+              "torch.int64"
+            ],
+            "num_bytes": 99608664,
+            "sha256": "6420a17381b9242a36a7dde4d80f800dcbed6ceac2494051ee03980588cff236",
+            "tensor_count": 258
+          }
+        },
+        {
+          "configuration": {
+            "image_size": 512,
+            "model_name": null,
+            "patch_size": 8
+          },
+          "coreset_applied": true,
+          "coreset_projection_dim": 64,
+          "coreset_ratio": 0.01,
+          "coreset_seed": 4880,
+          "device": "cuda",
+          "extractor_class": "features.patchcore.PatchCoreFeatureExtractor",
+          "memory_bank_size_full": 3072,
+          "memory_bank_size_used": 31,
+          "model_class": "torch.fx.graph_module.GraphModule.__new__.<locals>.GraphModuleImpl",
+          "model_state": {
+            "available": true,
+            "dtypes": [
+              "torch.float32",
+              "torch.int64"
+            ],
+            "num_bytes": 99608664,
+            "sha256": "6420a17381b9242a36a7dde4d80f800dcbed6ceac2494051ee03980588cff236",
+            "tensor_count": 258
+          }
+        }
+      ],
+      "model_configs": {},
+      "run_id": "patchcore__pcb1__fold0__k1__seed4880",
+      "run_spec_sha256": "55c2a72222eeedd8c89cc5b6ac8d70b6a8bacbcd817bcec9bc44428c4decbecb"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+  "source_revisions": {
+    "dinov2_torch_hub": "unavailable",
+    "repository": "ff4c07208278376b27a4954d560c715f51453c5e",
+    "sam2": "2b90b9f5ceec907a1c18123530e92e794ad901a4",
+    "torchvision": "0.20.1+cu121"
+  }
+}

@@ -26,8 +26,7 @@ class MaskRefiner(Protocol):
         image: Image.Image,
         heatmap: np.ndarray,
         regions: list[PromptRegion],
-    ) -> list[MaskPrediction]:
-        ...
+    ) -> list[MaskPrediction]: ...
 
 
 class FallbackMaskRefiner:
@@ -79,14 +78,18 @@ class SAM2MaskRefiner:
         device: str = "auto",
         multimask_output: bool = True,
         max_mask_area_fraction: float | None = None,
+        prompt_mode: str = "point_box",
     ) -> None:
         if max_mask_area_fraction is not None and not 0.0 < max_mask_area_fraction <= 1.0:
             raise ValueError("max_mask_area_fraction must be in (0, 1]")
+        if prompt_mode not in {"point", "box", "point_box"}:
+            raise ValueError("prompt_mode must be one of 'point', 'box', or 'point_box'")
         self.checkpoint_path = Path(checkpoint_path)
         self.model_config = model_config
         self.device = device
         self.multimask_output = multimask_output
         self.max_mask_area_fraction = max_mask_area_fraction
+        self.prompt_mode = prompt_mode
         self._predictor = None
 
     def refine(
@@ -106,19 +109,25 @@ class SAM2MaskRefiner:
         predictor.set_image(np.asarray(image).copy())
         predictions = []
         for region in regions:
-            box = _scale_box_to_image(
-                box_xyxy=region.box_xyxy,
-                heatmap_shape=heatmap.shape,
-                image_size=image.size,
-            )
-            point_coords = _scale_point_to_image(
-                point_xy=region.point_xy,
-                heatmap_shape=heatmap.shape,
-                image_size=image.size,
-            )[None, :]
+            box = None
+            if self.prompt_mode != "point":
+                box = _scale_box_to_image(
+                    box_xyxy=region.box_xyxy,
+                    heatmap_shape=heatmap.shape,
+                    image_size=image.size,
+                )
+            point_coords = None
+            point_labels = None
+            if self.prompt_mode != "box":
+                point_coords = _scale_point_to_image(
+                    point_xy=region.point_xy,
+                    heatmap_shape=heatmap.shape,
+                    image_size=image.size,
+                )[None, :]
+                point_labels = np.asarray([1], dtype=np.int32)
             masks, scores, _ = predictor.predict(
                 point_coords=point_coords,
-                point_labels=np.asarray([1], dtype=np.int32),
+                point_labels=point_labels,
                 box=box,
                 multimask_output=self.multimask_output,
             )

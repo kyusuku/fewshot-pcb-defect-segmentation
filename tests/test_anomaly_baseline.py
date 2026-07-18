@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import subprocess
 import sys
 import tempfile
@@ -57,6 +58,43 @@ class MemoryBankTest(unittest.TestCase):
 
 
 class DINOv2BaselineScriptTest(unittest.TestCase):
+    def test_cli_supports_all_and_rejects_nonpositive_limit(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        help_result = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "run_dinov2_baseline.py"), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        invalid_result = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--limit",
+                "0",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(help_result.returncode, 0)
+        self.assertIn("--all", help_result.stdout)
+        self.assertNotEqual(invalid_result.returncode, 0)
+        self.assertIn("positive", invalid_result.stderr)
+
+    def test_none_limit_selects_all_query_rows(self) -> None:
+        rows = _tiny_manifest_rows_for_selection()
+        _, query_rows = select_rows(
+            rows=rows,
+            fold_id=0,
+            category="pcb1",
+            k=2,
+            query_fold_split="test",
+            limit=None,
+            seed=4880,
+        )
+        self.assertEqual(len(query_rows), 4)
+
     def test_select_rows_interleaves_test_normals_and_anomalies_for_small_limits(self) -> None:
         rows = _tiny_manifest_rows_for_selection()
 
@@ -95,6 +133,8 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
                     "2",
                     "--limit",
                     "1",
+                    "--query-fold-split",
+                    "test",
                     "--feature-backbone",
                     "color_patch",
                     "--image-size",
@@ -113,15 +153,208 @@ class DINOv2BaselineScriptTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             output_files = sorted(path.name for path in output_dir.glob("*.png"))
-            rows = _read_csv(output_dir / "scores.csv")
-            self.assertTrue(Path(rows[0]["heatmap_path"]).is_file())
-            self.assertTrue(Path(rows[0]["image_path"]).is_file())
-            self.assertTrue(Path(rows[0]["mask_path"]).is_file())
+            scores_path = output_dir / "scores.csv"
+            rows = _read_csv(scores_path)
+            provenance = json.loads((output_dir / "memory_bank_provenance.json").read_text())
+            self.assertFalse(Path(rows[0]["heatmap_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["image_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+            self.assertTrue((scores_path.parent / rows[0]["heatmap_path"]).is_file())
+            self.assertTrue((scores_path.parent / rows[0]["image_path"]).is_file())
+            self.assertTrue((scores_path.parent / rows[0]["mask_path"]).is_file())
 
         self.assertEqual(output_files, ["000_pcb1_anomaly_000.png"])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["sample_id"], "pcb1/anomaly_000")
+        self.assertEqual(rows[0]["fold_split"], "test")
         self.assertGreater(float(rows[0]["image_score"]), 0.0)
+        self.assertEqual(provenance["feature_backbone"], "color_patch")
+        self.assertFalse(provenance["coreset_applied"])
+        self.assertEqual(provenance["coreset_ratio"], 0.01)
+        self.assertEqual(provenance["coreset_projection_dim"], 64)
+        self.assertEqual(provenance["coreset_seed"], 4880)
+        self.assertEqual(
+            provenance["memory_bank_size_used"],
+            provenance["memory_bank_size_full"],
+        )
+        self.assertEqual(len(provenance["extractor_source_revision"]), 64)
+        self.assertTrue(
+            {
+                "hardware",
+                "numpy",
+                "pillow",
+                "python",
+                "torch",
+                "torch_cuda",
+                "torch_cuda_matmul_allow_tf32",
+                "torch_cudnn",
+                "torch_cudnn_allow_tf32",
+                "torchvision",
+            }.issubset(provenance["extractor_identity"]["runtime"]),
+        )
+
+    def test_debug_limit_one_keeps_all_heatmaps_and_bounds_panels(self) -> None:
+        rows, png_names = _run_debug_limit_fixture(debug_limit=1)
+
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["heatmap_path"] for row in rows))
+        self.assertTrue(all(row["debug_path"] == "" for row in rows[1:]))
+        self.assertNotEqual(rows[0]["debug_path"], "")
+        self.assertEqual(png_names, ["000_pcb1_anomaly_000.png"])
+
+    def test_debug_limit_zero_keeps_all_heatmaps_and_skips_panels(self) -> None:
+        rows, png_names = _run_debug_limit_fixture(debug_limit=0)
+
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["heatmap_path"] for row in rows))
+        self.assertTrue(all(row["debug_path"] == "" for row in rows))
+        self.assertEqual(png_names, [])
+
+    def test_lower_debug_limit_removes_only_prior_score_referenced_panels(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            fixture = create_synthetic_debug_datasets(root / "fixtures")
+            manifest_path = root / "visa_pcb_folds.csv"
+            _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+            output_dir = root / "outputs"
+            base_command = [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--manifest",
+                str(manifest_path),
+                "--k",
+                "2",
+                "--limit",
+                "2",
+                "--feature-backbone",
+                "color_patch",
+                "--image-size",
+                "56",
+                "--patch-size",
+                "14",
+                "--output-dir",
+                str(output_dir),
+            ]
+            first = subprocess.run(
+                [*base_command, "--debug-limit", "2"],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(first.returncode, 0, msg=first.stderr)
+            first_rows = _read_csv(output_dir / "scores.csv")
+            prior_debug_paths = [output_dir / row["debug_path"] for row in first_rows]
+            self.assertTrue(all(path.is_file() for path in prior_debug_paths))
+            unrelated = output_dir / "keep-user-panel.png"
+            unrelated.write_bytes(b"keep")
+
+            second = subprocess.run(
+                [*base_command, "--debug-limit", "0"],
+                check=False,
+                cwd=repo_root,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(second.returncode, 0, msg=second.stderr)
+            second_rows = _read_csv(output_dir / "scores.csv")
+
+            self.assertTrue(all(not path.exists() for path in prior_debug_paths))
+            self.assertTrue(unrelated.is_file())
+            self.assertTrue(all(row["debug_path"] == "" for row in second_rows))
+            self.assertTrue(
+                all((output_dir / row["heatmap_path"]).is_file() for row in second_rows)
+            )
+
+    def test_portable_scores_work_for_calibration_and_evaluation_from_other_cwd(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            generation_cwd = root / "generation"
+            consumer_cwd = root / "consumer"
+            generation_cwd.mkdir()
+            consumer_cwd.mkdir()
+            fixture = create_synthetic_debug_datasets(root / "fixtures")
+            manifest_path = root / "visa_pcb_folds.csv"
+            _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+
+            baseline = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                    "--manifest",
+                    str(manifest_path),
+                    "--fold-id",
+                    "0",
+                    "--category",
+                    "pcb1",
+                    "--k",
+                    "2",
+                    "--limit",
+                    "1",
+                    "--query-fold-split",
+                    "val",
+                    "--feature-backbone",
+                    "color_patch",
+                    "--image-size",
+                    "56",
+                    "--patch-size",
+                    "14",
+                    "--output-dir",
+                    "portable_outputs",
+                ],
+                check=False,
+                cwd=generation_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(baseline.returncode, 0, msg=baseline.stderr)
+            scores_path = generation_cwd / "portable_outputs" / "scores.csv"
+            calibration_path = root / "calibration.json"
+            calibration = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "calibrate_heatmaps.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--quantile",
+                    "0.75",
+                    "--output-json",
+                    str(calibration_path),
+                ],
+                check=False,
+                cwd=consumer_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(calibration.returncode, 0, msg=calibration.stderr)
+            metrics_path = root / "metrics.json"
+            evaluation = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "scripts" / "evaluate_heatmaps.py"),
+                    "--scores-csv",
+                    str(scores_path),
+                    "--output-json",
+                    str(metrics_path),
+                    "--calibration-json",
+                    str(calibration_path),
+                ],
+                check=False,
+                cwd=consumer_cwd,
+                env={"PYTHONPATH": str(repo_root / "src")},
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(evaluation.returncode, 0, msg=evaluation.stderr)
+            metrics = json.loads(metrics_path.read_text())
+
+        self.assertEqual(metrics["calibration_source_split"], "val")
 
 
 def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
@@ -168,17 +401,49 @@ def _write_tiny_visa_fold_manifest(visa_root: Path, output_path: Path) -> None:
             "image_path": str(visa_root / "pcb1" / "test" / "anomaly" / "pcb1_anomaly_000.png"),
             "label": "1",
             "mask_path": str(
-                visa_root
-                / "pcb1"
-                / "ground_truth"
-                / "anomaly"
-                / "pcb1_anomaly_000.png"
+                visa_root / "pcb1" / "ground_truth" / "anomaly" / "pcb1_anomaly_000.png"
             ),
             "box_path": "",
             "template_path": "",
             "metadata_json": "{}",
             "fold_id": "0",
             "fold_split": "test",
+        }
+    )
+    rows.append(
+        {
+            "dataset": "visa_pcb",
+            "category": "pcb1",
+            "sample_id": "pcb1/test_normal_000",
+            "split": "test",
+            "image_path": str(
+                visa_root / "pcb1" / "train" / "normal" / "pcb1_train_normal_001.png"
+            ),
+            "label": "0",
+            "mask_path": "",
+            "box_path": "",
+            "template_path": "",
+            "metadata_json": "{}",
+            "fold_id": "0",
+            "fold_split": "test",
+        }
+    )
+    rows.append(
+        {
+            "dataset": "visa_pcb",
+            "category": "pcb1",
+            "sample_id": "pcb1/val_normal_000",
+            "split": "train",
+            "image_path": str(
+                visa_root / "pcb1" / "train" / "normal" / "pcb1_train_normal_000.png"
+            ),
+            "label": "0",
+            "mask_path": "",
+            "box_path": "",
+            "template_path": "",
+            "metadata_json": "{}",
+            "fold_id": "0",
+            "fold_split": "val",
         }
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -225,6 +490,57 @@ def _tiny_manifest_rows_for_selection() -> list[dict[str, str]]:
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _run_debug_limit_fixture(debug_limit: int) -> tuple[list[dict[str, str]], list[str]]:
+    repo_root = Path(__file__).resolve().parents[1]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        fixture = create_synthetic_debug_datasets(tmp_path / "fixtures")
+        manifest_path = tmp_path / "visa_pcb_folds.csv"
+        _write_tiny_visa_fold_manifest(fixture.visa_root, manifest_path)
+        output_dir = tmp_path / "outputs"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(repo_root / "scripts" / "run_dinov2_baseline.py"),
+                "--manifest",
+                str(manifest_path),
+                "--fold-id",
+                "0",
+                "--category",
+                "pcb1",
+                "--k",
+                "2",
+                "--limit",
+                "2",
+                "--query-fold-split",
+                "test",
+                "--feature-backbone",
+                "color_patch",
+                "--image-size",
+                "56",
+                "--patch-size",
+                "14",
+                "--debug-limit",
+                str(debug_limit),
+                "--output-dir",
+                str(output_dir),
+            ],
+            check=False,
+            cwd=repo_root,
+            env={"PYTHONPATH": str(repo_root / "src")},
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise AssertionError(result.stderr)
+        rows = _read_csv(output_dir / "scores.csv")
+        heatmap_paths = [output_dir / row["heatmap_path"] for row in rows]
+        if not all(path.is_file() for path in heatmap_paths):
+            raise AssertionError("not all required heatmaps were written")
+        png_names = sorted(path.name for path in output_dir.glob("*.png"))
+    return rows, png_names
 
 
 if __name__ == "__main__":

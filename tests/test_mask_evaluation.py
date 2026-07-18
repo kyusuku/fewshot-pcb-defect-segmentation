@@ -11,10 +11,32 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from evaluation.masks import evaluate_mask_rows, mask_confusion_metrics
+from evaluation.masks import (
+    evaluate_mask_rows,
+    mask_confusion_metrics,
+    resolve_mask_row_paths,
+    summarize_binary_metrics,
+)
 
 
 class MaskEvaluationTest(unittest.TestCase):
+    def test_resolves_all_portable_mask_score_artifact_paths_from_csv_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            row = {
+                "image_path": "source/image.png",
+                "mask_path": "source/ground_truth.png",
+                "heatmap_path": "source/heatmap.npy",
+                "sam2_mask_path": "artifacts/raw.png",
+                "pred_mask_path": "artifacts/pred.png",
+                "debug_path": "artifacts/debug.png",
+            }
+
+            resolved = resolve_mask_row_paths([row], base_dir=root)[0]
+
+        for field, relative_path in row.items():
+            self.assertEqual(resolved[field], str(root.resolve() / relative_path), msg=field)
+
     def test_mask_confusion_metrics_reports_overlap_quality(self) -> None:
         pred = np.array([[1, 0], [0, 1]], dtype=np.uint8)
         target = np.array([[1, 1], [0, 0]], dtype=np.uint8)
@@ -25,6 +47,70 @@ class MaskEvaluationTest(unittest.TestCase):
         self.assertAlmostEqual(metrics["recall"], 0.5)
         self.assertAlmostEqual(metrics["f1"], 0.5)
         self.assertAlmostEqual(metrics["iou"], 1.0 / 3.0)
+        self.assertEqual(metrics["true_positive_pixels"], 1.0)
+        self.assertEqual(metrics["false_positive_pixels"], 1.0)
+        self.assertEqual(metrics["false_negative_pixels"], 1.0)
+
+    def test_mask_confusion_metrics_reports_zero_counts_for_two_empty_masks(self) -> None:
+        metrics = mask_confusion_metrics(
+            np.zeros((2, 2), dtype=np.uint8),
+            np.zeros((2, 2), dtype=np.uint8),
+        )
+
+        self.assertEqual(metrics["true_positive_pixels"], 0.0)
+        self.assertEqual(metrics["false_positive_pixels"], 0.0)
+        self.assertEqual(metrics["false_negative_pixels"], 0.0)
+
+    def test_binary_summary_aggregates_exact_counts_instead_of_mean_ratios(self) -> None:
+        rows = [
+            {
+                "label": "1",
+                "mask_precision": 1.0,
+                "mask_recall": 1.0,
+                "mask_f1": 1.0,
+                "mask_iou": 1.0,
+                "true_positive_pixels": 1.0,
+                "false_positive_pixels": 0.0,
+                "false_negative_pixels": 0.0,
+            },
+            {
+                "label": "1",
+                "mask_precision": 0.0,
+                "mask_recall": 0.0,
+                "mask_f1": 0.0,
+                "mask_iou": 0.0,
+                "true_positive_pixels": 0.0,
+                "false_positive_pixels": 0.0,
+                "false_negative_pixels": 3.0,
+            },
+        ]
+
+        summary = summarize_binary_metrics(rows, prefix="calibrated")
+
+        self.assertEqual(summary["calibrated_aggregate_pixel_precision"], 1.0)
+        self.assertEqual(summary["calibrated_aggregate_pixel_recall"], 0.25)
+        self.assertEqual(summary["calibrated_aggregate_pixel_f1"], 0.4)
+        self.assertEqual(summary["calibrated_aggregate_pixel_iou"], 0.25)
+        self.assertEqual(summary["calibrated_mean_anomaly_mask_f1"], 0.5)
+        self.assertEqual(summary["calibrated_mean_mask_precision"], 0.5)
+        self.assertEqual(summary["calibrated_mean_mask_recall"], 0.5)
+        self.assertEqual(summary["calibrated_num_images"], 2.0)
+        self.assertEqual(summary["calibrated_num_anomaly_images"], 2.0)
+        self.assertEqual(summary["calibrated_aggregate_true_positive_pixels"], 1.0)
+        self.assertEqual(summary["calibrated_aggregate_false_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_negative_pixels"], 3.0)
+
+    def test_binary_summary_uses_nan_performance_for_no_rows(self) -> None:
+        summary = summarize_binary_metrics([], prefix="calibrated")
+
+        self.assertEqual(summary["calibrated_num_images"], 0.0)
+        self.assertEqual(summary["calibrated_num_anomaly_images"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_true_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_positive_pixels"], 0.0)
+        self.assertEqual(summary["calibrated_aggregate_false_negative_pixels"], 0.0)
+        for key, value in summary.items():
+            if "precision" in key or "recall" in key or "f1" in key or "iou" in key:
+                self.assertTrue(np.isnan(value), msg=key)
 
     def test_evaluate_mask_rows_summarizes_all_and_anomaly_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -123,6 +209,11 @@ class EvaluateMasksScriptTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             metrics = json.loads(output_json.read_text())
             rows = _read_csv(output_csv)
+
+            self.assertFalse(Path(rows[0]["pred_mask_path"]).is_absolute())
+            self.assertFalse(Path(rows[0]["mask_path"]).is_absolute())
+            self.assertTrue((output_csv.parent / rows[0]["pred_mask_path"]).samefile(pred_path))
+            self.assertTrue((output_csv.parent / rows[0]["mask_path"]).samefile(gt_path))
 
         self.assertAlmostEqual(metrics["mean_mask_f1"], 0.5)
         self.assertAlmostEqual(metrics["mean_anomaly_mask_iou"], 1.0 / 3.0)

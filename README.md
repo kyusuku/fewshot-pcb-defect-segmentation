@@ -4,14 +4,26 @@ Research codebase for **Few-Shot PCB Defect Segmentation via Multi-Scale DINOv2 
 
 Repository name: `fewshot-pcb-defect-segmentation`
 
-This project implements a few-shot PCB defect detection and segmentation pipeline. The intended method learns normal PCB appearance from a small number of normal images, detects anomalous regions with DINOv2 patch features, improves small-defect localization with multi-scale crops, and refines candidate regions into masks with SAM2.
+This project implements a training-free few-shot PCB defect detection and
+segmentation pipeline. It represents normal PCB appearance using frozen features
+from a small set of normal images, detects anomalous regions with DINOv2 patch
+features, combines global and local anomaly evidence, and refines candidate
+regions with frozen SAM2 masks. No model parameters are trained or fine-tuned.
 
-Current status: dataset loaders, official split manifests, DINOv2-style anomaly
-heatmap baseline, optional multi-scale crop fusion, heatmap evaluation, and a
-SAM2-compatible mask refinement stage with a deterministic fallback refiner.
+Current status: the frozen AutoDL study and compact evidence package are complete.
+The primary checker passed all 364 runs, the ablation checker passed all 48 runs,
+and the completion manifest reports `ready_for_writing: true`. The source runs are
+frozen at commit `ff4c07208278376b27a4954d560c715f51453c5e`; the evidence
+postprocessor is frozen at `45a5f93c556e1c1a7a9e39f535434f9244ea1a7a`.
 
 See [docs/PRD.md](docs/PRD.md) for the staged research plan, exit criteria, and
 publishability gates.
+See [docs/arxiv_readiness_checklist.md](docs/arxiv_readiness_checklist.md) for
+the current arXiv-readiness audit.
+See [docs/evidence/generated/evidence_index.md](docs/evidence/generated/evidence_index.md)
+for the claim-to-evidence map and
+[docs/citation_inventory.md](docs/citation_inventory.md) for the scoped novelty
+and citation boundary.
 
 ## Benchmarks
 
@@ -19,6 +31,31 @@ publishability gates.
 - **DeepPCB**: aligned template/test PCB pairs with box annotations.
 
 VisA is the main segmentation benchmark. DeepPCB is secondary and should not be treated as pixel-level segmentation ground truth because it provides boxes, not masks.
+
+## Frozen Findings
+
+On anomalous VisA PCB test images, anomaly-consistent SAM2 improves over the
+calibrated multi-scale DINOv2 mask by **0.0666 F1** (95% CI
+`[0.0538, 0.0788]`) and **0.0565 IoU** (95% CI `[0.0462, 0.0665]`). These
+paired intervals resample both normal-support seeds and test-image clusters while
+treating category and shot count as fixed strata.
+
+The supporting comparisons delimit the claim:
+
+- Multi-scale versus single-scale DINOv2 is inconclusive: F1 `+0.0045`, 95% CI
+  `[-0.0058, 0.0142]`; IoU `+0.0041`, 95% CI `[-0.0030, 0.0109]`.
+- Multi-scale DINOv2 improves over the repository's PatchCore-style baseline:
+  F1 `+0.0365`, 95% CI `[0.0206, 0.0505]`; IoU `+0.0254`, 95% CI
+  `[0.0145, 0.0352]`.
+- Multi-scale-guided versus single-scale-guided raw SAM2 is inconclusive: F1
+  `+0.0120`, 95% CI `[-0.0052, 0.0289]`; IoU `+0.0127`, 95% CI
+  `[-0.0004, 0.0260]`.
+
+The defensible contribution is the controlled PCB protocol, proposal-to-prompt
+bridge, and exact anomaly-consistency constraint—not a new backbone, a “first”
+claim, or a state-of-the-art claim. The frozen study uses fold 0 with five
+repeated normal-support samples; it is not five-fold cross-validation, and prior
+VisA test-set exposure must be disclosed.
 
 ## Pipeline
 
@@ -68,6 +105,127 @@ See [docs/data_acquisition.md](docs/data_acquisition.md) for official download p
 See [docs/autodl_data_setup.md](docs/autodl_data_setup.md) for the no-download AutoDL upload workflow.
 
 Raw datasets, pretrained weights, checkpoints, outputs, private reports, PDFs, and API keys are ignored by `.gitignore`.
+
+## ArXiv Evidence Workflow
+
+The paper-facing protocol uses VisA PCB as the primary segmentation benchmark.
+DeepPCB is secondary because it provides boxes, not true masks. CLIP is not part
+of this method.
+
+Offline smoke, with no network, GPU, checkpoint, or pre-existing dataset. On a
+fresh clone, first create the ignored synthetic fixture and the manifest expected
+by the frozen smoke config. If they already exist, skip these two setup commands;
+no overwrite or deletion is required.
+
+```bash
+PYTHONPATH=src python scripts/create_synthetic_data.py --output-dir data/debug_fixture
+PYTHONPATH=src python scripts/create_manifests.py \
+  --visa-root data/debug_fixture/VisA \
+  --visa-category pcb1 \
+  --output-dir data/manifests
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --device cpu \
+  --allow-dirty
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --device cpu \
+  --output-json outputs/arxiv_smoke/matrix_summary.json
+PYTHONPATH=src python scripts/analyze_paper_results.py \
+  --config configs/experiments/arxiv_smoke.yaml \
+  --output-root outputs/arxiv_smoke \
+  --analysis-dir outputs/arxiv_smoke_analysis \
+  --device cpu
+```
+
+Single primary run example:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device auto \
+  --run-id dinov2_multi__pcb1__fold0__k1__seed4880
+```
+
+Full primary matrix on AutoDL:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/check_experiment_matrix.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --output-json outputs/arxiv_primary/matrix_summary.json
+```
+
+Paper-matrix DINOv2 and PatchCore heatmaps are retained as versioned exact
+component archives. Each archive stores the global/local patch-score grids,
+projection geometry, crop order, and fusion rule; the shared loader reconstructs
+the same full-resolution float32 heatmap used by calibration, SAM2 prompting,
+evaluation, and curation. This is not quantization or lower-resolution
+evaluation. Legacy materialized `.npy` and `.npz` heatmaps remain readable, and
+all archives remain covered by per-run SHA-256 provenance.
+
+No cleanup policy is required for the frozen study: datasets and prior outputs
+were not deleted. The compact archives make the paper matrix fit while preserving
+exact regeneration of dependent heatmaps and masks.
+
+Ablations, analysis, assets, and compact evidence:
+
+```bash
+PYTHONPATH=src python scripts/run_experiment_matrix.py \
+  --config configs/experiments/arxiv_ablations.yaml \
+  --output-root outputs/arxiv_ablations \
+  --dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda \
+  --resume
+PYTHONPATH=src python scripts/analyze_paper_results.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --analysis-dir outputs/arxiv_analysis \
+  --feature-cache-dir outputs/.feature_cache \
+  --device cuda
+PYTHONPATH=src python scripts/curate_paper_assets.py \
+  --failure-analysis-csv outputs/arxiv_analysis/per_image_failure_analysis.csv \
+  --asset-dir artifacts/paper_assets
+PYTHONPATH=src python scripts/render_method_figure.py
+PYTHONPATH=src python scripts/build_paper_evidence.py \
+  --config configs/experiments/arxiv_primary.yaml \
+  --output-root outputs/arxiv_primary \
+  --ablation-config configs/experiments/arxiv_ablations.yaml \
+  --ablation-output-root outputs/arxiv_ablations \
+  --analysis-dir outputs/arxiv_analysis \
+  --evidence-dir docs/evidence/generated \
+  --dependency-root outputs/arxiv_primary \
+  --ablation-dependency-root outputs/arxiv_primary \
+  --feature-cache-dir outputs/.feature_cache \
+  --qualitative-manifest artifacts/paper_assets/qualitative_manifest.csv \
+  --method-figure-layout artifacts/paper_assets/method_figure_layout.json \
+  --device cuda
+```
+
+Primary paper tables use normal-validation calibrated binary masks
+(`normal_q995`) for heatmaps and binary model outputs for SAM2/fused masks.
+Oracle/test-optimal metrics are retained only as `oracle_*` diagnostics.
+
+Study-scope limitation: the paper matrix uses `fold_id=0`; it is not a
+five-fold cross-validation result. VisA's official test set is locked and is
+the same across fold IDs, while fold 0 partitions only normal training images
+for support and validation. The five seeds measure sensitivity to the sampled
+normal support set; they are not five independent dataset splits. Earlier
+development inspected VisA test results, so the report must disclose that the
+test set is not an untouched holdout.
 
 ## Debug Loaders
 

@@ -1,0 +1,12 @@
+{
+  "ablation_aggregation": "single support seed 4880 at k=4; descriptive category and equal-weight category macro only",
+  "aupro": "all full-resolution heatmaps; 256 thresholds; normalized through FPR 0.3",
+  "binary_sam2_masks": "saved binary model outputs evaluated on identical official-test images",
+  "calibrated_heatmap_masks": "all full-resolution pixels at the normal-validation q=0.995 threshold",
+  "image_auroc": "all official-test images in each category",
+  "oracle_metrics": "test-optimal diagnostics only; excluded from primary comparisons; oracle pixel sampling follows the same deterministic per-run support-seed policy",
+  "paired_statistics": "candidate-minus-baseline repeated-measures bootstrap over shared support-seed indices and category-level test-image clusters, with category and k fixed",
+  "pixel_auroc": "deterministic global sample of at most 1000000 pixels per run; the sample is seeded by the run support seed and therefore may vary across support seeds",
+  "primary_aggregation": "per-category and equal-weight category macro; support-seed mean, sample standard deviation, and explicitly labeled support-seed interval",
+  "schema_version": 1
+}

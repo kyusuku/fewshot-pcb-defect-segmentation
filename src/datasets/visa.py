@@ -71,7 +71,9 @@ class VisAPCBDataset:
         record = self.records[index]
         image = load_rgb_image(record.image_path)
         if record.mask_path and record.mask_path.exists():
-            mask = load_binary_mask(record.mask_path, size=image.size, threshold=self.mask_threshold)
+            mask = load_binary_mask(
+                record.mask_path, size=image.size, threshold=self.mask_threshold
+            )
         else:
             mask = zeros_mask(image.size)
 
@@ -118,11 +120,15 @@ class VisAPCBDataset:
                 try:
                     records.append(self._record_from_manifest_row(row))
                 except Exception as exc:
-                    raise ValueError(f"Could not parse VisA manifest row {row_number}: {row}") from exc
+                    raise ValueError(
+                        f"Could not parse VisA manifest row {row_number}: {row}"
+                    ) from exc
         return records
 
     def _record_from_manifest_row(self, row: dict[str, str]) -> DatasetRecord:
-        image_value = _first_value(row, "image_path", "img_path", "path", "image", "filename", "file")
+        image_value = _first_value(
+            row, "image_path", "img_path", "path", "image", "filename", "file"
+        )
         if image_value is None:
             raise ValueError("Missing image path column")
 

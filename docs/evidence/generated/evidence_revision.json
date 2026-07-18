@@ -1,0 +1,21 @@
+{
+  "ablation_checker_sha256": "ea29afb9876e77d34edb85a7d8310c445bbc8df0060a8964754c5de84a82f466",
+  "ablation_config": {
+    "canonical_sha256": "2489dbe090c615678695f401614805829a4e399fb933b2512643ab96e1b1aeee",
+    "path": "configs/experiments/arxiv_ablations.yaml",
+    "sha256": "ca92fe7ea6f8910bb71d46d6845ddf7d4fc01b2e53e1e007b265363543271023"
+  },
+  "frozen_audit_manifest_sha256": "bfb24291e1d20e27cb102dbc767dac71ab9eb39e5aa23a1cb2e50190f4a18146",
+  "numeric_results_changed": false,
+  "postprocessor_commit": "45a5f93c556e1c1a7a9e39f535434f9244ea1a7a",
+  "primary_checker_sha256": "b2fd04cf61451e9281d000858a3c564bd2a92d1eba5cc3128a465ed32f5ce5c1",
+  "primary_config": {
+    "canonical_sha256": "1e06656f525e4130f3b8685aa60afcc26a1ec5ffa48ab122c8ac4ed436df8127",
+    "path": "configs/experiments/arxiv_primary.yaml",
+    "sha256": "e756e69d9ab89aca6eb876be06dfaa88b3490b3e7fcc50dd0d0309153c83959b"
+  },
+  "schema_version": 1,
+  "scope": "presentation, aggregation, terminology, and frozen-run audit only",
+  "source_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+  "source_completion_manifest_sha256": "1c99777f49cdb06d75925cc8f1462afd522b7d606d1ea794270c36e237bd4281"
+}

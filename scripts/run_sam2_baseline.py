@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from sam_refine.prompts import PromptRegion
 from sam_refine.refiner import FallbackMaskRefiner, SAM2MaskRefiner
+from utils.heatmap_io import HEATMAP_STORAGE_FORMATS, save_heatmap
 from utils.image import load_rgb_image
 from utils.visualize import safe_filename
 
@@ -27,7 +29,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path, default=Path("data/manifests/visa_pcb_folds.csv"))
     parser.add_argument("--fold-id", type=int, default=0)
     parser.add_argument("--category", default="pcb1")
-    parser.add_argument("--limit", type=int, default=8, help="Number of query images to process.")
+    limit_group = parser.add_mutually_exclusive_group()
+    limit_group.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=8,
+        help="Positive number of query images to process (default: 8).",
+    )
+    limit_group.add_argument(
+        "--all",
+        dest="limit",
+        action="store_const",
+        const=None,
+        help="Process the full selected query split.",
+    )
     parser.add_argument("--query-fold-split", default="test", choices=("test", "val", "dev"))
     parser.add_argument(
         "--prompt-longest-side",
@@ -49,12 +64,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sam2-model-config", default="")
     parser.add_argument(
         "--max-mask-area-fraction",
-        type=float,
+        type=_optional_fraction,
         default=None,
         help="Reject SAM2 mask candidates covering more than this image fraction.",
     )
     parser.add_argument("--device", default="auto")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/sam2_only_baseline"))
+    parser.add_argument(
+        "--debug-limit",
+        type=_nonnegative_int,
+        default=8,
+        help="Render at most this many debug panels; use 0 to render none.",
+    )
+    parser.add_argument(
+        "--heatmap-format",
+        choices=HEATMAP_STORAGE_FORMATS,
+        default="npy",
+        help="Lossless neutral-heatmap storage encoding.",
+    )
     return parser.parse_args()
 
 
@@ -92,24 +119,31 @@ def main() -> None:
         )
         output_stem = f"{index:03d}_{safe_filename(row['sample_id'])}"
         pred_mask_path = args.output_dir / f"{output_stem}_pred_mask.png"
-        heatmap_path = args.output_dir / f"{output_stem}_neutral_heatmap.npy"
-        debug_path = args.output_dir / f"{output_stem}_sam2_only.png"
-        np.save(heatmap_path, neutral_heatmap)
+        heatmap_suffix = ".npz" if args.heatmap_format == "npz_compressed" else ".npy"
+        heatmap_path = args.output_dir / f"{output_stem}_neutral_heatmap{heatmap_suffix}"
+        save_heatmap(heatmap_path, neutral_heatmap, storage=args.heatmap_format)
         save_mask(pred_mask, pred_mask_path)
-        save_debug_panel(image, pred_mask, debug_path)
+        debug_path = ""
+        if index < args.debug_limit:
+            rendered_debug = args.output_dir / f"{output_stem}_sam2_only.png"
+            save_debug_panel(image, pred_mask, rendered_debug)
+            debug_path = str(rendered_debug)
         mask_score = max((prediction.score for prediction in predictions), default=0.0)
         output_rows.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row["sample_id"],
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": args.query_fold_split,
+                "image_path": row.get("image_path", ""),
                 "mask_path": row.get("mask_path", ""),
                 "num_regions": str(len(regions)),
                 "num_masks": str(len(predictions)),
                 "mask_score": f"{mask_score:.8f}",
                 "pred_mask_path": str(pred_mask_path),
                 "heatmap_path": str(heatmap_path),
-                "debug_path": str(debug_path),
+                "debug_path": debug_path,
             }
         )
         print(
@@ -132,7 +166,7 @@ def select_query_rows(
     fold_id: int,
     category: str,
     query_fold_split: str,
-    limit: int,
+    limit: int | None,
 ) -> list[dict[str, str]]:
     fold_value = str(fold_id)
     query_rows = [
@@ -146,7 +180,30 @@ def select_query_rows(
     query_rows = sorted(query_rows, key=lambda row: (row.get("label", ""), row["sample_id"]))
     if query_fold_split == "test":
         query_rows = interleave_query_rows(query_rows)
-    return query_rows[:limit]
+    return query_rows if limit is None else query_rows[:limit]
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return parsed
+
+
+def _optional_fraction(value: str) -> float | None:
+    if value.lower() == "none":
+        return None
+    parsed = float(value)
+    if not 0.0 < parsed <= 1.0:
+        raise argparse.ArgumentTypeError("fraction must be in (0, 1] or 'none'")
+    return parsed
 
 
 def interleave_query_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -261,10 +318,14 @@ def save_debug_panel(image: Image.Image, mask: np.ndarray, output_path: str | Pa
 
 def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Path:
     output_path = Path(output_path)
+    base_dir = output_path.parent.resolve()
     fieldnames = [
+        "dataset",
         "sample_id",
         "category",
         "label",
+        "fold_split",
+        "image_path",
         "mask_path",
         "num_regions",
         "num_masks",
@@ -273,10 +334,24 @@ def write_mask_scores(rows: list[dict[str, str]], output_path: str | Path) -> Pa
         "heatmap_path",
         "debug_path",
     ]
+    portable_rows = []
+    for row in rows:
+        portable = dict(row)
+        for key in (
+            "image_path",
+            "mask_path",
+            "pred_mask_path",
+            "heatmap_path",
+            "debug_path",
+        ):
+            value = portable.get(key) or ""
+            if value:
+                portable[key] = os.path.relpath(Path(value).resolve(), start=base_dir)
+        portable_rows.append(portable)
     with output_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(portable_rows)
     return output_path
 
 

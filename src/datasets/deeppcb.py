@@ -138,7 +138,9 @@ class DeepPCBDataset:
 
         if self.return_pseudo_mask:
             pseudo_mask = boxes_to_mask(boxes, image.size)
-            sample["pseudo_mask"] = mask_to_tensor(pseudo_mask) if self.return_tensors else pseudo_mask
+            sample["pseudo_mask"] = (
+                mask_to_tensor(pseudo_mask) if self.return_tensors else pseudo_mask
+            )
 
         return sample
 
@@ -164,7 +166,9 @@ class DeepPCBDataset:
                 continue
             if not _looks_like_test_image(image_path):
                 continue
-            if self._allowed_ids is not None and not _matches_split_id(image_path, self._allowed_ids):
+            if self._allowed_ids is not None and not _matches_split_id(
+                image_path, self._allowed_ids
+            ):
                 continue
 
             annotation_path = _find_annotation_for_test_image(image_path)

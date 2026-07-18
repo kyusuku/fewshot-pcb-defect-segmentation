@@ -1,0 +1,3346 @@
+{
+  "generated_files": [
+    {
+      "path": "primary_results.csv",
+      "sha256": "3d12bb2663fa27eab3c083063c9944f47ff2ffdc13d0f67f3499b79c4489bdeb"
+    },
+    {
+      "path": "primary_results.md",
+      "sha256": "014d8bdd39567fe58d3b3665417c89c8e417165c5e010f60cb4d9a99574fa336"
+    },
+    {
+      "path": "oracle_diagnostics.csv",
+      "sha256": "0becec63747e3f7e64d05cf9e4b6101abecb7d35e32386972fae4867f0243536"
+    },
+    {
+      "path": "ablation_results.csv",
+      "sha256": "222cff5f247f30e65db68c9e0d0c17e56eb73131e15b18e99b1573c198360933"
+    },
+    {
+      "path": "paired_statistics.json",
+      "sha256": "3524d75e5114d7da625e1ea9afc6551d18a734342f51c0bdad187f5e2011d4a0"
+    },
+    {
+      "path": "failure_strata.csv",
+      "sha256": "033ae6d88430a7f3bd8188381396068c102ac6f567ee3c3df3dd184a69da77d1"
+    },
+    {
+      "path": "qualitative_manifest.csv",
+      "sha256": "37eddec7f9da8d709d67bacab52da05d6e0342a006f1515f581db8ad90d24d25"
+    },
+    {
+      "path": "method_figure_layout.json",
+      "sha256": "a46a6999bf935bb9e26d28a67453cc5bf06de3b39111565ec876c61a7795104e"
+    },
+    {
+      "path": "analysis_manifest.json",
+      "sha256": "151443d647f53017d1cd74143fe1fe66a66453990c1bcb46a178668d92c7fdde"
+    },
+    {
+      "path": "evidence_index.md",
+      "sha256": "ddd0f858880ca511713557d0e9f2a2007887f3f4745d2f02d734c5fe22b175ce"
+    }
+  ],
+  "generation_command": "scripts/build_paper_evidence.py --config configs/experiments/arxiv_primary.yaml --output-root outputs/arxiv_primary_ff4c072 --ablation-config configs/experiments/arxiv_ablations.yaml --ablation-output-root outputs/arxiv_ablations_ff4c072 --analysis-dir outputs/arxiv_analysis_ff4c072 --evidence-dir docs/evidence/generated --dependency-root outputs/arxiv_primary_ff4c072 --ablation-dependency-root outputs/arxiv_primary_ff4c072 --feature-cache-dir outputs/.feature_cache --qualitative-manifest artifacts/paper_assets_ff4c072/qualitative_manifest.csv --method-figure-layout artifacts/paper_assets_ff4c072/method_figure_layout.json --device cuda",
+  "readiness_scope": "complete_paper_evidence",
+  "ready_for_writing": true,
+  "schema_version": 2,
+  "source_runs": [
+    {
+      "effective_execution_sha256": "16171f4ac0ccfcbb00688cff890032d5fc69219dc6ef4f440d1058ef67e3a4be",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "5f56ad983a8ea19cd81585c234bb15339e22ac0187660c31b234909009a43dba",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "673cf19a075435ddaac942563cc3749896929ae234449537ba80c433403fb227",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1c0e8587305963962ed337de3dd6113767b2f803ae4a8eb3f831c8519efe4193",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "6f3ebcbde0fb85fd76c4455cfd7c5d0682f4abd94719d9f1afa1ab2fa55c3f53",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "4e575201210007824e5f5fca9975e3e0e9c454bf700666142f3dcb0a34ee83e4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "6403c41b0d62e548e694cdf48e28a256467937a48a4fd91d71bb79ea907da6bd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "78b89ee029395849702506efaacbd58224691151bd901bffaa7edf3d92f6456b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "2464fbe0e794dc2ca0ac689f71b52ad4c85fed2040fb24f6529d0610cccbfb98",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "d2031d03b87d84106acc8b352e6f2c851edfd87b0aaf17977b483e04fdd66358",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "078ca5da16ffb2d0a7fe098330d443bc66b7d0472542fcb7a5223dc730abfd79",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "909cdece2aa894b72aee14cc3a471a098f1da9ba46a63f340001fc0a9cddf8ca",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "6be9125a065341097ddca5b9d1b97c8470634e37b89fc406c2059a1204aaf041",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "801a15b1bd64a32c0854b973c10578f30ee914d5e4818e763230f71b26561301",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "674c5b990fa28c501c666ebdfe29ec5d381d7fb85bb44946bdbf9662e3953c47",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "33dd3556b3042374babe350f6171199e0b0e0b592ad9635041302b89392d29a0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "21c4c9d322e4b26ee28fed1ffa60ff8d4ca59bbd35c4e39ec340f510907daff6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "c2fec85c6b6d6a44fc58effef62c5716bda4805796d8d1a93a97e6fffdd06f89",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "4f276980bb1c079a53b879fb563bcb1b9cf84c44e337257eb80e6328baf16d6b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "d8cd0016bee4e2cfa908ee4af254cef661dcfd2398706987bb8e04cd8b6cdd68",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "b03711162ff6a194062152734e8484fa22910f4ea596992c83f874590592ea55",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "aee1fc690a7f311d5b379a97b6723a7295e4622b3c5e34831cce7e16f7c19ae6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "ef4c8d726a1324badf4137ad95ff084435783f9aa9aea0a378b78abae0330230",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "c0db4d2e5b9555be25dac239cbd5545c968711d0c9531efb80f2e7407b634233",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "575740b09ea3db694a07f596e5308c208340e051e9f1b93e9cdf68881650f201",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "5cc12b8eeac6cb42016d96de27e4574a16eccbf81c978173a649f16e3e697772",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "3b784022f5907d1ae5f9585311c8365f6c264de70e493d4e54f066f7b02f9fb4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "64e5433ae8e05868ea6881f5a6ca0a8d1615d577704723b8930b9be132e7962f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "34787fa8ed2b4f65df370f00daa8dddf249e6bfafe41b3ed9e3610ba464fe665",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "da8c656ef903866014efb0bd6310fea99d8597e52486fc84f8dcb14824850f5d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f45d73aa50599793b7d32eb573ab5d09e162773c8108b141aa56392ed944ac90",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "bd0f2967ba91f793deb18882f8f55a3fd8d06f72d0b2ae271740427a41d59d3b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "7281e851ad4524729af0471ee58b96625602e01d0ef8da67e70c2351277cd97e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "3bd55544d9cc9171d1da5d109238f12a5ccb3e66b247b75bb42af74308cd165c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "e92dd24868ae70634c80c13ce17c709c7714569785bf1e34c1343503d0d4c917",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "0a096d8dfd037d49639e63f35d6218c8528aa3b3e9224deb46a0e288aaeedb4b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "2cf928e48f131cfb2136ccad615c5d5342e3a71e464f896b6fa70e0587f42997",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "4890717658d18e5c729e8eceb78de739dc026a86a39b308e355f7613604b6779",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "2081c98578efda866899d07aa7e3d08b42771f58b2e44fde8097a3fce013bf3d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "39ef11e8784dd3269c2687f1b47776bcd5984740f9345082ac2d1b4fc146d146",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c6f986f2b431271acfc7e82ca298d87dcf86ce5d164f13da2fcea45df0d9479f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "06a8540463e7a841fa24379d3f89e0a51cc820e644a217dbac2a7ac503ef6090",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "668f3918bd72906f56e6a52d454c59758d07865aaa2fe805095b88dfde4b9fa8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "8a423574f37351d89c8368e4b0a83be42f27991b07bbc3454de3bb5f258cfbf4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "0e37a7ef05cfacf726f440b7bfedaa1b7dbd232dde4edd9c43aa3b2da6032e33",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "697c9d327227d4fff14753bb9f52410837c32211276c6f4c9225a3ef756a3ef0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "128665cd18a01f749d3880b38036fd622be5a11863591f96866b3c2a2fc50c12",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e1e61c7b0808c8f1c581731743a8ffb43e8c9f40997103510c38a12dda1cba56",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "cafa8872c854804babe92c4cf98484342cdb0da5369d24a9e80a919913d1d860",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "9c182b283106f2011d4fc96fe6bf3ec19b6e8fa57545336f853db64ab1b566b8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "6e7e597cecbdd1551e7384ef2cd8bdbc77fa5afe424e6b20f09bc20eff2f88cc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "0e1a70f2c25e24cbea4be9deb330ef07ff0349a80214f8d6ffef3cab687cf1b6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "bf9f2d8410f193b12b1676ea8ba0dd921e6f8abb95ac23dd1c196f1d12c3bdf2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "43fad9722416deedf42ee1d11ee0e6d7928d216c5518eca3bb1149945b0026ee",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "549eb3d1408922faf4d78f9e432d10068d674bf420da42d68edbc75a04788016",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "636e15f0281f9b418325e88c4fd50eff4f093562ea94c33fe920314f447af36b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "d6faea545a3b880133dad458f35afcff490c7e31e359646319a60eced3b6b8a9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e6d99a01715a5d46d8934447c3564a7ef628128297f24c4dc0ae96970a0aa5e1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1173d8c6d2ec0a938f958ac95ec4c2e796a8f0de9d9d31fd0b5f2377ff9665e2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "73ab69ee43d1ec14d2a0edae2086c549bc570d7bff94ef53351c88617ac04196",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "patchcore__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "8e79fd6ddd23091c7e29eba9dcb462ff305e9bab5d5888d879077402b6139327",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "ec9d61d58cbc0f18d2c2f38fb86ed92906a42f46f64e981b41cb898fa5c333df",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e736f4e5a1349749cb2719036c60adf27620c653db6a70c92f076515ac234d24",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "87d64827b7845a6bd376c3b9f99f6415203c1cd61649a4163bd0e10ff3d552ec",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "88bac0ad49237057f1015b1c47be6f1f1104ff7322d062b7732e2393584920b9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "e7ae4bacd8af3db6b3dfd2aa944f3599a5ff7c39a2286f7c25fc069e460f3547",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "4737e0a03c5c6b33bf81875e59e8ca0b263b82435533d977776051857b2e7234",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "443e70c715714010e5f8c05c102fafdfa4d7f091fb259ca851bc9e271117e4f5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "3190c2aee96e6c91fa3fd751ba81151d6cb3357bfe4d15ea3e9ad1a9cb9f3192",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "6728c622feedcd2f464b7167227e909a77c7f727af0b1798a63fbb8c45b15af2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "2531bb8d97da96abbf1e9952c46cf3b3e0a7af16462a65f9e7cc5ba8efe9f19b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "979cbac7273291ab70cbed2a248cbd8bc14324e2a8cd3ac346f2a0da47235005",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "b48892c50d6c6593fdb550cd8e6a6bd40a11c4e5508d84439f23de6413e405f6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "f5a5ced3ac96d19700d2a0ab672ff4fde1f15bcef66722fc0828bd5f2002bc36",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "c43faa0df2ab314e5ae38e778d40a82bd419953821229d77e4f05e14c165766c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "bd044df4efcddb2bffd16e5ad55eb703f99d95e43cdb00c4648db401d28409d9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "92a22444d9ffa5cceb0ac504cfc158af0f8a778a7d4d5e33fcdfd6ebc70ba0ea",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "55438042823673c4732ca0da9c2a90cae71216561e0ec0526ea2b2650368171e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "3f393479c50796e3198fa121d5f1f03729707cb44e740dc9f0c0bd1f2bff2f49",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "c556a4919e104e560cd9c5bcdc932744d0b934cb905139e1b76bd721ac225502",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "6c5b61956d5bbbc41a735477552b2e8d1d92a1dcfd4ae772c47e86125839205e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "5c3932c9607b24f7e25a3baadeed1a4726a77e6692d4eb6dbf9b8bd3c623ffcf",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "ed616ad208d886c91888bb0376431eee74581bb533d6f0fc394e783146e10f13",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "12a748ba0918e1046ce798837c6e94914a43e4c26574cbc72aa81dd861552ea2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "8698a1d43ca4333d7fcb470ee76a456a0ca818e55d46e54a349c38fe4eb4f190",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "e114d594e4901f389cd92ff40f04e33e60bfbadde043ac858c0ed98a4327b007",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "2bf4fd182097093fb6639e8b19156870cbc58ba07b4fad65cbc7239ef30ac996",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "8944af1e55e61ff3ce372d67075edfb55f4ef2c52ab03a92fcc04b0a7e5e180b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "de047b0fc349fd23f099af08c058741f19fa87f93badfb82fcbaa8791216b556",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "4c5d12358cb8abbd6aff76de32f2ee2592bbe4e6b339022c35691a52c94b5c64",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "572d98ce42b064217613e01474951cc2ae7237984e22981b972623eab3a21725",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "418453bfddd1e8ba3707fcdffb77faa16f2ee1409bb95fd7fffe8276b1fd1109",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "2da736fabee3e908025da9406c8df2327c67a006793d8ff623661b93a6d09d92",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "8783663677db5590de591b5fc10a329f347da461d67c24815cfdd4659bb7b0cc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "aa4299c3bb66260d1210960b56cff31caaaa9765a1ebf311d785e4d40159c4a2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "6638c6ca15f41af26b64a976afb1b41bc23fd4c278eac97b316d69d86f6d59e2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "b79faa1f5cc3fd1102253f463212d0aed94773143b7a155bdf970f08f49d7ce1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "f837ca40f3bfb61c492671a014df4de7664201a76dc7f77b6806249e209343dc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "ca68258f2a2e7a733a8d8837cba7ac82b2b9cc191d4e046d3b9c4d896060b4f4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "f7327f8f2ece060a32232dc4061be9a5f86209f2f824af40a0ae3e5ae72aa255",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c5fb8c4b5ec256cda9b606ef38f37aeee3c6cfc7d19ec57fac5f12665aeb7b91",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "3b91f545b50d08bd31106244aa4beeda31313cfb7aaf3908e0a22582d580299d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "faa925a4529d57c569c040c7cf938fc0c813e4d96a5083b2404e150be1cb55f3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "bfde81043c5fda757d6a7c38294cb230168e8f8b47d72fe945a0bdbbaa658b94",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "337516e9b984adac4c0d54dbfa37ff3ae4e7d02a466e25bd743ff4a07f9974a6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "63e0446a4a1e45263c7a8ea12c3898c6fd47c29258bd54d42163916d80f7621a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "2c4c76587497d0bbb416ad03fdc18fa0da8783440042313015defbdafdb3bc1f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "cff4caa5c56f3905f36eadfc2b2148ea672eb84d964285e995f62f01fd397869",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1a18f55698f8c170652872b99ded2882df0358d771dd470b4591f487285c2828",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "df62429c30cf4d56902bf3ae8aa0c049b4c01c3dbfbfaad6096cc35852085e9a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "6d9c4543d13f7c4309ea98aa6330d0396f3785e964994838b5cd52b543b7c2d0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "5798673f43b96d7e1cdc90f8346b00eae28666f1bd2f3109abec6875bdc6a0ef",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "45d3175b9b58748c60f04bf6bf823a4ef69d2ad7ab287e550c70b4310d51d1ea",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "2824d06cb7d24229e5a6a319baa3b21fa6359abd9d2d87beed6806e162ce653a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "926b4f276ab8f7efa6a2c6635ac2722ef9864594df1eeda399cfcf6bbf547ca4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "00c656f8695dec1f7d74c85c7068717e6e5b55ec2abc91a8fc129695b8403e6d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "0b2eb45acb6ef2c8b83c27f1582ef570f9843ad793bcf147a4571235a0cf702d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "62f205c49b0124a9f04d479651b03007263e3dd2dced4c5a7c264d246d11564b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "c5ccc856e7c0bf0d1d7556d94dfbeb0fb7caad84e8d23a7e8e4392354d83d828",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "b97f9a65abd1281c17ef66dbf3afdc1cf98224e6f4263f526f645af38086d359",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f436698c4495e61dd376b96c6b158b2dbcaf57739e6a021f21e28b372cdf1a4d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "c637c0d10f32948bf0cdc2a6825aa4bb26ea78a249f326e42465b0c01cd10ab6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "97768134b5f8137a01dbb3eeb813b8c3fc954a83bfb739d148fba872e71e2358",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "cc02043e359589575a5a0d5146ddebb181f5fb4f48ac4ba73f47333a253c86cd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "cbbda69a64aa636edbf36aedd75d45b995e9a304ef4a2c876d46c5b166282cf2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "43839b2dbf9e73385dfe522058db32afcfb117c7da547c4a5f3ad723429e07a6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "1c698a3f3b93f2d91cacd34adb4c8ab2adc2dddc0809bc4650f8be50e71597f9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "25250cbabfe20d58474cf6a353019455124ac4cb25fee4b24e1a60bb7b482a13",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "21ddd5c38844c1dbe65af0768a79dce4e4f09e4ed8c1825d3d9904d8a732b7b0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "c7b68b9c6bdd2c08f0990fc93fcbbd68a200f8d084dd9c0868bc6dbbe4029833",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "1c9c55a6ee010940af75f96127bd6e12f44e38731a27dcde24c5eceb969e76ac",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "b5cbfc420a1dcd6236ada9cbfb807660dfb4d5ac29ccc8842cfa4c79b3163af9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "3c75648ae2ae646ecc3f8c9dde03aa0571e2ea436f28e07af9f0f39938840d79",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "3e4d9cafaa9a07c8c8080de62602107679f878d0c88edd76223b84161c5d03d9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "69418b9cd10466b60f2b59f6350245094e751d607edf1c7a3cdc020dd3687a68",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "be3095bb05e998c63d047726c9c2a56032a33d2a62741887ed57e30994f654c4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "d11663948b9b13d2babeeea226b3ff9d8745ce2d40f94655e80766ea21cc3585",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "2aa326a2f17226fb61fdc254aad289b42f704147a8dafc0c9d140f8dec81a63d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "22fb04b0721428ef8f81f52adfd3df214f084c05dca7314c5bfe0c2bba3abc0b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "a3d1ffc81e3fa362e50a5b0919276a3bf7eba439851deec86d912bd660be3e13",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c05d37da812c9ef020350f8324c5b05d9542af304d8a09927909a57ae6ead027",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "0a8d86e0ada7ca376d660dc574f184092395b1a6e3f47823bb0e6c9410590771",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "7df7b215e1d131e153b11e139316a88d9f47475c2dec5c2f7cced636f9ee81de",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "a378570f8c42e615edff3ff8da7df3f62a9393473e780bf5f02c873158e06c0d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "99f5017cfb2e77ce0e3fc56a3d83cacba7861ee3c1634c8bc4368ec817c71966",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "b27fabb2472fd74f7f26cad406c248b4c790dc2d335d04e918d8ce0fb556c6a7",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "af514659960f5afe9649b9592b72b11e89caa6ebf437bc20fee8345fe9bd5ca6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "5459a3d676ea14a0a3d7fd158dbdea34e2116ffcf61977a704c11a029493af37",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "2147b7ae609942747b0e51f2e511bb2de864d7000095b0cbd1f708ccf40d38a1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "d46a23775238c8cca8b36bc34a818379745f125fae94835b8dda2e6653861183",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "e435767d1eb4205a13542c2ad38c3d2556a1608c36c7039733254429a77fa41a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "4d2f19aeb8f8f6c3b34e917129a10b14755014045478dc0c7a2b872507dca17b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "3b0801252333f6579ebe2e88a414c754c67d9fa5e5443af67c33f6c162d73721",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "55dffce4b27b4040009d3e5cbc78da7efd6b9e7a0199450a83e0e8eaebacb99f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "130581f15b11f069799e7b4832cadb6310f7d6636b60228f828e26b7a6937adc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f49c4abcfa15b8561c5f7c885718ce6255990e58ca5971548f6c9fdef653955b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "2e42706771da2d0ec5cf59cd70783be792a2e57699ff7e649d7662b51cbd8e00",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "2be6b3bcf86e3cc3a78a3b3c4cb3acfee43b4430f10c45bd364b20e3aea355e3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "be91ebf6fc3a92ff81e1513a767ea5541f7d40c892e347afd1a3b19d089abf08",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "5b89c442dbbe0dbb6feae8c09314710570b19cf0d1fdafab6df04a66d6aab98c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "bb9282170979dcd37d67c5f2d945b6f185ab1fa61a8ba1c1be0514c6de7b2e98",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "a403699cca171d1048ce95b6066d4cf8932b74c6aaddf00f6c376227d89af36c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "3ee71369d8912cfccee24dc16853e1ce42095e3b4b28b19370568b65f6a47432",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "01d07276ee067810e5170510c9609081f9c87b77c5f802bcfdc2d04c8afea1a6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "86a0048991530707736f06838ffcaf606672eda50ba444afa63dc057051f651f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "da652a844024d38a4e5e7f8d455b8d8fff805ea5bfd9fbf3f77f07e6b0370016",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "a767f92ce93c3b1b16029ae6faae019b367eef0aeb5ca63379720fce7bfb0ea7",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "4b1933fbcb07fc2b923b83a735e425750046c64ae470fc0d010e1615ac182d5f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "c7eacb7c91085136aa86828cb9141368db44043c0b43837cc0d07ee920a0044b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "42e22e4926b5e1b2dfe66d61ae96934a54e17542b3c0a0b4ca9b577f74335df6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "e36ee9775a73dd59af3f2be3ec18100830b38b377feca5c243ac5649b824e779",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "3511eaf53aa60bff4919d3be45bfdf5dff5fccbd0f06bb763660ba0dfec06cc2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "823433398ff77f10e56d8fda9fe36d14ca26a9c8f2414840f7ab07b0128e56af",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "ad6bb996686914bc77280254d7a573d1b67bb3e6cac5e7ffb8c4c04ea2bb0ec3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "0a4a0bc7ed7da8c12aa39360581ceb024a654058745a71431cb61fe9d1f6fabe",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c3cc7a68e0914024e82d9532bc7825024f3fe271f3287b5a88e5c3ac8705a961",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "7576a3ebbde21e964a93d385773534e20645160a9ea98e99ccaa4c96ed008d8b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "c1d5f6935938b78593fdada0692549847b2dc07de1564ca45863740a931c8376",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "a8f779fbce707149b6a299a9e215aa47c62f1a679c682f389a9189b54cd0929f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "7efea7111aa9529fe2d3d8d3d68850dbbdb750cdba64c60c4c540db11957a74e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "de2f75f6b2e4edeb28002080e21790cbeeedde6ba3e958dc8d89adedeaba375f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "sam2_only__pcb1__fold0__k0__seed0"
+    },
+    {
+      "effective_execution_sha256": "628947f430bfa8a7b2606a51d81f31923624c7e494909c5164de34f1bc5e60d3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "sam2_only__pcb2__fold0__k0__seed0"
+    },
+    {
+      "effective_execution_sha256": "3cf0bc19701d76d618e227351c7b6f6c1a87b083a3d1923da03d13db451c2aa6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "sam2_only__pcb3__fold0__k0__seed0"
+    },
+    {
+      "effective_execution_sha256": "a88ec840e5e742badb9bd9ff5ca5f6cc28a39341dbdc5912bdd211904506597e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "sam2_only__pcb4__fold0__k0__seed0"
+    },
+    {
+      "effective_execution_sha256": "011d7f191e6e7cdf4c2eb760a09def425ce387b9a71c12e96f311f6c787b50cb",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "ac6f90fa4ef9c566ece0894ed59fe5a55d4ae7aab008ba0fb9d771af93141c8f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "729ccbe980e790c21bcb0bb49b4e680438a0aa7b86efa32bbdb0208732be6371",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "55b5670c8e1d39ea7ba3411d44751b9d82cca11497feed2eb1813dbf17563cb0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "dd1ea27976df8092b97d1c8f1f79087bf3aff237f61d3ab151ac6a31d2b3454c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "023babee3b3831c9a059517a2073d9a1d17c1fb44b900768548eb784a1c210ee",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "efdc13f629a82a6ca17df8370951ae58bfea687fc00cf5c5187378b5a58cb957",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "0f45102535ba7f3ef4cfd731f57eeb80ce5aff23f582d95219a6f3cbb1d36bf7",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "eb70808981c48c1f2c582669b821d4d5601749037c30cef9eec367567a28c63c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "e8a4bd4c161ccff31f72bc20a5cfe4c176b9e8904137098464b4ae3c6bcba311",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "b862a25694f80164f647b96d6549ec02573dd54b9d6b7562def7db03b3787595",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "6dc8d455a378be95859506b337e176b21da5112ec401cab237d8f5cacba35d3e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "70b965bb377ba4454a95270f102325c27eaed9e3f2b5485487a78f192611e749",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "d6ab6efb0cc9c9a33107f9514d11f3e6762988bf8b839035a4caa948f6925963",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "2a051a0d9bf47af4713ddd904db49c1104848016e8cb29bf3548605f46ae1cf0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "506d8d4b7ee878a4695334f14c5e6c97f5172f1bbe23d57c8051ee50a7b180db",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "7dde6c2f30383c73bfc654d6b6d8813082892c5cf445f442324e0c0b9a516b7d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "0c3f291febb301599a201eebec3525d6b2636c55573b3110fdb381978a35ef03",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "a2ba9bedf6426a45e97d8f18ce90ebcd3d41585ac49b750d215c41650ce936e6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "5dfb6100766ce241ce57b217d20efa879f3c7ef33dc05c378f0f85bd7796ea59",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "ae30511bd438ab2762a92ed364a28d1dbd3b2045c2f44f0ee96bd98ce0af38d0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "d4f362970249b4e7599554385aedc2ac469f57523b8f41cc98903756e244920a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "cb720d5c7e4006622c24289736a219b88e4a7e2eb00073c735008bee47a3b134",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "eba6ed76402848249d5dc988e819c9ab5f87eb998f431de247f1cad2899b8ee1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "197b4308320a28383b946f7b1789976c9379b9c28f413b29582ab1bdb0ea1d64",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c0744464129b638e36aca7c1f490b526e0963b9c76f8a91668e19d5f1bfede56",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "65f2f2e964b5915ef90377ea1da6da6addeac27642093c6dd745fb8bf5b457ef",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "a8bacfaa26f6ef87bfe8439b95cf3f7c3566116014403c87992bb4c698931238",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "acc0429985142e2de38920fc6a519903a31f9bed46ac071086fe3b6910ffc58f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "e20724d505ca82ea96204708bf7651f64609c383309a70ffc9b0a76e95e03bc3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "5314a070ea68718b460b35acc5b906ea537c8783317c28590dd8b06369688ccd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "36ab143b5fa634a749e11b5f636c19fb4a59e8364a65c68f72450e88cdf472ac",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "29b6c83072da3d9826f40d5beaf2cf290108cf25ff8671b0f7f3677c7f26a6f5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "74251991d3ded195adac6b04324a7876c6b9aa2e5bd001388cee69914b5b4efc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "358eef00732a4060859d1ef52ecfe2b2fae86ec70a15f413f121917146674ae5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "7e0043b3378fef1e2d8c10418e3ebb6888936f149808f3cbee300e34ffccdd15",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "03143fceeb69b818838e013f2487d0a693c8abdac5089e98f1907da778f4122b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "651e689feca10c79e1ff5b4603613dc4a7745aad491e6971af5e219e6a97fa84",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "c0c9e2b679dabffbb00f8b5130af7773b7e033e8f5c0888332764176c83b6706",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "329898ed6c988a9eb878d1e362a5863155be2b700dc42cb2f9456370bf7363dd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "87011bee0b46f00b7213a48c13542de256a76fbebf013b4295e6f41e1512fae8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "bf409cd856775dd6c89c75fbf507ee174dee114c3a891b6dd808da8b1ddce077",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e15a6c4181a54da4c5cdece8cf4759394004294473ebe76411bbb3f8c3abcba7",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "9a9b26b8b414ac64ba4c66ec60d0558ab85efa1f09dc5cea059843043874514a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "3444841f822e17d4713d10f6c8db2022dd4293776637e776fbd351bb7290af35",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f1aa93f755c9a9c9bc4e29b6f22895219e342b3e95b9302a3125dc2c30d2c5c0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "d64abbe5cf9d4b44ab71eb37c8a295243c2c0de81288911681ea620df162c1e6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "13fa36f2628209a0985f5742e7980f374447496492d5e982b5ba0079b3167805",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1a612866b110347934f59ee853eb01098428e54cd5f710d9b2a40b53ed42ca3a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "19d90ca6465e6568696b83d691edccdb9434ffb3982761a034a1955b3b23109d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "3d5126c7f25a16a3300e011912f6bf4beae49bd87a93f864c4016240ce365ea6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "e4c11e8c16f289a0764f8a239f9326c27122c10c5d8cb5bc9fd2d481c2fdac8a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "731291a192f4935cfe58a0d1339e182c147f7a56057ef8415d48521e0fb99254",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "81dc7f75fcbf3163b9a21c95d5cb6d63181af527261fb7771d2b77b4870f1e78",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "81f0c0a3eff524f17b93e30b2191c1001aabcc343e0edbba4d0757c3a0f7fa56",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "ea7403a27ce8b69d51fe28dc3e5c40820dd55f9e6dc23900bc40752963201d8e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "c7d4c6888ebb48fad0eb9e55ea4dea31b5af979d581a4fbd8c3b66fcead0bea2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e2ed836b5d0bfc809a058d243b76bbea772ce9cd7d55b83e4893af0d0559020b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "a5cfb90f7be54dc8566e6bbec5e486acd0c28fb491967340eeb82bd2556fec67",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "985977bb036e8b33c20e97b8d2d654204a71b5cd486aca5ed68510fe8c7b6d8f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_single_sam2__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "c176b1564ff40e3ddd16ffe5fda04efdb7f3379fda0cd82719d34ef68b0476c3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "4e3ce28bbb918f831736dccb9c0ae8e807abc32dbbb542b493a56b4bf9f337e2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "eb36ea7fa1d9f1d638ff190e0935240e13f1e700889211061d5528f1205c52ad",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "c128f88fb16a0746cfa2cdd31cf8a469c51ea1ce8a4013a5e59b4b33c60a2612",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "4584976d898587faf8a91d97170ee8603dd8d0f7d1972cac94f34fedb8d97010",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "2d2b029cd1e5ea90233a41abd95ad5938cddc26100c69ce4da8782ec016d047b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "1c2374b3ad0e097f47ce48bf55f29479f4c685b1dd6bb20203a5350146c640c8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "87ce52730d67f9db3d2876d80b4ee1a44cee85f1abf822487b3930b4d42c0652",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "9c42c9840b53097c0bbebd2296526b878ed6cba7e0ffe91196f3ac5c6da0fd90",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "feff8efbf4a7bdfdaf3c78c2244e2cd64d4b71dfceae1288b1a79cc2b7664491",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f0d066aab79a1e8713662e32eceeab962631739610973dc3c751741d1bf1da18",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "da3cc283e18eca60ef85088e23fa7ce262b75513fe30a0df6ea4518391a9b1b1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "8e1450ac1f5ac7f49413a8e41b2cb3afcb1511915a5a0ca108c70fa553f5f47b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "7ef999a0d4d54828fb5175438233e5c4fd82990885af4f449f56bf655703f63c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "f39cc4a0f1b9d232019c910873367cb2b888050fc7c281cf2ee970aece81f0f0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "5f3572bcebb67e533d360314a225780cfe23c1793f74f5e5d276388dff9513b1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "626c67f6b2c06ab794ffc3b2e1cdd88a538e524ee7b83e184357fe84cc332b82",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "054dee5cbab579daf1672641226de32614e3b297180eb4e9d7e51d2561a6e423",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "2ac167d15ec4022ccea78e797d22f864062d248ba6669b65b9619d1e75afcb6c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "6cbaeaee4581f65d7d8c876b43143c660c7016262709dcd53daaf5fde591eae4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "241fdd981f9223b060de1b482164f0bf287b1c1a7cd2086ea72816f6eaaa2954",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "11462131678ba9994abd480addab6d95de8a633a4e3519fed83f2d08dc967f9f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "781cd4ef76efa181cd862779255b081c7e79e4b2d2191e85a59f0ab83e903caa",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "64f4f6d8b23a6843df1bb2630f1343b1354d0cc9dab2836076e3513fd96ce4a9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "061f10e3994bcb157f76f98eaa555dbe3e8f17f29fa99244e954c0ba8fb257a8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "5b233dd3f3b392411cd776aa4576b9ed47b2059222e9ae52a953ed2899c8f5a5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "51087a33c1e3b8a79c36dcbc0ea33962a45f7a788df4e34ecbf1650fc16a55e4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "efce2569acd9938090ade8ad8aaaa9cfa09bdf165d81d4a695724b483c448bb2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "30599c87055e1953ee1104d8ae494dd09c6ed354e690ed55dfddb150b1fe6dda",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "60e1fb5bef54ed0b1ba6f7baf223ee17a5a7ad48b28b94da6ae33f8067c1bc9a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "fc49f3402f2ebc16b12a4493abd3327c5a94f69299fe85c8701d7b61b275c6eb",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "cfe19daaa67fedb27ca1ef589a63280fbcda523916e80d797bf4c0a94b530be3",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "ac6c00cffd701b8686964e501e53580f8a84d56a7333d737d3c55cdd6216668c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "52b38e02eeb8267c6008e889abf4e965800f5652a28473893e186411e80cfe1a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "604f86bcfe619bbe02b8c34cb83849cda547de719202b51b507358f5dee45f9c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "bd02283a46c89487e928f2d1167c8a99c9a1c6bde7783497c6eb6e8a77d73eeb",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "406c53b4d0ff05015766c326d9828948fee976504a7ab06ca13457eb7cbef322",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "1e31812c0e70a4b1c37abffe8658600149175a66c5bcad8074427833941868f4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "f886a6b332f0442e14de9995408cebbc71dbf30795c8337ccb1e115ff6a4a100",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "1761e1ef0a0337c948caa82470af51926af4b0b48d8eefed2028f9928848c2f1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "83e5fe37c3e242a92d73601421a046899ff4a182440a8ef261e8d7dec70c9f71",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "f5eeb62d459e68a83383667ccf94042cd44b269d324ab138f0656c7c88653ccd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "97ffc9e9ccb180f3b3c9bebca89e6ab3e18271e9639d3b8b8d5fce2dd071ec4b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "34a9bce5fb0b2966d1b1aacfd97a321656ae94b4ab8daf1a72ebabfb347586d8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "8fc700e6990d451f4ed37cdfcfa16ff4007d8586c84295f831396bb62e4ba023",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "d5abb324af017b0ca8fb6af7d8c8812c8852bfe3fd805b47f4591dcbd61e8bb8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "71253655a86a295fc4489764d4380cca2b1de3718dd9cb896cd423a43daa2bba",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "cd69aa6353186c7075de0ec08d73d71015bddc75d7de0977ddac191695748612",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "da3c33ec4ae127ae70db3c56aa0cd81a240b43a62201ca24c22c92eb4f8923f4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "5f241a5106e027c1eb9b08177057e18b54b3ddf43c9e164033834aca7724e7b1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "889601b495c9890fcc9fd7a7f002027ca4affbdade14f537bf5227e14ba29acc",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "a3b5dc919875ca8cdfce0604467252b25eb1f6d54c9caac7e133558899dbeb40",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "f79f705782379a7fa71f3dd7b06451039ecc8a847d830989dfb05ba57bbf0885",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "0fb7f2767d1a2b7dc8fae8f930043f9d7a99d8fddb938b84daf0b44de39814fd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "e8c093d439ef8fb49a9224687fa39353bfe587f6bb7802124a81bc894424903e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "3b3bec5efe7606887a1ebf99fb71999284489e5326f15802bdf6d877a58464f5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "1b86d02078e23d8d13d551ad1fcedd9c3c6e55d26acfdfe60e7b3104309ce1f8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "c3d2887a289fe4e8046e27e2d75254617d527444aa8eb4307b670a48207f23a9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "109ca1ad6009b64bea3fd7945f4977a987b562d939e68b103b1b4468913c9e02",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "d14dd1d1a445f41dab1f2e202e85540b97c76657873bb7e418d4d648ec29a112",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "1e90ea0b12d989239926a0b3957413b1eefaae5a7d53c1930684cfd99497c4a8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "29541d1b1f5c17c4ad5f580134660a56ff6a6bc5178e3a4163eb660ae4f98328",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "f9a479e176f1411adee150cc0a850a56aea0a03a4fde9a2042f27d6322829148",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "f345eca33b71558aa05ec06aa3624e75dc9812aa8ddbe1e8dca3c2751f4434f6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "f825bf9dafb687403cd8a643465673cbb371910eeb3f78772c6c19020fa05a57",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "cd6409d19275b6a316e23e5ac12346646000818d05d6dd90dcbac8ba836bbfb6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "0d6a19c620868991d275bcbdae3281631c7a5b6c82b53b68ee1efe231f0fa86d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "f772f3203d542d811e364b471bd3d2816148e2955001dcc3d8d59c7c2798379f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "d94a5dfe15135b57602df273f01bcac530bb7af70b15ea06b912f9c13102c31f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "478f65a79f6b99c02cacbcd52efd5bc6567ccf631a473eedd2857804e3a3a6ba",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "4fd496b7e6640e5b3d2880f40139d5d6f543c3f3a2b0464d16ec7d0dde210a0d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "62e9f4c2a17a122d1936e6ad2b5e02c5d47ce0b25ec0541430e2f8ea61b348e5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "0b9d9e68c79743794f000e34a96c8a92ca018a647cbbb4856a75cbb37d06e685",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "d9eaabd475128a70dcb595945700b49308f07af62497584850f38dfc4df552f2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "1c8cba4ac2dfcc90bc036f562ced5c02d4ebda81b67ec7e1d3497168c91c2b00",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "574096044544b713bcfa1edf2fa512dc9321981ac5e6fef8f2e804028411ef88",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "34dec225addba7174e4a9f31f4ffb14367040e9eb73c1db54e63e19d2fcd2caa",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "fd5a513adf85fdc6bbe0449460f4f98021202b11537e870406318bff3b339440",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "09cdfbc6f3376f3576bbc1dfcd8d3e8bc2ac14324dd58c1290ecdb7b3790e9e8",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "38d887a3d4ff1a9c2205ab1e2cfd2a67c9f48cbc4999b65fbbe3cba18948b237",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "766b2fe68af70d4f31782fdfe3450d4ed1c12bb44cfd3b9ac7f9db995330c713",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "585d0402ed87cbede66652aefd9163d2f4115dc633b4171450c6c4e4cee11654",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "8fb9cd88cefd901afdeeb9afb9b4da1c58c0061c894ae1691af2fed87235845c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1554e25cdad1cedc9ab200b4c89d343057d0b5891ea929d7e0d9d17df616c760",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "c8ef0f7e03c2ce6f3fc6892f03c1a11eb9c998a0ebee66cbfeb5983436533af0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "723e4618569b019d69c5b4b5ac3dbb63ef0dccf68ed87ef3ceec8edb3c734f84",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "65013497ae78ebd1de7007b4cbdf583cd1672aa5840e7a47fb5d37e0aa700abd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "036b94fb71690d4d09c61c4c4a7bfdefe84ec7172a1e40aa419794690c8d2c3b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "99ab095363921e9a36c57919066000d7a950f95fa2b89c34472c70b1fcc5c519",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "209456c7a588144fe1fc0fcc6d3a76097e859901ffcfc97482b038707c095461",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f35db464367cf12e5d5a1413c620907113bfa765917a5e95c8fa5078b125b85e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "1184bd3c1e7d68b02aa98263d2b9b77a98af370b96d92f0b736dab2b44185e2a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "e97e81cd23438b8d56f8121ceaf4cf133c795c75221fc8af0a4868f836fdad60",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "5287913958ef2374aca8c0401ca097805cbcfb5d8b9d96f382ef3f1896e394a6",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "c12127d2eefa71460919896e4ac9cd524455903e56dd9410ca7af6c0b87d8079",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "621a1b77af793fbbc9667dbad5b70a8e1f6c4c98db5a042101b78ac5a634ec8e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "5305cbb73a548ebdc6c521ca4873b21a35c7bb7eb0c0f98fe898d10c753884b2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "4fcbfc49424187fdafb35033f2506c95347c9e35b4de3352219da7fa0c2b9eb0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "a8cb884434502b18c2efac13e485845d17d15d4ddbf7b9fdfcfd66e27629e055",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "5f2a4c528573b8b44a0249a84f2dbb1ee72985d72d86393a87be6ff0b6b2773a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f9c6a0c30a48533dc57fa7dc57e1a44874857c638f20e66e91e8036f1cdc8f97",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "1936b733134a812824677d3a8c34f6f04e2c928e4f8e437e6fd988197cbf16af",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "78743d4c9b5b6f132b300af13eb0699287310b0fadfc6aa348451183239bafec",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "77acbd7d93eb4f4369418221fb9f2da6f8816db26a31b18d243ef91fe218bd45",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "2c9b85fcf21b72d483ad3092a35c57f22273d6bb0c1651cdbbe60aed49b872f1",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "582047b0220af891606bb596b4bea9c4ec556e27edf8fd319a739025cd519335",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k1__seed4880"
+    },
+    {
+      "effective_execution_sha256": "a90449479140db9aea0b29f96cb9a2f23453dec9e23db0796522172b90ca5308",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k1__seed4881"
+    },
+    {
+      "effective_execution_sha256": "a64018cfc9d33611004bb70dda58b6b545c48b5094549f00267037fec2a8ea9e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k1__seed4882"
+    },
+    {
+      "effective_execution_sha256": "1dedb1459269b1bfc104455116e8f1b13da01778bf1e7c44740509a3fe9dc5df",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k1__seed4883"
+    },
+    {
+      "effective_execution_sha256": "7eef586b50bdfde017379a00473fa80a8352d9cffea090e5624e71eae53ccc0d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k1__seed4884"
+    },
+    {
+      "effective_execution_sha256": "d35870e84fb8113057aaeb406c6f444c47766045ca63464a66e20605327c9f37",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k2__seed4880"
+    },
+    {
+      "effective_execution_sha256": "882354f47582724b246f3ab653b476f272f8d4fd59daa2b6a98754bc872a0029",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k2__seed4881"
+    },
+    {
+      "effective_execution_sha256": "8c5de7faf75a6414132aea2aeec3a97d2cbe219f113e4696521e2f510c43236e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k2__seed4882"
+    },
+    {
+      "effective_execution_sha256": "b917394f7c44c15998e80d851be05763f85568b9a97dcc9945cef73a43a91ddb",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k2__seed4883"
+    },
+    {
+      "effective_execution_sha256": "cd3d6012823e25af10325d3a99ed3015a6f7d9c3bc2c6c5b03dc5d75aa5f69df",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k2__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f214d5ffc70fc3b12b4bd50e476670a6391f3cf4673c69d5786467760cf3b01d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4880"
+    },
+    {
+      "effective_execution_sha256": "3d5701519fc1187bb805fbd1ce6ea8bd10866cc860985cf446b58785015e725b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4881"
+    },
+    {
+      "effective_execution_sha256": "d42bbfde21fcf301553ecf0757d83f50478800cf4816197f422f86c5bd903000",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4882"
+    },
+    {
+      "effective_execution_sha256": "f731d7458f8a75c34c487375a342e86ccb428006b11a0d458caae25bc0318f84",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4883"
+    },
+    {
+      "effective_execution_sha256": "952e0adb9185805659c87ef5a58dd8769dcfc2c78c55763cda72ef435753b850",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4884"
+    },
+    {
+      "effective_execution_sha256": "f7f4f079d6f0e0f9866a8676437de9897eab0b904cb5a5e73b66cf4c5221b682",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4880__crop512_o025_max"
+    },
+    {
+      "effective_execution_sha256": "20a0eb93f38ca5b23f120c81ffecfe26b8a22801b414e55a3cda8e22aef8aa00",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4880__crop512_o025_max"
+    },
+    {
+      "effective_execution_sha256": "6408e0117986ae8951b14b6c4d8ae3c531c545aa4f6d3660ee8d432862a803bf",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4880__crop512_o025_max"
+    },
+    {
+      "effective_execution_sha256": "d99e7b2103d55edfad17eff45d4cfbd23cd83a96799e00ef9a0ed5b384c5ec74",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4880__crop512_o025_max"
+    },
+    {
+      "effective_execution_sha256": "dbe86abd9655dd9c653734e3d5d0f14601ad8c9b39a543b912d58847283b0f6f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4880__crop768_o000_max"
+    },
+    {
+      "effective_execution_sha256": "e52d85d24155ea5cb8da49fac53c55009e2a918cc02cf72f8833c2d158351016",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4880__crop768_o000_max"
+    },
+    {
+      "effective_execution_sha256": "74091faf0c384d074a2b65f6f55eb25e6e1f14b161f79708cd60babae95f875e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4880__crop768_o000_max"
+    },
+    {
+      "effective_execution_sha256": "d2152b64948995cab724fadb14ccefa7e0621e4608d0e322b80a8069d6ac5baa",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4880__crop768_o000_max"
+    },
+    {
+      "effective_execution_sha256": "495205ff28a913bb8cb88cd5acb881589836c88587d2900a2d123a59095d8e13",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4880__crop768_o050_max"
+    },
+    {
+      "effective_execution_sha256": "9dbe79cd53e9f342689758ba9495e4b86bc70d82d3b07707650306ab1b972379",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4880__crop768_o050_max"
+    },
+    {
+      "effective_execution_sha256": "cb79d2416518529af4e13cdb75b63b346091ae3bb9e406dbe063abd9fa2aef46",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4880__crop768_o050_max"
+    },
+    {
+      "effective_execution_sha256": "2859401dd8498a4b524e5b2fd913c2a46b96e07e472d2ab167eef0512ed36f49",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4880__crop768_o050_max"
+    },
+    {
+      "effective_execution_sha256": "9fa33474890e4f8d7c5dacad2c0d70250876117030db8d05f401bd7b5786b2f5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb1__fold0__k4__seed4880__crop768_o025_mean"
+    },
+    {
+      "effective_execution_sha256": "0ebeb4084ac2e4b6acbf7fca34ad6075ec641f9f61dc9a297afed17df290aa55",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb2__fold0__k4__seed4880__crop768_o025_mean"
+    },
+    {
+      "effective_execution_sha256": "67be0c8a6ae104fa7b87b3e5abe3d0594a7fe1b0a6a1f2ac784572c844d27ae2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb3__fold0__k4__seed4880__crop768_o025_mean"
+    },
+    {
+      "effective_execution_sha256": "d965e42e8d08ee2e975cc2e8053d8725e29bf14ee7bc46deb6644810e980c480",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi__pcb4__fold0__k4__seed4880__crop768_o025_mean"
+    },
+    {
+      "effective_execution_sha256": "7166f6ce9763deab2f800d62623a859c7ed4595abdf101b5e807b349dba08217",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__prompt_point_max"
+    },
+    {
+      "effective_execution_sha256": "a4a5da89ee802a2699730cb98f67c4eb8206b3ffd9d431df7805af61b63f4391",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__prompt_point_max"
+    },
+    {
+      "effective_execution_sha256": "cb89936698c2179b8895007bd05ccc6b3e4a02579f8505a8c9761e84dd410a9e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__prompt_point_max"
+    },
+    {
+      "effective_execution_sha256": "90f320147592c4b43110c4ec9fc043c26cb74aa97b80d479697e3b8902dc545b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__prompt_point_max"
+    },
+    {
+      "effective_execution_sha256": "79949ebbddbf019e23ce4d804a19b7a36dc6707b6391e4a422ac8d8a6ca244a9",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__prompt_box"
+    },
+    {
+      "effective_execution_sha256": "cde6cee6a32d4265903692f0ad816ae41f8bbd4019be9650f77e1072fc05aa53",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__prompt_box"
+    },
+    {
+      "effective_execution_sha256": "769e8144b104ac8608f3ad2c96653362885b6f8c3bf64b473669d2fd522cdc5a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__prompt_box"
+    },
+    {
+      "effective_execution_sha256": "81ed7e97074e8c4a43a1435c0fbff6cba0efe69d0afb268418d89412d0c8e58b",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__prompt_box"
+    },
+    {
+      "effective_execution_sha256": "af33dde9c8d09430dea54bc9c1ef26b5a0d1b4aec8798f43c9e006c28cc1d73d",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__prompt_point_box_center"
+    },
+    {
+      "effective_execution_sha256": "7753a589423890ef7bec2a7c1d32136097041fa6b5c445ee9da22c9d6ddb1493",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__prompt_point_box_center"
+    },
+    {
+      "effective_execution_sha256": "cf99c6d73b8b1249ef49d60c79b5305db8575b344bd4c46bf9ef1041015a14fd",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__prompt_point_box_center"
+    },
+    {
+      "effective_execution_sha256": "08e0b0326ab35a221c7816b62d2504d75bf415399e12c808007b1581eb4b288f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__prompt_point_box_center"
+    },
+    {
+      "effective_execution_sha256": "240a967a73763fd8a359a7d6fbc176be21a4d066d93ef215c595276878c1802c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__area_cap_none"
+    },
+    {
+      "effective_execution_sha256": "87a7d73377fb186266df9efc225e7c0bf54da4b744917700d6e9e557274017b7",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__area_cap_none"
+    },
+    {
+      "effective_execution_sha256": "c47fb7a32398bfa358498b60ea1b05fbaff40fae893b30f4a5a52595d5a13546",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__area_cap_none"
+    },
+    {
+      "effective_execution_sha256": "3dc1e3898167657fc96966cb199f6d31ebd57966c2aa0ee10b62743d6a45e89f",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__area_cap_none"
+    },
+    {
+      "effective_execution_sha256": "72ef7c4c7e579e3a421609a60f5aae3688a1bfde172ff9ec68b8a2ccee6c665e",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__area_cap_010"
+    },
+    {
+      "effective_execution_sha256": "5de877cbbe36a16e6a5a849661d072c191bc88f609e4a3a886a67bbff6d9449a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__area_cap_010"
+    },
+    {
+      "effective_execution_sha256": "b03543aa43cea572bb9b27471a06e7ea37b2508d09078180c0f7352bccae0341",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__area_cap_010"
+    },
+    {
+      "effective_execution_sha256": "22ff567bc115bcb413dfd60849b95c6af5de0cd2d1ef1e5fe9abbfefa4c38e9c",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__area_cap_010"
+    },
+    {
+      "effective_execution_sha256": "a5870043295bf13ddc5daf60f726766df7acf5535292c1cfe1bc716a5c3f2916",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb1__fold0__k4__seed4880__area_cap_050"
+    },
+    {
+      "effective_execution_sha256": "df5c815330bf24b3f1fa77911e033c9be1ea2178efad3770414c72eaf4d44eed",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb2__fold0__k4__seed4880__area_cap_050"
+    },
+    {
+      "effective_execution_sha256": "987e3e94e9730a6b66c0ac04d50a3b2ba92d9ee9d296e62dc63405b047509069",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb3__fold0__k4__seed4880__area_cap_050"
+    },
+    {
+      "effective_execution_sha256": "65083c733fcb7bd6fcb3efccfe71e2318eb71c4efd6397ca755b7608ecd036c2",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "dinov2_multi_sam2__pcb4__fold0__k4__seed4880__area_cap_050"
+    },
+    {
+      "effective_execution_sha256": "7b740970fd7760934b3fa5b1df6ec90a25934202c14602e0e93677bf3f5deb15",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4880__fusion_union"
+    },
+    {
+      "effective_execution_sha256": "43c5385e8e697dab15658bb1400e3b59c5ab08ede78297a7815adbe8c02c0318",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4880__fusion_union"
+    },
+    {
+      "effective_execution_sha256": "5d314b45b996ad16fc1c93a967b493ac0ef080abbee7e39b6e944b8cf74a44f4",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4880__fusion_union"
+    },
+    {
+      "effective_execution_sha256": "8fb078eff274be9874110cda5c6dec25c38b5d07a829921b3e8b30cb5649d507",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4880__fusion_union"
+    },
+    {
+      "effective_execution_sha256": "ec1b179db01e6052d02456f1a4ff8756d45687b691c61582ae71816fcfce0a15",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb1__fold0__k4__seed4880__fusion_selective"
+    },
+    {
+      "effective_execution_sha256": "6e47298bd33dcd9077227de195c926bbf96ce90aa5fc63eb71de3cdb29177bb0",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb2__fold0__k4__seed4880__fusion_selective"
+    },
+    {
+      "effective_execution_sha256": "aed0fdd2efe7c2f6c338e921223bf99842c1a5339e77feadf32597ec78fa9bd5",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb3__fold0__k4__seed4880__fusion_selective"
+    },
+    {
+      "effective_execution_sha256": "4c304d6a54670a0882e33f2c4374ca51f79a0b373f8105f858365c549fe4928a",
+      "git_commit": "ff4c07208278376b27a4954d560c715f51453c5e",
+      "git_dirty": false,
+      "manifest_path": "data/manifests/visa_pcb_folds.csv",
+      "manifest_sha256": "6fd011da63133ce0135df8ae336b42bd81d65db1586e77b2db3fb61a9914842e",
+      "run_id": "anomaly_consistent_sam2__pcb4__fold0__k4__seed4880__fusion_selective"
+    }
+  ]
+}

@@ -12,9 +12,11 @@ from utils.image import load_binary_mask
 
 
 PER_MASK_FIELDS = [
+    "dataset",
     "sample_id",
     "category",
     "label",
+    "fold_split",
     "mask_precision",
     "mask_recall",
     "mask_f1",
@@ -46,6 +48,9 @@ def mask_confusion_metrics(prediction: np.ndarray, target: np.ndarray) -> dict[s
             "iou": 1.0,
             "pred_positive_pixels": 0.0,
             "gt_positive_pixels": 0.0,
+            "true_positive_pixels": 0.0,
+            "false_positive_pixels": 0.0,
+            "false_negative_pixels": 0.0,
         }
 
     precision = tp / (tp + fp) if tp + fp > 0.0 else 0.0
@@ -58,7 +63,63 @@ def mask_confusion_metrics(prediction: np.ndarray, target: np.ndarray) -> dict[s
         "iou": float(tp / union),
         "pred_positive_pixels": float(np.sum(prediction)),
         "gt_positive_pixels": float(np.sum(target)),
+        "true_positive_pixels": tp,
+        "false_positive_pixels": fp,
+        "false_negative_pixels": fn,
     }
+
+
+def summarize_binary_metrics(
+    rows: list[dict[str, str | float]],
+    prefix: str,
+) -> dict[str, float]:
+    """Summarize per-image metrics, aggregating pixels from exact counts."""
+
+    anomaly_rows = [row for row in rows if int(row["label"]) == 1]
+    aggregate_tp = sum(float(row["true_positive_pixels"]) for row in rows)
+    aggregate_fp = sum(float(row["false_positive_pixels"]) for row in rows)
+    aggregate_fn = sum(float(row["false_negative_pixels"]) for row in rows)
+    if rows:
+        aggregate_precision = (
+            aggregate_tp / (aggregate_tp + aggregate_fp)
+            if aggregate_tp + aggregate_fp > 0.0
+            else 0.0
+        )
+        aggregate_recall = (
+            aggregate_tp / (aggregate_tp + aggregate_fn)
+            if aggregate_tp + aggregate_fn > 0.0
+            else 0.0
+        )
+        aggregate_f1 = (
+            2.0 * aggregate_precision * aggregate_recall / (aggregate_precision + aggregate_recall)
+            if aggregate_precision + aggregate_recall > 0.0
+            else 0.0
+        )
+        aggregate_iou = (
+            aggregate_tp / (aggregate_tp + aggregate_fp + aggregate_fn)
+            if aggregate_tp + aggregate_fp + aggregate_fn > 0.0
+            else 0.0
+        )
+    else:
+        aggregate_precision = math.nan
+        aggregate_recall = math.nan
+        aggregate_f1 = math.nan
+        aggregate_iou = math.nan
+    summary = {
+        f"{prefix}_num_images": float(len(rows)),
+        f"{prefix}_num_anomaly_images": float(len(anomaly_rows)),
+        f"{prefix}_aggregate_true_positive_pixels": float(aggregate_tp),
+        f"{prefix}_aggregate_false_positive_pixels": float(aggregate_fp),
+        f"{prefix}_aggregate_false_negative_pixels": float(aggregate_fn),
+        f"{prefix}_aggregate_pixel_precision": float(aggregate_precision),
+        f"{prefix}_aggregate_pixel_recall": float(aggregate_recall),
+        f"{prefix}_aggregate_pixel_f1": float(aggregate_f1),
+        f"{prefix}_aggregate_pixel_iou": float(aggregate_iou),
+    }
+    for metric in ("precision", "recall", "f1", "iou"):
+        summary[f"{prefix}_mean_mask_{metric}"] = _mean_rows(rows, f"mask_{metric}")
+        summary[f"{prefix}_mean_anomaly_mask_{metric}"] = _mean_rows(anomaly_rows, f"mask_{metric}")
+    return summary
 
 
 def evaluate_mask_rows(
@@ -95,9 +156,11 @@ def evaluate_mask_rows(
             anomaly_metrics.append(metrics)
         per_row.append(
             {
+                "dataset": row.get("dataset", ""),
                 "sample_id": row.get("sample_id", ""),
                 "category": row.get("category", ""),
                 "label": row.get("label", ""),
+                "fold_split": row.get("fold_split", ""),
                 "mask_precision": metrics["precision"],
                 "mask_recall": metrics["recall"],
                 "mask_f1": metrics["f1"],
@@ -136,7 +199,14 @@ def merge_source_score_rows(
         merged = dict(row)
         source = source_by_id.get(row.get("sample_id", ""))
         if source:
-            for key in ("category", "label", "image_path", "mask_path"):
+            for key in (
+                "dataset",
+                "category",
+                "label",
+                "fold_split",
+                "image_path",
+                "mask_path",
+            ):
                 if not merged.get(key) and source.get(key):
                     merged[key] = source[key]
         merged_rows.append(merged)
@@ -149,17 +219,30 @@ def resolve_mask_row_paths(
 ) -> list[dict[str, str]]:
     """Resolve relative mask artifact paths against the CSV directory."""
 
-    base_dir = Path(base_dir)
+    base_dir = Path(base_dir).resolve()
+    project_root = Path(__file__).resolve().parents[2]
     resolved_rows = []
     for row in rows:
         resolved = dict(row)
-        for key in ("pred_mask_path", "mask_path", "heatmap_path", "debug_path"):
+        for key in (
+            "image_path",
+            "mask_path",
+            "heatmap_path",
+            "sam2_mask_path",
+            "pred_mask_path",
+            "debug_path",
+        ):
             value = resolved.get(key) or ""
             if not value:
                 continue
             path = Path(value)
-            if not path.is_absolute() and not path.exists():
-                resolved[key] = str(base_dir / path)
+            if not path.is_absolute():
+                csv_relative = base_dir / path
+                legacy_repo_relative = project_root / path
+                resolved_path = csv_relative
+                if not csv_relative.exists() and legacy_repo_relative.exists():
+                    resolved_path = legacy_repo_relative
+                resolved[key] = str(resolved_path)
         resolved_rows.append(resolved)
     return resolved_rows
 
@@ -168,6 +251,12 @@ def _mean(rows: list[dict[str, float]], key: str) -> float:
     if not rows:
         return math.nan
     return float(sum(row[key] for row in rows) / len(rows))
+
+
+def _mean_rows(rows: list[dict[str, str | float]], key: str) -> float:
+    if not rows:
+        return math.nan
+    return float(sum(float(row[key]) for row in rows) / len(rows))
 
 
 def _resize_mask(mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:

@@ -23,6 +23,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.worktrees/
 
 # Model and experiment artifacts
 *.ckpt
