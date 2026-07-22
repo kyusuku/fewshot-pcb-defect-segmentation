@@ -172,3 +172,16 @@ def test_teaching_notebook_preserves_frozen_claims_and_assets() -> None:
     assert len(linked_pngs) >= 9
     for relative in linked_pngs:
         assert (repo_root / "notebooks" / relative).resolve().is_file()
+
+
+def test_teaching_notebook_matches_deterministic_builder() -> None:
+    import importlib.util
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "scripts/build_teaching_notebook.py"
+    spec = importlib.util.spec_from_file_location("build_teaching_notebook", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    notebook_path = repo_root / "notebooks/pcb_defect_pipeline.ipynb"
+    assert notebook_path.read_text(encoding="utf-8") == module.serialized_notebook()
