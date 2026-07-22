@@ -185,3 +185,39 @@ def test_teaching_notebook_matches_deterministic_builder() -> None:
     spec.loader.exec_module(module)
     notebook_path = repo_root / "notebooks/pcb_defect_pipeline.ipynb"
     assert notebook_path.read_text(encoding="utf-8") == module.serialized_notebook()
+
+
+def test_dynamic_result_sections_render_as_markdown() -> None:
+    _, notebook = _load_notebook()
+    markdown = _joined_cell_text(notebook, "markdown")
+    for heading in (
+        "## 20. Frozen AutoDL Results",
+        "### Primary and supporting paired comparisons",
+        "## 21. Ablations and Failure Analysis",
+        "### Where anomaly consistency helps",
+    ):
+        assert re.search(rf"^{re.escape(heading)}$", markdown, flags=re.MULTILINE), heading
+    assert not re.search(r"^ {4,}(?:## 20\.|## 21\.)", markdown, flags=re.MULTILINE)
+
+
+def test_autodl_results_cover_ranking_and_stratified_effects() -> None:
+    _, notebook = _load_notebook()
+    markdown = _joined_cell_text(notebook, "markdown")
+    for heading in (
+        "### K=4 heatmap ranking metrics",
+        "### F1 delta by category and shot",
+    ):
+        assert re.search(rf"^{re.escape(heading)}$", markdown, flags=re.MULTILINE), heading
+    for label in (
+        "Image AUROC",
+        "Pixel AUROC",
+        "AUPRO",
+        "category | pcb1",
+        "category | pcb2",
+        "category | pcb3",
+        "category | pcb4",
+        "shot count k | 1",
+        "shot count k | 2",
+        "shot count k | 4",
+    ):
+        assert label.lower() in markdown.lower()

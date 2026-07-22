@@ -78,6 +78,12 @@ def _interval(low: object, high: object) -> str:
     return f"[{_fmt(low)}, {_fmt(high)}]"
 
 
+def _format_markdown(template: str, **values: str) -> str:
+    """Dedent a Markdown template before inserting column-zero table blocks."""
+
+    return textwrap.dedent(template).strip("\n").format(**values)
+
+
 def _primary_f1_table() -> str:
     rows = [
         row
@@ -112,6 +118,62 @@ def _primary_f1_table() -> str:
         lines.append(
             f"| {labels[row['method']]} | {k} | {_fmt(row['mean'])} | "
             f"{_interval(row['ci_low'], row['ci_high'])} |"
+        )
+    return "\n".join(lines)
+
+
+def _heatmap_k4_table() -> str:
+    rows = [
+        row
+        for row in read_csv("primary_summary.csv")
+        if row["category"] == "macro"
+        and row["k"] == "4"
+        and row["method"] in {"patchcore", "dinov2_single", "dinov2_multi"}
+    ]
+    lookup = {(row["method"], row["metric"]): row for row in rows}
+    metrics = (
+        ("image_auroc", "Image AUROC"),
+        ("pixel_auroc", "Pixel AUROC"),
+        ("aupro", "AUPRO"),
+        ("aggregate_pixel_f1", "Calibrated aggregate F1"),
+        ("aggregate_pixel_iou", "Calibrated aggregate IoU"),
+    )
+    methods = (
+        ("patchcore", "PatchCore-style"),
+        ("dinov2_single", "Single-scale DINOv2"),
+        ("dinov2_multi", "Multi-scale DINOv2"),
+    )
+    lines = [
+        "| Method | " + " | ".join(label for _, label in metrics) + " |",
+        "| --- | " + " | ".join("---:" for _ in metrics) + " |",
+    ]
+    for method, label in methods:
+        values = [_fmt(lookup[(method, metric)]["mean"]) for metric, _ in metrics]
+        lines.append(f"| {label} | " + " | ".join(values) + " |")
+    return "\n".join(lines)
+
+
+def _category_shot_delta_table() -> str:
+    comparison = read_json("paired_statistics.json")["comparisons"][
+        "dinov2_multi_vs_anomaly_consistent_sam2"
+    ]
+    lines = [
+        "| Group | Item | F1 delta | 95% CI | Reading |",
+        "| --- | --- | ---: | --- | --- |",
+    ]
+    for category in ("pcb1", "pcb2", "pcb3", "pcb4"):
+        result = comparison["by_category"][category]["f1"]
+        reading = "robust positive" if float(result["ci_low"]) > 0 else "inconclusive"
+        lines.append(
+            f"| category | {category} | {_fmt(result['mean_delta'], signed=True)} | "
+            f"{_interval(result['ci_low'], result['ci_high'])} | {reading} |"
+        )
+    for k in ("1", "2", "4"):
+        result = comparison["by_k"][k]["f1"]
+        reading = "robust positive" if float(result["ci_low"]) > 0 else "inconclusive"
+        lines.append(
+            f"| shot count k | {k} | {_fmt(result['mean_delta'], signed=True)} | "
+            f"{_interval(result['ci_low'], result['ci_high'])} | {reading} |"
         )
     return "\n".join(lines)
 
@@ -1078,6 +1140,8 @@ METHOD_SECTIONS_B = (
 
 def experiment_sections() -> tuple[str, ...]:
     primary_table = _primary_f1_table()
+    heatmap_k4_table = _heatmap_k4_table()
+    category_shot_table = _category_shot_delta_table()
     comparison_table = _comparison_table()
     ablation_table = _ablation_f1_table()
     strata_table = _strata_table()
@@ -1258,7 +1322,8 @@ def experiment_sections() -> tuple[str, ...]:
         **Source of truth:** `src/evaluation/statistics.py`,
         `paired_statistics.json`, and `baseline_paired_statistics.json`.
         ''',
-        """
+        _format_markdown(
+            """
         ## 20. Frozen AutoDL Results
 
         The table below is inserted at notebook-build time by selecting the
@@ -1275,8 +1340,44 @@ def experiment_sections() -> tuple[str, ...]:
         than simply “the largest number in one row.” The primary analysis aligns
         every anomalous image and support draw, then asks whether the candidate
         changes F1/IoU consistently.
-        """.format(primary_table=primary_table),
-        """
+        """,
+            primary_table=primary_table,
+        ),
+        _format_markdown(
+            """
+        ### K=4 heatmap ranking metrics
+
+        This table selects the frozen category-macro `k=4` rows for the three
+        methods that directly produce continuous anomaly heatmaps. It answers a
+        different question from the per-image mask table: how well do image/pixel
+        scores rank anomalies, how well do regions overlap across thresholds, and
+        how does the normal-calibrated operating mask behave?
+
+        {heatmap_k4_table}
+
+        No single method dominates every metric. For example, single-scale
+        DINOv2 has the highest pixel AUROC here, while multi-scale DINOv2 has the
+        highest AUPRO and calibrated aggregate F1 among the three. This reinforces
+        why the paper uses named metrics and paired final-mask comparisons rather
+        than declaring one method universally best from one column.
+
+        ### F1 delta by category and shot
+
+        The primary anomaly-consistent-minus-multi-scale comparison is also
+        reported within each category and each shot count:
+
+        {category_shot_table}
+
+        Every displayed category and shot-count interval is above zero. This does
+        not create independent studies—the same test images still repeat across
+        support settings—but it shows that the overall positive mean is not driven
+        by only one category or one value of k.
+        """,
+            heatmap_k4_table=heatmap_k4_table,
+            category_shot_table=category_shot_table,
+        ),
+        _format_markdown(
+            """
         ### Primary and supporting paired comparisons
 
         {comparison_table}
@@ -1300,8 +1401,11 @@ def experiment_sections() -> tuple[str, ...]:
         The comparison scope is anomalous VisA PCB test images. Normal images are
         excluded from these per-defect paired intervals but remain relevant to
         detection and calibration metrics.
-        """.format(comparison_table=comparison_table),
-        """
+        """,
+            comparison_table=comparison_table,
+        ),
+        _format_markdown(
+            """
         ## 21. Ablations and Failure Analysis
 
         ### Descriptive ablation F1
@@ -1321,8 +1425,11 @@ def experiment_sections() -> tuple[str, ...]:
         configuration was frozen before final target evaluation. Selecting the
         best-looking ablation after seeing test masks would invalidate the
         controlled story.
-        """.format(ablation_table=ablation_table),
-        """
+        """,
+            ablation_table=ablation_table,
+        ),
+        _format_markdown(
+            """
         ### Where anomaly consistency helps
 
         {strata_table}
@@ -1342,7 +1449,9 @@ def experiment_sections() -> tuple[str, ...]:
         Failure analysis also records component count, area fraction, thinness,
         anomaly/SAM2 overlap, SAM2-to-proposal expansion, and mean anomaly inside
         the SAM2 mask. These explain mechanisms; they do not train a selector.
-        """.format(strata_table=strata_table),
+        """,
+            strata_table=strata_table,
+        ),
         r'''
         ## 22. Qualitative Evidence
 
