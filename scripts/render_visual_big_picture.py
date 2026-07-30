@@ -3,13 +3,45 @@
 
 from __future__ import annotations
 
+import csv
+import hashlib
+import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+from PIL import Image
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "output" / "visual_big_picture"
+EVIDENCE_DIR = PROJECT_ROOT / "docs" / "evidence" / "generated"
+QUALITATIVE_DIR = EVIDENCE_DIR / "qualitative_figures"
+DATASET_ROOT = PROJECT_ROOT / "data" / "processed" / "VisA_pytorch" / "1cls"
+NORMAL_EXAMPLES = {
+    f"pcb{index}_normal": DATASET_ROOT
+    / f"pcb{index}"
+    / "train"
+    / "good"
+    / "0000.JPG"
+    for index in range(1, 5)
+}
+REAL_CASES = {
+    "success_query": DATASET_ROOT / "pcb1" / "test" / "bad" / "085.JPG",
+    "success_ground_truth": DATASET_ROOT
+    / "pcb1"
+    / "ground_truth"
+    / "bad"
+    / "085.png",
+    "failure_query": DATASET_ROOT / "pcb1" / "test" / "bad" / "054.JPG",
+    "failure_ground_truth": DATASET_ROOT
+    / "pcb1"
+    / "ground_truth"
+    / "bad"
+    / "054.png",
+}
+PANEL_INDEX = {"input": 0, "ground_truth": 1, "anomaly": 2, "guided": 3, "ac": 4}
 
 
 @dataclass(frozen=True)
@@ -197,3 +229,81 @@ PAGE_SPECS = (
 
 def collect_step_numbers(pages: Sequence[PageSpec]) -> list[int]:
     return [step for page in pages for step in page.steps]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_source_assets() -> dict[str, bool]:
+    manifest_path = QUALITATIVE_DIR / "qualitative_figure_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    figures = {entry["path"]: entry for entry in manifest["figures"]}
+    checked: dict[str, bool] = {}
+    for role in ("success", "failure"):
+        filename = f"pcb1_{role}.png"
+        path = QUALITATIVE_DIR / filename
+        checked[f"pcb1_{role}"] = (
+            path.is_file() and sha256_file(path) == figures[filename]["sha256"]
+        )
+    for name, path in NORMAL_EXAMPLES.items():
+        checked[name] = path.is_file()
+    for name, path in REAL_CASES.items():
+        checked[name] = path.is_file()
+    if not all(checked.values()):
+        missing = sorted(name for name, valid in checked.items() if not valid)
+        raise ValueError(f"missing or mismatched visual-guide sources: {missing}")
+    return checked
+
+
+def _crop_montage_panel(montage: Path, panel_name: str, destination: Path) -> None:
+    index = PANEL_INDEX[panel_name]
+    x = 24 + index * (280 + 18)
+    y = 24 + 58
+    with Image.open(montage) as image:
+        panel = image.convert("RGB").crop((x, y, x + 280, y + 280))
+    panel.save(destination)
+
+
+def extract_real_assets(work_dir: Path) -> dict[str, Path]:
+    validate_source_assets()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    assets: dict[str, Path] = {}
+    for name, source in {**NORMAL_EXAMPLES, **REAL_CASES}.items():
+        destination = work_dir / f"{name}{source.suffix.lower()}"
+        shutil.copyfile(source, destination)
+        assets[name] = destination
+    panel_names = {"anomaly": "anomaly", "guided": "guided", "ac": "ac"}
+    for role in ("success", "failure"):
+        montage = QUALITATIVE_DIR / f"pcb1_{role}.png"
+        for suffix, panel_name in panel_names.items():
+            destination = work_dir / f"{role}_{suffix}.png"
+            _crop_montage_panel(montage, panel_name, destination)
+            assets[f"{role}_{suffix}"] = destination
+    return assets
+
+
+def load_f1_table() -> dict[str, dict[int, float]]:
+    method_labels = {
+        "dinov2_multi": "Multi-DINO",
+        "dinov2_multi_sam2": "Guided SAM2",
+        "anomaly_consistent_sam2": "AC-SAM2",
+    }
+    values: dict[str, dict[int, float]] = {label: {} for label in method_labels.values()}
+    with (EVIDENCE_DIR / "primary_summary.csv").open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            if (
+                row["method"] in method_labels
+                and row["category"] == "macro"
+                and row["metric"] == "mean_anomaly_mask_f1"
+                and int(row["k"]) in {1, 2, 4}
+            ):
+                label = method_labels[row["method"]]
+                values[label][int(row["k"])] = round(float(row["mean"]), 3)
+    if any(set(series) != {1, 2, 4} for series in values.values()):
+        raise ValueError("frozen F1 table is incomplete")
+    return values
