@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -470,17 +471,721 @@ def _teaching_copy(pdf: canvas.Canvas, page: PageSpec) -> None:
         ) - 13
 
 
+def _visual_canvas(pdf: canvas.Canvas) -> None:
+    _rounded_box(pdf, 42, 82, 485, 390, white)
+
+
+def _small_label(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    text: str,
+    *,
+    color=COLORS["muted"],
+    size: float = 8,
+    centered: bool = False,
+) -> None:
+    pdf.setFillColor(color)
+    pdf.setFont("Helvetica-Bold", size)
+    if centered:
+        pdf.drawCentredString(x, y, text)
+    else:
+        pdf.drawString(x, y, text)
+
+
+def _image_tile(
+    pdf: canvas.Canvas,
+    path: Path,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    label: str,
+    *,
+    border=COLORS["line"],
+) -> None:
+    _rounded_box(pdf, x, y, width, height, white, stroke=border, radius=6)
+    _draw_image(pdf, path, x + 4, y + 4, width - 8, height - 8)
+    _small_label(pdf, x + width / 2, y - 13, label, centered=True)
+
+
+def _draw_pil_image(
+    pdf: canvas.Canvas,
+    image: Image.Image,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> None:
+    fitted = ImageOps.contain(
+        image.convert("RGB"),
+        (max(1, int(width * 2)), max(1, int(height * 2))),
+        Image.Resampling.NEAREST,
+    )
+    draw_width = fitted.width / 2
+    draw_height = fitted.height / 2
+    pdf.drawImage(
+        ImageReader(fitted),
+        x + (width - draw_width) / 2,
+        y + (height - draw_height) / 2,
+        draw_width,
+        draw_height,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
+
+
+def _draw_grid(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    *,
+    columns: int,
+    rows: int,
+    color=COLORS["blue_strong"],
+    line_width: float = 0.45,
+) -> None:
+    pdf.setStrokeColor(color)
+    pdf.setLineWidth(line_width)
+    for index in range(columns + 1):
+        x_pos = x + width * index / columns
+        pdf.line(x_pos, y, x_pos, y + height)
+    for index in range(rows + 1):
+        y_pos = y + height * index / rows
+        pdf.line(x, y_pos, x + width, y_pos)
+
+
+def _draw_vector(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    values: Sequence[float],
+    *,
+    color=COLORS["blue_strong"],
+    width: float = 75,
+    height: float = 28,
+) -> None:
+    slot = width / len(values)
+    pdf.setFillColor(color)
+    for index, value in enumerate(values):
+        pdf.rect(x + index * slot, y, max(1.5, slot - 2), height * value, fill=1, stroke=0)
+
+
+def _draw_cylinder(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    label: str,
+) -> None:
+    pdf.setFillColor(COLORS["blue"])
+    pdf.setStrokeColor(COLORS["blue_strong"])
+    pdf.rect(x, y + 7, width, height - 14, fill=1, stroke=0)
+    pdf.ellipse(x, y + height - 14, x + width, y + height, fill=1, stroke=1)
+    pdf.ellipse(x, y, x + width, y + 14, fill=1, stroke=1)
+    pdf.line(x, y + 7, x, y + height - 7)
+    pdf.line(x + width, y + 7, x + width, y + height - 7)
+    _small_label(pdf, x + width / 2, y + height / 2 - 3, label, centered=True, size=8.5)
+
+
+def _draw_prompt_overlay(
+    pdf: canvas.Canvas,
+    image_path: Path,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> None:
+    _draw_image(pdf, image_path, x, y, width, height)
+    pdf.setStrokeColor(COLORS["amber_strong"])
+    pdf.setFillColor(COLORS["amber_strong"])
+    pdf.setLineWidth(2)
+    pdf.rect(
+        x + width * 0.43,
+        y + height * 0.42,
+        width * 0.27,
+        height * 0.18,
+        fill=0,
+        stroke=1,
+    )
+    pdf.circle(x + width * 0.57, y + height * 0.51, 4, fill=1, stroke=0)
+
+
+def _illustrative_proposal(anomaly_path: Path) -> Image.Image:
+    with Image.open(anomaly_path) as image:
+        gray = image.convert("L")
+    values = sorted(gray.get_flattened_data())
+    threshold = values[int(0.92 * (len(values) - 1))]
+    return gray.point(lambda value: 255 if value >= threshold else 0).convert("RGB")
+
+
+def _visual_overview(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _small_label(pdf, 58, 440, "LEARN NORMAL APPEARANCE", color=COLORS["blue_strong"])
+    for index in range(3):
+        _image_tile(
+            pdf,
+            assets["pcb1_normal"],
+            58 + index * 69,
+            351,
+            58,
+            66,
+            f"normal {index + 1}",
+        )
+    _arrow(pdf, 257, 384, 287, 384)
+    _rounded_box(pdf, 291, 351, 92, 66, COLORS["blue"], stroke=COLORS["blue_strong"])
+    _small_label(pdf, 337, 389, "DINOv2", centered=True, color=COLORS["ink"], size=9)
+    _small_label(pdf, 337, 374, "normal memory", centered=True, size=8)
+    _arrow(pdf, 387, 384, 411, 384)
+    _image_tile(pdf, assets["success_anomaly"], 416, 351, 91, 66, "anomaly map")
+
+    _small_label(pdf, 58, 303, "INSPECT A NEW PCB", color=COLORS["amber_strong"])
+    _image_tile(pdf, assets["success_query"], 58, 154, 145, 125, "new query")
+    _arrow(pdf, 209, 216, 246, 216)
+    _rounded_box(pdf, 250, 177, 108, 80, COLORS["teal"], stroke=COLORS["teal_strong"])
+    _small_label(pdf, 304, 225, "Guided SAM2", centered=True, color=COLORS["ink"], size=9)
+    _small_label(pdf, 304, 207, "point + box", centered=True, size=8)
+    _arrow(pdf, 362, 216, 397, 216)
+    _image_tile(pdf, assets["success_ac"], 402, 154, 105, 125, "final mask", border=COLORS["navy"])
+
+    pdf.setDash(4, 3)
+    pdf.setStrokeColor(COLORS["line"])
+    pdf.line(58, 121, 507, 121)
+    pdf.setDash()
+    _small_label(pdf, 282, 98, "GROUND TRUTH LOCKED UNTIL EVALUATION", centered=True)
+
+
+def _visual_roles(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _rounded_box(pdf, 56, 213, 210, 230, COLORS["blue"])
+    _small_label(pdf, 72, 421, "DINOv2 - DOES THIS LOOK NORMAL?", color=COLORS["blue_strong"])
+    _draw_image(pdf, assets["pcb1_normal"], 73, 270, 176, 125)
+    _draw_grid(pdf, 87, 282, 148, 101, columns=7, rows=7)
+    _small_label(pdf, 161, 245, "patches -> features -> distances", centered=True)
+
+    _rounded_box(pdf, 282, 213, 229, 230, COLORS["teal"])
+    _small_label(pdf, 298, 421, "SAM2 - WHICH PIXELS BELONG TOGETHER?", color=COLORS["teal_strong"])
+    _draw_prompt_overlay(pdf, assets["success_query"], 297, 278, 92, 105)
+    _arrow(pdf, 393, 331, 412, 331, color=COLORS["teal_strong"])
+    _draw_image(pdf, assets["success_guided"], 418, 278, 78, 105)
+    _small_label(pdf, 396, 245, "prompt -> coherent region", centered=True)
+
+    _rounded_box(pdf, 70, 105, 440, 73, COLORS["paper"])
+    for x, label, fill in (
+        (102, "A\nanomaly", COLORS["amber"]),
+        (230, "S\nregion", COLORS["teal"]),
+        (385, "A AND S\nfinal", COLORS["navy"]),
+    ):
+        _rounded_box(pdf, x, 119, 82, 43, fill, stroke=fill, radius=7)
+        text_color = white if fill == COLORS["navy"] else COLORS["ink"]
+        lines = label.split("\n")
+        for index, line in enumerate(lines):
+            _small_label(
+                pdf,
+                x + 41,
+                143 - index * 14,
+                line,
+                centered=True,
+                color=text_color,
+                size=8.5,
+            )
+    _arrow(pdf, 188, 141, 220, 141)
+    _arrow(pdf, 316, 141, 375, 141)
+
+
+def _visual_categories(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    for index in range(4):
+        x = 57 + index * 116
+        _image_tile(
+            pdf,
+            assets[f"pcb{index + 1}_normal"],
+            x,
+            292,
+            102,
+            115,
+            f"pcb{index + 1}",
+        )
+        _draw_cylinder(pdf, x + 13, 177, 76, 58, f"M_pcb{index + 1}")
+        _arrow(pdf, x + 51, 278, x + 51, 241, color=COLORS["blue_strong"])
+    _rounded_box(pdf, 72, 104, 425, 42, COLORS["paper"])
+    _small_label(
+        pdf,
+        284,
+        129,
+        "4,416 images | 4,016 normal | 400 anomalous | fold 0",
+        centered=True,
+        color=COLORS["ink"],
+        size=9,
+    )
+    _small_label(
+        pdf,
+        284,
+        112,
+        "four board layouts -> four separate definitions of normal",
+        centered=True,
+    )
+
+
+def _visual_roles_sampling(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    columns = (
+        (55, "SUPPORT", COLORS["blue"], COLORS["blue_strong"]),
+        (216, "CALIBRATION", COLORS["paper"], COLORS["amber_strong"]),
+        (377, "TEST", COLORS["paper"], COLORS["teal_strong"]),
+    )
+    for x, label, fill, accent in columns:
+        _rounded_box(pdf, x, 118, 142, 306, fill, stroke=accent)
+        _small_label(pdf, x + 71, 399, label, centered=True, color=accent, size=9)
+
+    _draw_image(pdf, assets["pcb1_normal"], 67, 285, 118, 89)
+    for row, k in enumerate((1, 2, 4)):
+        y = 250 - row * 43
+        _small_label(pdf, 70, y + 9, f"k = {k}", color=COLORS["ink"], size=8.5)
+        for index in range(k):
+            pdf.setFillColor(COLORS["blue_strong"])
+            pdf.circle(124 + index * 14, y + 11, 5, fill=1, stroke=0)
+    _small_label(pdf, 126, 137, "seeds 4880-4884", centered=True)
+
+    _small_label(pdf, 287, 357, "normal only", centered=True, color=COLORS["ink"])
+    for index in range(28):
+        height = 12 + 46 * math.exp(-((index - 12) / 9) ** 2)
+        pdf.setFillColor(COLORS["blue_strong"])
+        pdf.rect(231 + index * 4.1, 246, 3, height, fill=1, stroke=0)
+    pdf.setStrokeColor(COLORS["amber_strong"])
+    pdf.setLineWidth(2)
+    pdf.line(337, 238, 337, 320)
+    _small_label(pdf, 337, 221, "tau = Q_0.995", centered=True, color=COLORS["amber_strong"])
+    _small_label(pdf, 287, 164, "181 held-out normal images", centered=True)
+
+    _draw_image(pdf, assets["success_query"], 392, 248, 112, 112)
+    _rounded_box(pdf, 398, 166, 100, 49, COLORS["paper"], stroke=COLORS["muted"])
+    _small_label(pdf, 448, 195, "MASK HIDDEN", centered=True, color=COLORS["ink"], size=9)
+    _small_label(pdf, 448, 179, "until evaluation", centered=True)
+
+
+def _visual_preprocess(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _image_tile(pdf, assets["pcb1_normal"], 57, 236, 126, 151, "1. RGB image")
+    _arrow(pdf, 188, 312, 211, 312)
+    _rounded_box(pdf, 216, 236, 126, 151, COLORS["paper"])
+    _draw_image(pdf, assets["pcb1_normal"], 223, 248, 112, 127)
+    _small_label(pdf, 279, 218, "2. preserve aspect ratio", centered=True)
+    _arrow(pdf, 347, 312, 370, 312)
+    _rounded_box(pdf, 375, 236, 126, 151, COLORS["paper"], stroke=COLORS["blue_strong"])
+    pdf.setFillColor(COLORS["blue"])
+    pdf.rect(384, 257, 108, 110, fill=1, stroke=0)
+    _draw_image(pdf, assets["pcb1_normal"], 390, 270, 96, 84)
+    pdf.setStrokeColor(COLORS["blue_strong"])
+    pdf.setLineWidth(2)
+    pdf.rect(390, 270, 96, 84, fill=0, stroke=1)
+    _small_label(pdf, 438, 218, "3. center on 518 x 518", centered=True)
+
+    chips = (
+        (76, "RGB"),
+        (180, "no stretching"),
+        (318, "valid-content mask"),
+    )
+    for x, label in chips:
+        width = 82 if label == "RGB" else 112
+        _rounded_box(pdf, x, 125, width, 43, COLORS["blue"])
+        _small_label(pdf, x + width / 2, 142, label, centered=True, color=COLORS["ink"])
+
+
+def _visual_features(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _rounded_box(pdf, 57, 184, 226, 232, COLORS["paper"])
+    _draw_image(pdf, assets["pcb1_normal"], 68, 208, 204, 180)
+    _draw_grid(pdf, 76, 224, 188, 148, columns=37, rows=37, line_width=0.18)
+    _small_label(pdf, 170, 195, "37 x 37 feature grid", centered=True)
+
+    _rounded_box(pdf, 310, 251, 178, 165, COLORS["blue"])
+    _small_label(pdf, 399, 397, "zoom: 5 x 5 patches", centered=True, color=COLORS["ink"])
+    _draw_grid(pdf, 331, 273, 136, 102, columns=5, rows=5, line_width=1)
+    for row, values in enumerate(
+        ((0.3, 0.7, 0.45, 0.85, 0.55), (0.75, 0.4, 0.6, 0.25, 0.9), (0.5, 0.8, 0.2, 0.65, 0.4))
+    ):
+        _draw_vector(pdf, 325, 183 - row * 28, values, width=150, height=20)
+    _small_label(pdf, 399, 95, "518 / 14 = 37 | up to 1,369 local vectors", centered=True, size=9)
+
+
+def _visual_memory(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del assets, f1
+    _visual_canvas(pdf)
+    for index in range(3):
+        x = 61 + index * 102
+        _rounded_box(pdf, x, 291, 82, 111, COLORS["blue"])
+        _draw_grid(pdf, x + 10, 317, 62, 62, columns=6, rows=4, line_width=0.6)
+        _small_label(pdf, x + 41, 301, f"support {index + 1}", centered=True)
+        _arrow(pdf, x + 82, 344, 347, 286 - index * 22, color=COLORS["blue_strong"])
+    _draw_cylinder(pdf, 355, 200, 135, 165, "M_pcb1")
+    for row in range(6):
+        _draw_vector(
+            pdf,
+            380,
+            234 + row * 17,
+            (0.2 + 0.08 * row, 0.7, 0.45, 0.85 - 0.05 * row, 0.55),
+            width=84,
+            height=11,
+        )
+    _rounded_box(pdf, 68, 113, 215, 73, COLORS["paper"], stroke=COLORS["amber_strong"])
+    _small_label(pdf, 83, 168, "NEXT STEP PREVIEW", color=COLORS["amber_strong"])
+    _draw_vector(pdf, 92, 130, (0.8, 0.25, 0.7, 0.35, 0.9), color=COLORS["amber_strong"])
+    _small_label(pdf, 177, 142, "query vector stays outside memory", color=COLORS["ink"])
+
+
+def _visual_calibration(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del assets, f1
+    _visual_canvas(pdf)
+    chart_x, chart_y, chart_width, chart_height = 62, 160, 430, 230
+    pdf.setStrokeColor(COLORS["line"])
+    pdf.line(chart_x, chart_y, chart_x + chart_width, chart_y)
+    pdf.line(chart_x, chart_y, chart_x, chart_y + chart_height)
+    bar_width = chart_width / 200
+    heights = [
+        0.18 + 0.55 * math.exp(-((index - 75) / 48) ** 2) + 0.12 * math.sin(index / 9) ** 2
+        for index in range(200)
+    ]
+    for index, value in enumerate(heights):
+        pdf.setFillColor(COLORS["blue_strong"])
+        pdf.rect(
+            chart_x + index * bar_width,
+            chart_y,
+            max(0.8, bar_width - 0.3),
+            chart_height * value,
+            fill=1,
+            stroke=0,
+        )
+    tau_x = chart_x + 198 * bar_width
+    pdf.setStrokeColor(COLORS["amber_strong"])
+    pdf.setLineWidth(2.5)
+    pdf.line(tau_x, chart_y - 8, tau_x, chart_y + chart_height + 8)
+    pdf.setFillColor(COLORS["amber_strong"])
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawRightString(tau_x - 5, 411, "tau = 99.5th percentile")
+    _small_label(pdf, 277, 129, "held-out normal pixel scores, sorted from low to high", centered=True)
+    _small_label(pdf, 62, 105, "below tau: looks normal", color=COLORS["blue_strong"])
+    _small_label(pdf, 492, 105, "suspicious", centered=True, color=COLORS["amber_strong"])
+
+
+def _visual_query_compare(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _image_tile(pdf, assets["success_query"], 57, 208, 186, 185, "new pcb1 query")
+    pdf.setStrokeColor(COLORS["amber_strong"])
+    pdf.setLineWidth(2)
+    for x, y in ((105, 305), (145, 270), (177, 330)):
+        pdf.rect(x, y, 18, 18, fill=0, stroke=1)
+
+    _small_label(pdf, 316, 412, "query patch", centered=True, color=COLORS["ink"])
+    _small_label(pdf, 446, 412, "nearest normal patch", centered=True, color=COLORS["ink"])
+    rows = (
+        (340, COLORS["blue_strong"], 35, "small distance"),
+        (280, COLORS["blue_strong"], 42, "small distance"),
+        (220, COLORS["amber_strong"], 82, "large distance"),
+    )
+    for index, (y, color, distance, label) in enumerate(rows):
+        values = (
+            (0.3 + 0.1 * index, 0.75, 0.4, 0.65, 0.5)
+            if index < 2
+            else (0.85, 0.2, 0.72, 0.3, 0.92)
+        )
+        _draw_vector(pdf, 278, y, values, color=color, width=64, height=24)
+        _arrow(pdf, 348, y + 11, 348 + distance, y + 11, color=color)
+        _draw_vector(pdf, 442, y, (0.4, 0.7, 0.45, 0.62, 0.52), width=58, height=24)
+        _small_label(pdf, 382, y - 14, label, centered=True, color=color)
+    _rounded_box(pdf, 80, 108, 410, 48, COLORS["paper"])
+    _small_label(
+        pdf,
+        285,
+        132,
+        "a_p(x) = min || f(x)_p - m ||_2  :  far from every normal patch = suspicious",
+        centered=True,
+        color=COLORS["ink"],
+        size=9,
+    )
+
+
+def _visual_multiscale(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _image_tile(pdf, assets["success_query"], 57, 184, 220, 208, "full image + local crops")
+    pdf.setStrokeColor(COLORS["amber_strong"])
+    pdf.setLineWidth(1.6)
+    for x, y in ((78, 280), (124, 280), (78, 225), (124, 225)):
+        pdf.rect(x, y, 94, 72, fill=0, stroke=1)
+    _small_label(pdf, 167, 405, "global view", centered=True, color=COLORS["blue_strong"])
+    _small_label(pdf, 167, 151, "768 x 768 crops | 25% overlap", centered=True)
+    _arrow(pdf, 283, 287, 340, 287, color=COLORS["amber_strong"])
+    _small_label(pdf, 312, 307, "map back", centered=True, color=COLORS["amber_strong"])
+    _small_label(pdf, 312, 273, "+ max", centered=True, color=COLORS["amber_strong"])
+    _image_tile(pdf, assets["success_anomaly"], 349, 202, 145, 171, "continuous heatmap")
+    _rounded_box(pdf, 90, 104, 390, 38, COLORS["paper"])
+    _small_label(
+        pdf,
+        285,
+        120,
+        "Small-defect motivation - paired results did not prove a reliable gain.",
+        centered=True,
+        color=COLORS["ink"],
+        size=8.5,
+    )
+
+
+def _visual_proposal_prompts(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    proposal = _illustrative_proposal(assets["success_anomaly"])
+    _image_tile(pdf, assets["success_anomaly"], 56, 252, 126, 132, "continuous scores")
+    _arrow(pdf, 186, 318, 213, 318, color=COLORS["amber_strong"])
+    _rounded_box(pdf, 218, 252, 126, 132, COLORS["paper"])
+    _draw_pil_image(pdf, proposal, 224, 258, 114, 120)
+    _small_label(pdf, 281, 237, "binary proposal A", centered=True)
+    _arrow(pdf, 348, 318, 375, 318, color=COLORS["amber_strong"])
+    _rounded_box(pdf, 380, 252, 126, 132, COLORS["paper"])
+    _draw_prompt_overlay(pdf, assets["success_query"], 386, 258, 114, 120)
+    _small_label(pdf, 443, 237, "box + peak point", centered=True)
+
+    _rounded_box(pdf, 64, 126, 438, 70, COLORS["amber"])
+    _small_label(pdf, 82, 178, "COMPONENT FILTER", color=COLORS["amber_strong"])
+    _small_label(pdf, 82, 157, "4-connected | discard < 8 px | keep at most 8 regions", color=COLORS["ink"], size=9)
+    _small_label(
+        pdf,
+        82,
+        138,
+        "Proposal image is explanatory; the real threshold comes from normal calibration.",
+        color=COLORS["ink"],
+        size=8,
+    )
+
+
+def _visual_sam2_union(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    _rounded_box(pdf, 56, 240, 126, 151, COLORS["paper"])
+    _draw_prompt_overlay(pdf, assets["success_query"], 62, 251, 114, 128)
+    _small_label(pdf, 119, 225, "image + prompts", centered=True)
+    _arrow(pdf, 187, 315, 213, 315, color=COLORS["teal_strong"])
+
+    for index, (x, y) in enumerate(((226, 325), (268, 295), (226, 265))):
+        _rounded_box(pdf, x, y, 72, 51, COLORS["teal"], stroke=COLORS["teal_strong"])
+        pdf.setFillColor(COLORS["teal_strong"])
+        pdf.ellipse(x + 14, y + 10, x + 58, y + 40, fill=1, stroke=0)
+        _small_label(pdf, x + 36, y - 12, f"candidate {index + 1}", centered=True, size=7.5)
+    _arrow(pdf, 346, 315, 375, 315, color=COLORS["teal_strong"])
+    _image_tile(pdf, assets["success_guided"], 380, 240, 126, 151, "Guided SAM2 S")
+
+    _rounded_box(pdf, 65, 115, 435, 74, COLORS["paper"])
+    criteria = ("confidence", "anomaly alignment", "prompt containment", "area <= 25%")
+    for index, label in enumerate(criteria):
+        x = 80 + (index % 2) * 205
+        y = 164 - (index // 2) * 29
+        pdf.setFillColor(COLORS["teal_strong"])
+        pdf.circle(x, y + 2, 4, fill=1, stroke=0)
+        _small_label(pdf, x + 12, y - 2, label, color=COLORS["ink"], size=8.5)
+
+
+def _visual_intersection_limit(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del f1
+    _visual_canvas(pdf)
+    proposal = _illustrative_proposal(assets["success_anomaly"])
+    _rounded_box(pdf, 56, 302, 108, 112, COLORS["paper"])
+    _draw_pil_image(pdf, proposal, 62, 308, 96, 100)
+    _small_label(pdf, 110, 286, "proposal A", centered=True)
+    _small_label(pdf, 183, 352, "AND", centered=True, color=COLORS["amber_strong"], size=10)
+    _image_tile(pdf, assets["success_guided"], 207, 302, 108, 112, "Guided S")
+    _small_label(pdf, 334, 352, "=", centered=True, color=COLORS["navy"], size=15)
+    _image_tile(pdf, assets["success_ac"], 358, 302, 108, 112, "AC-SAM2", border=COLORS["navy"])
+    _rounded_box(pdf, 476, 327, 35, 62, COLORS["navy"], stroke=COLORS["navy"])
+    _small_label(pdf, 493.5, 365, "A", centered=True, color=white, size=9)
+    _small_label(pdf, 493.5, 350, "cap", centered=True, color=white, size=7)
+    _small_label(pdf, 493.5, 336, "S", centered=True, color=white, size=9)
+
+    _rounded_box(pdf, 56, 106, 455, 138, COLORS["paper"])
+    _draw_image(pdf, QUALITATIVE_DIR / "pcb1_failure.png", 63, 126, 441, 108)
+    _small_label(
+        pdf,
+        284,
+        113,
+        "Failure case: intersection cannot restore pixels missing from the proposal.",
+        centered=True,
+        color=COLORS["amber_strong"],
+        size=8.5,
+    )
+
+
+def _draw_f1_chart(
+    pdf: canvas.Canvas,
+    f1: dict[str, dict[int, float]],
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> None:
+    pdf.setStrokeColor(COLORS["line"])
+    pdf.line(x, y, x + width, y)
+    pdf.line(x, y, x, y + height)
+    for value in (0.2, 0.25, 0.3):
+        y_pos = y + (value - 0.18) / 0.16 * height
+        pdf.setStrokeColor(COLORS["line"])
+        pdf.line(x, y_pos, x + width, y_pos)
+        _small_label(pdf, x - 6, y_pos - 3, f"{value:.2f}", centered=True, size=7)
+    series_colors = {
+        "Multi-DINO": COLORS["muted"],
+        "Guided SAM2": COLORS["teal_strong"],
+        "AC-SAM2": COLORS["navy"],
+    }
+    shots = (1, 2, 4)
+    for method, series in f1.items():
+        points = []
+        for index, shot in enumerate(shots):
+            x_pos = x + 25 + index * (width - 50) / 2
+            y_pos = y + (series[shot] - 0.18) / 0.16 * height
+            points.append((x_pos, y_pos))
+        pdf.setStrokeColor(series_colors[method])
+        pdf.setLineWidth(2)
+        pdf.line(*points[0], *points[1])
+        pdf.line(*points[1], *points[2])
+        for index, (x_pos, y_pos) in enumerate(points):
+            pdf.setFillColor(series_colors[method])
+            pdf.circle(x_pos, y_pos, 3.5, fill=1, stroke=0)
+            if method == "AC-SAM2":
+                _small_label(
+                    pdf,
+                    x_pos,
+                    y_pos + 10,
+                    f"{series[shots[index]]:.3f}",
+                    centered=True,
+                    color=COLORS["navy"],
+                    size=7,
+                )
+    for index, shot in enumerate(shots):
+        x_pos = x + 25 + index * (width - 50) / 2
+        _small_label(pdf, x_pos, y - 15, f"k={shot}", centered=True, size=7.5)
+    for index, method in enumerate(("Multi-DINO", "Guided SAM2", "AC-SAM2")):
+        legend_x = x + index * 82
+        pdf.setStrokeColor(series_colors[method])
+        pdf.setLineWidth(3)
+        pdf.line(legend_x, y + height + 19, legend_x + 16, y + height + 19)
+        _small_label(pdf, legend_x + 20, y + height + 16, method, size=6.8)
+
+
+def _visual_evaluation(
+    pdf: canvas.Canvas,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    _visual_canvas(pdf)
+    _image_tile(pdf, assets["success_ac"], 55, 303, 105, 112, "prediction")
+    _small_label(pdf, 177, 354, "vs", centered=True, color=COLORS["muted"], size=10)
+    _image_tile(pdf, assets["success_ground_truth"], 194, 303, 105, 112, "ground truth")
+    _small_label(pdf, 177, 326, "lock open", centered=True, color=COLORS["teal_strong"])
+    _draw_f1_chart(pdf, f1, 331, 284, 165, 112)
+
+    _rounded_box(pdf, 55, 116, 444, 127, COLORS["paper"])
+    _small_label(pdf, 74, 221, "REPEATED-MEASURES EXPERIMENT", color=COLORS["ink"], size=9)
+    nodes = (
+        (72, "4\ncategories", COLORS["blue"]),
+        (177, "3\nshots", COLORS["blue"]),
+        (282, "5\nseeds", COLORS["blue"]),
+        (387, "6\nmethods", COLORS["teal"]),
+    )
+    for index, (x, label, fill) in enumerate(nodes):
+        _rounded_box(pdf, x, 157, 76, 49, fill)
+        for row, line in enumerate(label.split("\n")):
+            _small_label(pdf, x + 38, 185 - row * 15, line, centered=True, color=COLORS["ink"])
+        if index < len(nodes) - 1:
+            _small_label(pdf, x + 91, 177, "x", centered=True, color=COLORS["muted"], size=10)
+    _small_label(pdf, 277, 139, "360 support-dependent runs + 4 SAM2-only = 364", centered=True, color=COLORS["navy"], size=9)
+    _small_label(pdf, 277, 101, "DINOv2 inspects | SAM2 outlines | AC-SAM2 keeps agreement", centered=True, color=COLORS["ink"], size=9)
+
+
+VISUAL_RENDERERS = {
+    "overview": _visual_overview,
+    "roles": _visual_roles,
+    "categories": _visual_categories,
+    "roles_sampling": _visual_roles_sampling,
+    "preprocess": _visual_preprocess,
+    "features": _visual_features,
+    "memory": _visual_memory,
+    "calibration": _visual_calibration,
+    "query_compare": _visual_query_compare,
+    "multiscale": _visual_multiscale,
+    "proposal_prompts": _visual_proposal_prompts,
+    "sam2_union": _visual_sam2_union,
+    "intersection_limit": _visual_intersection_limit,
+    "evaluation": _visual_evaluation,
+}
+
+
 def _draw_visual(
     pdf: canvas.Canvas,
     visual: str,
     assets: dict[str, Path],
     f1: dict[str, dict[int, float]],
 ) -> None:
-    del assets, f1
-    _rounded_box(pdf, 42, 82, 485, 390, white)
-    pdf.setFillColor(COLORS["ink"])
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawCentredString(284, 275, visual.replace("_", " ").title())
+    VISUAL_RENDERERS[visual](pdf, assets, f1)
 
 
 def _draw_page(

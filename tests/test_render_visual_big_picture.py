@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from PIL import Image
 from pypdf import PdfReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
 
 from scripts.render_visual_big_picture import (
     PAGE_SPECS,
+    VISUAL_RENDERERS,
     build_visual_big_picture,
     collect_step_numbers,
     extract_real_assets,
@@ -64,6 +67,7 @@ def test_f1_table_is_loaded_from_frozen_primary_summary() -> None:
     }
 
 
+@pytest.mark.filterwarnings("error")
 def test_build_writes_pdf_markdown_manifest_and_fourteen_previews(tmp_path: Path) -> None:
     result = build_visual_big_picture(tmp_path, render_pngs=True)
 
@@ -76,3 +80,37 @@ def test_build_writes_pdf_markdown_manifest_and_fourteen_previews(tmp_path: Path
     assert manifest["page_count"] == 14
     assert manifest["step_numbers"] == list(range(1, 17))
     assert manifest["pdf_sha256"] == sha256_file(result["pdf"])
+
+
+def test_every_page_visual_has_a_renderer() -> None:
+    assert set(VISUAL_RENDERERS) == {page.visual for page in PAGE_SPECS}
+
+
+def test_calibration_tau_label_stays_inside_visual_column(tmp_path: Path) -> None:
+    result = build_visual_big_picture(tmp_path, render_pngs=False)
+    positions: list[tuple[str, float, float]] = []
+
+    def visit_text(text, _cm, text_matrix, _font, font_size) -> None:
+        if "tau = 99.5th percentile" in text:
+            positions.append((text.strip(), float(text_matrix[4]), float(font_size)))
+
+    PdfReader(str(result["pdf"])).pages[7].extract_text(visitor_text=visit_text)
+
+    assert positions
+    for text, x, size in positions:
+        assert x + stringWidth(text, "Helvetica-Bold", size) <= 527
+
+
+def test_multiscale_captions_do_not_overlap(tmp_path: Path) -> None:
+    result = build_visual_big_picture(tmp_path, render_pngs=False)
+    positions: dict[str, float] = {}
+
+    def visit_text(text, _cm, text_matrix, _font, _font_size) -> None:
+        stripped = text.strip()
+        if stripped in {"full image + local crops", "768 x 768 crops | 25% overlap"}:
+            positions[stripped] = float(text_matrix[5])
+
+    PdfReader(str(result["pdf"])).pages[9].extract_text(visitor_text=visit_text)
+
+    assert set(positions) == {"full image + local crops", "768 x 768 crops | 25% overlap"}
+    assert abs(positions["full image + local crops"] - positions["768 x 768 crops | 25% overlap"]) >= 12
