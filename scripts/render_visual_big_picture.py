@@ -6,12 +6,20 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-from PIL import Image
+from PIL import Image, ImageOps
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfgen import canvas
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +50,21 @@ REAL_CASES = {
     / "054.png",
 }
 PANEL_INDEX = {"input": 0, "ground_truth": 1, "anomaly": 2, "guided": 3, "ac": 4}
+PAGE_SIZE = landscape(A4)
+PAGE_WIDTH, PAGE_HEIGHT = PAGE_SIZE
+COLORS = {
+    "ink": HexColor("#17324D"),
+    "muted": HexColor("#52677D"),
+    "line": HexColor("#D6DEE7"),
+    "paper": HexColor("#F7F9FC"),
+    "blue": HexColor("#D7E9FF"),
+    "blue_strong": HexColor("#3C78B5"),
+    "amber": HexColor("#FFE3AE"),
+    "amber_strong": HexColor("#C77900"),
+    "teal": HexColor("#CCEBD7"),
+    "teal_strong": HexColor("#32847A"),
+    "navy": HexColor("#15395F"),
+}
 
 
 @dataclass(frozen=True)
@@ -307,3 +330,283 @@ def load_f1_table() -> dict[str, dict[int, float]]:
     if any(set(series) != {1, 2, 4} for series in values.values()):
         raise ValueError("frozen F1 table is incomplete")
     return values
+
+
+def _wrap(text: str, font: str, size: float, max_width: float) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if current and stringWidth(candidate, font, size) > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _text(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    text: str,
+    *,
+    size: float = 12,
+    color=COLORS["ink"],
+    max_width: float = 250,
+    leading: float | None = None,
+    font: str = "Helvetica",
+) -> float:
+    leading = leading or size * 1.28
+    pdf.setFillColor(color)
+    pdf.setFont(font, size)
+    for line in _wrap(text, font, size, max_width):
+        pdf.drawString(x, y, line)
+        y -= leading
+    return y
+
+
+def _rounded_box(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill,
+    *,
+    stroke=COLORS["line"],
+    radius: float = 10,
+) -> None:
+    pdf.setFillColor(fill)
+    pdf.setStrokeColor(stroke)
+    pdf.roundRect(x, y, width, height, radius, fill=1, stroke=1)
+
+
+def _arrow(
+    pdf: canvas.Canvas,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    color=COLORS["ink"],
+) -> None:
+    pdf.setStrokeColor(color)
+    pdf.setFillColor(color)
+    pdf.setLineWidth(2)
+    pdf.line(x1, y1, x2, y2)
+    pdf.line(x2, y2, x2 - 9, y2 + 5)
+    pdf.line(x2, y2, x2 - 9, y2 - 5)
+
+
+def _draw_image(
+    pdf: canvas.Canvas,
+    path: Path,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> None:
+    with Image.open(path) as image:
+        fitted = ImageOps.contain(
+            image.convert("RGB"),
+            (max(1, int(width * 2)), max(1, int(height * 2))),
+            Image.Resampling.LANCZOS,
+        )
+    draw_width = fitted.width / 2
+    draw_height = fitted.height / 2
+    pdf.drawImage(
+        ImageReader(fitted),
+        x + (width - draw_width) / 2,
+        y + (height - draw_height) / 2,
+        draw_width,
+        draw_height,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
+
+
+def _header(pdf: canvas.Canvas, page: PageSpec) -> None:
+    pdf.setFillColor(COLORS["paper"])
+    pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+    pdf.setFillColor(COLORS["muted"])
+    pdf.setFont("Helvetica-Bold", 10)
+    label = "OVERVIEW" if not page.steps else "STEPS " + ", ".join(map(str, page.steps))
+    pdf.drawString(42, PAGE_HEIGHT - 40, label)
+    pdf.setFillColor(COLORS["ink"])
+    pdf.setFont("Helvetica-Bold", 25)
+    pdf.drawString(42, PAGE_HEIGHT - 72, page.title)
+    source = {
+        "real": "REAL EXPERIMENT EXAMPLE",
+        "illustration": "EXPLANATORY ILLUSTRATION",
+        "mixed": "REAL EXAMPLE + EXPLANATORY OVERLAY",
+    }[page.source_kind]
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.setFillColor(COLORS["muted"])
+    pdf.drawRightString(PAGE_WIDTH - 42, PAGE_HEIGHT - 40, source)
+
+
+def _teaching_copy(pdf: canvas.Canvas, page: PageSpec) -> None:
+    x, y, width = 555, 435, 245
+    for label, body in (
+        ("WHAT ENTERS", page.what_enters),
+        ("WHAT HAPPENS", page.what_happens),
+        ("WHAT COMES OUT", page.what_comes_out),
+        ("WHAT TO NOTICE", page.what_to_notice),
+    ):
+        pdf.setFillColor(COLORS["muted"])
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(x, y, label)
+        y = _text(
+            pdf,
+            x,
+            y - 17,
+            body,
+            size=10.5,
+            max_width=width,
+            leading=13.5,
+        ) - 13
+
+
+def _draw_visual(
+    pdf: canvas.Canvas,
+    visual: str,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    del assets, f1
+    _rounded_box(pdf, 42, 82, 485, 390, white)
+    pdf.setFillColor(COLORS["ink"])
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawCentredString(284, 275, visual.replace("_", " ").title())
+
+
+def _draw_page(
+    pdf: canvas.Canvas,
+    page: PageSpec,
+    assets: dict[str, Path],
+    f1: dict[str, dict[int, float]],
+) -> None:
+    _header(pdf, page)
+    _draw_visual(pdf, page.visual, assets, f1)
+    _teaching_copy(pdf, page)
+    pdf.setFillColor(COLORS["muted"])
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(42, 24, "Few-Shot PCB Defect Segmentation - visual big picture")
+    pdf.drawRightString(PAGE_WIDTH - 42, 24, f"{page.number} / 14")
+
+
+def _write_markdown(path: Path) -> None:
+    parts = ["# Visual Big Picture\n"]
+    for page in PAGE_SPECS:
+        steps = "Overview" if not page.steps else "Steps " + ", ".join(map(str, page.steps))
+        parts.extend(
+            [
+                f"## Page {page.number}: {page.title}\n",
+                f"**{steps} - {page.source_kind}.**\n",
+                f"- **What enters:** {page.what_enters}\n",
+                f"- **What happens:** {page.what_happens}\n",
+                f"- **What comes out:** {page.what_comes_out}\n",
+                f"- **What to notice:** {page.what_to_notice}\n",
+            ]
+        )
+    path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def _render_previews(pdf_path: Path, pages_dir: Path) -> list[Path]:
+    pages_dir.mkdir(parents=True, exist_ok=True)
+    for old_preview in pages_dir.glob("page-*.png"):
+        old_preview.unlink()
+    prefix = pages_dir / "page"
+    executable = os.environ.get("PDFTOPPM", "pdftoppm")
+    subprocess.run(
+        [executable, "-png", "-r", "120", str(pdf_path), str(prefix)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    generated = sorted(
+        pages_dir.glob("page-*.png"),
+        key=lambda path: int(path.stem.rsplit("-", 1)[1]),
+    )
+    renamed: list[Path] = []
+    for index, path in enumerate(generated, start=1):
+        destination = pages_dir / f"page-{index:02d}.png"
+        if path != destination:
+            path.replace(destination)
+        renamed.append(destination)
+    return renamed
+
+
+def _contact_sheet(page_paths: Sequence[Path], output_path: Path) -> None:
+    thumbs = []
+    for path in page_paths:
+        with Image.open(path) as image:
+            thumbs.append(
+                ImageOps.contain(image.convert("RGB"), (420, 297), Image.Resampling.LANCZOS)
+            )
+    sheet = Image.new("RGB", (1260, 5 * 325), "#E8EDF3")
+    for index, thumb in enumerate(thumbs):
+        x = (index % 3) * 420
+        y = (index // 3) * 325
+        sheet.paste(thumb, (x, y))
+    sheet.save(output_path)
+
+
+def build_visual_big_picture(
+    output_dir: Path,
+    *,
+    render_pngs: bool = True,
+) -> dict[str, object]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = output_dir / "visual_big_picture.pdf"
+    markdown_path = output_dir / "visual_big_picture.md"
+    manifest_path = output_dir / "manifest.json"
+    contact_sheet = output_dir / "preview-contact-sheet.png"
+    f1 = load_f1_table()
+    with tempfile.TemporaryDirectory(prefix="visual-big-picture-") as temp_dir:
+        assets = extract_real_assets(Path(temp_dir))
+        pdf = canvas.Canvas(str(pdf_path), pagesize=PAGE_SIZE, pageCompression=1)
+        pdf.setTitle("Visual Big Picture - Few-Shot PCB Defect Segmentation")
+        for page in PAGE_SPECS:
+            _draw_page(pdf, page, assets, f1)
+            pdf.showPage()
+        pdf.save()
+    _write_markdown(markdown_path)
+    page_paths = _render_previews(pdf_path, output_dir / "pages") if render_pngs else []
+    if page_paths:
+        _contact_sheet(page_paths, contact_sheet)
+    manifest = {
+        "schema_version": 1,
+        "page_count": len(PAGE_SPECS),
+        "step_numbers": collect_step_numbers(PAGE_SPECS),
+        "pages": [
+            {
+                "number": page.number,
+                "title": page.title,
+                "steps": list(page.steps),
+                "source_kind": page.source_kind,
+            }
+            for page in PAGE_SPECS
+        ],
+        "source_sha256": {
+            "pcb1_success.png": sha256_file(QUALITATIVE_DIR / "pcb1_success.png"),
+            "pcb1_failure.png": sha256_file(QUALITATIVE_DIR / "pcb1_failure.png"),
+            "primary_summary.csv": sha256_file(EVIDENCE_DIR / "primary_summary.csv"),
+        },
+        "pdf_sha256": sha256_file(pdf_path),
+        "markdown_sha256": sha256_file(markdown_path),
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "pdf": pdf_path,
+        "markdown": markdown_path,
+        "manifest": manifest_path,
+        "contact_sheet": contact_sheet,
+        "pages": page_paths,
+    }

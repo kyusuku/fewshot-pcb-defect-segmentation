@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PIL import Image
+from pypdf import PdfReader
 
 from scripts.render_visual_big_picture import (
     PAGE_SPECS,
+    build_visual_big_picture,
     collect_step_numbers,
     extract_real_assets,
     load_f1_table,
+    sha256_file,
     validate_source_assets,
 )
 
@@ -58,3 +62,17 @@ def test_f1_table_is_loaded_from_frozen_primary_summary() -> None:
         "Guided SAM2": {1: 0.257, 2: 0.284, 4: 0.303},
         "AC-SAM2": {1: 0.268, 2: 0.297, 4: 0.317},
     }
+
+
+def test_build_writes_pdf_markdown_manifest_and_fourteen_previews(tmp_path: Path) -> None:
+    result = build_visual_big_picture(tmp_path, render_pngs=True)
+
+    assert set(result) == {"pdf", "markdown", "manifest", "contact_sheet", "pages"}
+    assert len(PdfReader(str(result["pdf"])).pages) == 14
+    assert len(result["pages"]) == 14
+    assert all(path.is_file() and path.stat().st_size > 10_000 for path in result["pages"])
+    assert result["markdown"].read_text(encoding="utf-8").count("## Page ") == 14
+    manifest = json.loads(result["manifest"].read_text(encoding="utf-8"))
+    assert manifest["page_count"] == 14
+    assert manifest["step_numbers"] == list(range(1, 17))
+    assert manifest["pdf_sha256"] == sha256_file(result["pdf"])
