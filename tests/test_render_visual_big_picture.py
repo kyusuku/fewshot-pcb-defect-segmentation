@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 
 from scripts.render_visual_big_picture import (
     PAGE_SPECS,
+    PROJECT_ROOT,
     VISUAL_RENDERERS,
     build_visual_big_picture,
     collect_step_numbers,
@@ -113,4 +116,48 @@ def test_multiscale_captions_do_not_overlap(tmp_path: Path) -> None:
     PdfReader(str(result["pdf"])).pages[9].extract_text(visitor_text=visit_text)
 
     assert set(positions) == {"full image + local crops", "768 x 768 crops | 25% overlap"}
-    assert abs(positions["full image + local crops"] - positions["768 x 768 crops | 25% overlap"]) >= 12
+    assert (
+        abs(positions["full image + local crops"] - positions["768 x 768 crops | 25% overlap"])
+        >= 12
+    )
+
+
+def test_cli_builds_the_named_output_package(tmp_path: Path) -> None:
+    command = [
+        sys.executable,
+        str(PROJECT_ROOT / "scripts" / "render_visual_big_picture.py"),
+        "--output-dir",
+        str(tmp_path),
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "visual_big_picture.pdf" in result.stdout
+    assert (tmp_path / "visual_big_picture.pdf").is_file()
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["source_labels"] == [
+        "real experiment example",
+        "explanatory illustration",
+        "real example + explanatory overlay",
+    ]
+    assert manifest["reported_f1"] == {
+        method: {str(k): value for k, value in series.items()}
+        for method, series in load_f1_table().items()
+    }
+
+
+def test_pdf_page_size_is_a4_landscape(tmp_path: Path) -> None:
+    result = build_visual_big_picture(tmp_path, render_pngs=False)
+    reader = PdfReader(str(result["pdf"]))
+    width = float(reader.pages[0].mediabox.width)
+    height = float(reader.pages[0].mediabox.height)
+
+    assert abs(width - 841.89) < 0.2
+    assert abs(height - 595.28) < 0.2

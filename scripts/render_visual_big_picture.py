@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import hashlib
 import json
@@ -29,26 +30,14 @@ EVIDENCE_DIR = PROJECT_ROOT / "docs" / "evidence" / "generated"
 QUALITATIVE_DIR = EVIDENCE_DIR / "qualitative_figures"
 DATASET_ROOT = PROJECT_ROOT / "data" / "processed" / "VisA_pytorch" / "1cls"
 NORMAL_EXAMPLES = {
-    f"pcb{index}_normal": DATASET_ROOT
-    / f"pcb{index}"
-    / "train"
-    / "good"
-    / "0000.JPG"
+    f"pcb{index}_normal": DATASET_ROOT / f"pcb{index}" / "train" / "good" / "0000.JPG"
     for index in range(1, 5)
 }
 REAL_CASES = {
     "success_query": DATASET_ROOT / "pcb1" / "test" / "bad" / "085.JPG",
-    "success_ground_truth": DATASET_ROOT
-    / "pcb1"
-    / "ground_truth"
-    / "bad"
-    / "085.png",
+    "success_ground_truth": DATASET_ROOT / "pcb1" / "ground_truth" / "bad" / "085.png",
     "failure_query": DATASET_ROOT / "pcb1" / "test" / "bad" / "054.JPG",
-    "failure_ground_truth": DATASET_ROOT
-    / "pcb1"
-    / "ground_truth"
-    / "bad"
-    / "054.png",
+    "failure_ground_truth": DATASET_ROOT / "pcb1" / "ground_truth" / "bad" / "054.png",
 }
 PANEL_INDEX = {"input": 0, "ground_truth": 1, "anomaly": 2, "guided": 3, "ac": 4}
 PAGE_SIZE = landscape(A4)
@@ -124,11 +113,9 @@ PAGE_SPECS = (
         "mixed",
         "roles_sampling",
         "Normal development images, held-out normal calibration images, and test images.",
-        "Select k in {1, 2, 4} normal supports and repeat the selection with five fixed "
-        "seeds.",
+        "Select k in {1, 2, 4} normal supports and repeat the selection with five fixed seeds.",
         "A support set, a separate calibration set, and an untouched test set.",
-        "The protocol uses few support images, but also uses normal-only calibration "
-        "images.",
+        "The protocol uses few support images, but also uses normal-only calibration images.",
     ),
     PageSpec(
         5,
@@ -193,8 +180,7 @@ PAGE_SPECS = (
         "mixed",
         "multiscale",
         "Scores from the full image and overlapping 768 x 768 crops.",
-        "Map every view back to original coordinates and keep the maximum where views "
-        "overlap.",
+        "Map every view back to original coordinates and keep the maximum where views overlap.",
         "A continuous full-resolution anomaly heatmap.",
         "Multi-scale was motivated by small defects, but was not reliably better than "
         "single-scale.",
@@ -221,8 +207,7 @@ PAGE_SPECS = (
         "Frozen SAM2 predicts candidate masks; selection uses confidence, alignment, "
         "prompt containment, and an area cap before masks are combined.",
         "The Guided SAM2 mask S.",
-        "SAM2 can outline the wrong normal structure because it knows grouping, not "
-        "defectiveness.",
+        "SAM2 can outline the wrong normal structure because it knows grouping, not defectiveness.",
     ),
     PageSpec(
         13,
@@ -233,8 +218,7 @@ PAGE_SPECS = (
         "The calibrated anomaly proposal A and Guided SAM2 mask S.",
         "Compute AC-SAM2 = A intersect S pixel by pixel.",
         "The anomaly-consistent final mask.",
-        "Intersection can remove false positives but cannot recover a pixel missing from "
-        "A or S.",
+        "Intersection can remove false positives but cannot recover a pixel missing from A or S.",
     ),
     PageSpec(
         14,
@@ -460,15 +444,18 @@ def _teaching_copy(pdf: canvas.Canvas, page: PageSpec) -> None:
         pdf.setFillColor(COLORS["muted"])
         pdf.setFont("Helvetica-Bold", 8)
         pdf.drawString(x, y, label)
-        y = _text(
-            pdf,
-            x,
-            y - 17,
-            body,
-            size=10.5,
-            max_width=width,
-            leading=13.5,
-        ) - 13
+        y = (
+            _text(
+                pdf,
+                x,
+                y - 17,
+                body,
+                size=10.5,
+                max_width=width,
+                leading=13.5,
+            )
+            - 13
+        )
 
 
 def _visual_canvas(pdf: canvas.Canvas) -> None:
@@ -772,7 +759,7 @@ def _visual_roles_sampling(
 
     _small_label(pdf, 287, 357, "normal only", centered=True, color=COLORS["ink"])
     for index in range(28):
-        height = 12 + 46 * math.exp(-((index - 12) / 9) ** 2)
+        height = 12 + 46 * math.exp(-(((index - 12) / 9) ** 2))
         pdf.setFillColor(COLORS["blue_strong"])
         pdf.rect(231 + index * 4.1, 246, 3, height, fill=1, stroke=0)
     pdf.setStrokeColor(COLORS["amber_strong"])
@@ -884,7 +871,7 @@ def _visual_calibration(
     pdf.line(chart_x, chart_y, chart_x, chart_y + chart_height)
     bar_width = chart_width / 200
     heights = [
-        0.18 + 0.55 * math.exp(-((index - 75) / 48) ** 2) + 0.12 * math.sin(index / 9) ** 2
+        0.18 + 0.55 * math.exp(-(((index - 75) / 48) ** 2)) + 0.12 * math.sin(index / 9) ** 2
         for index in range(200)
     ]
     for index, value in enumerate(heights):
@@ -904,7 +891,9 @@ def _visual_calibration(
     pdf.setFillColor(COLORS["amber_strong"])
     pdf.setFont("Helvetica-Bold", 8)
     pdf.drawRightString(tau_x - 5, 411, "tau = 99.5th percentile")
-    _small_label(pdf, 277, 129, "held-out normal pixel scores, sorted from low to high", centered=True)
+    _small_label(
+        pdf, 277, 129, "held-out normal pixel scores, sorted from low to high", centered=True
+    )
     _small_label(pdf, 62, 105, "below tau: looks normal", color=COLORS["blue_strong"])
     _small_label(pdf, 492, 105, "suspicious", centered=True, color=COLORS["amber_strong"])
 
@@ -931,9 +920,7 @@ def _visual_query_compare(
     )
     for index, (y, color, distance, label) in enumerate(rows):
         values = (
-            (0.3 + 0.1 * index, 0.75, 0.4, 0.65, 0.5)
-            if index < 2
-            else (0.85, 0.2, 0.72, 0.3, 0.92)
+            (0.3 + 0.1 * index, 0.75, 0.4, 0.65, 0.5) if index < 2 else (0.85, 0.2, 0.72, 0.3, 0.92)
         )
         _draw_vector(pdf, 278, y, values, color=color, width=64, height=24)
         _arrow(pdf, 348, y + 11, 348 + distance, y + 11, color=color)
@@ -1001,7 +988,14 @@ def _visual_proposal_prompts(
 
     _rounded_box(pdf, 64, 126, 438, 70, COLORS["amber"])
     _small_label(pdf, 82, 178, "COMPONENT FILTER", color=COLORS["amber_strong"])
-    _small_label(pdf, 82, 157, "4-connected | discard < 8 px | keep at most 8 regions", color=COLORS["ink"], size=9)
+    _small_label(
+        pdf,
+        82,
+        157,
+        "4-connected | discard < 8 px | keep at most 8 regions",
+        color=COLORS["ink"],
+        size=9,
+    )
     _small_label(
         pdf,
         82,
@@ -1157,8 +1151,24 @@ def _visual_evaluation(
             _small_label(pdf, x + 38, 185 - row * 15, line, centered=True, color=COLORS["ink"])
         if index < len(nodes) - 1:
             _small_label(pdf, x + 91, 177, "x", centered=True, color=COLORS["muted"], size=10)
-    _small_label(pdf, 277, 139, "360 support-dependent runs + 4 SAM2-only = 364", centered=True, color=COLORS["navy"], size=9)
-    _small_label(pdf, 277, 101, "DINOv2 inspects | SAM2 outlines | AC-SAM2 keeps agreement", centered=True, color=COLORS["ink"], size=9)
+    _small_label(
+        pdf,
+        277,
+        139,
+        "360 support-dependent runs + 4 SAM2-only = 364",
+        centered=True,
+        color=COLORS["navy"],
+        size=9,
+    )
+    _small_label(
+        pdf,
+        277,
+        101,
+        "DINOv2 inspects | SAM2 outlines | AC-SAM2 keeps agreement",
+        centered=True,
+        color=COLORS["ink"],
+        size=9,
+    )
 
 
 VISUAL_RENDERERS = {
@@ -1301,6 +1311,18 @@ def build_visual_big_picture(
             "pcb1_failure.png": sha256_file(QUALITATIVE_DIR / "pcb1_failure.png"),
             "primary_summary.csv": sha256_file(EVIDENCE_DIR / "primary_summary.csv"),
         },
+        "source_labels": [
+            "real experiment example",
+            "explanatory illustration",
+            "real example + explanatory overlay",
+        ],
+        "reported_f1": f1,
+        "notes": [
+            "No generative-image model was used.",
+            "The 92nd-percentile proposal view is an explanatory visualization, not a "
+            "reconstruction of the frozen calibrated proposal.",
+            "Ground truth is used only on evaluation or explicitly post-hoc comparison pages.",
+        ],
         "pdf_sha256": sha256_file(pdf_path),
         "markdown_sha256": sha256_file(markdown_path),
     }
@@ -1315,3 +1337,23 @@ def build_visual_big_picture(
         "contact_sheet": contact_sheet,
         "pages": page_paths,
     }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--skip-previews", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    result = build_visual_big_picture(
+        args.output_dir,
+        render_pngs=not args.skip_previews,
+    )
+    print(result["pdf"])
+
+
+if __name__ == "__main__":
+    main()
