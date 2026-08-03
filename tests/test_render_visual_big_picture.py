@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageStat
 from pypdf import PdfReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
@@ -77,7 +77,12 @@ def test_build_writes_pdf_markdown_manifest_and_fourteen_previews(tmp_path: Path
     assert set(result) == {"pdf", "markdown", "manifest", "contact_sheet", "pages"}
     assert len(PdfReader(str(result["pdf"])).pages) == 14
     assert len(result["pages"]) == 14
-    assert all(path.is_file() and path.stat().st_size > 10_000 for path in result["pages"])
+    for path in result["pages"]:
+        assert path.is_file()
+        with Image.open(path) as preview:
+            grayscale = preview.convert("L")
+            assert grayscale.size == (1404, 993)
+            assert ImageStat.Stat(grayscale).stddev[0] > 10
     assert result["markdown"].read_text(encoding="utf-8").count("## Page ") == 14
     manifest = json.loads(result["manifest"].read_text(encoding="utf-8"))
     assert manifest["page_count"] == 14

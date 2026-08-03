@@ -24,6 +24,8 @@ See [docs/evidence/generated/evidence_index.md](docs/evidence/generated/evidence
 for the claim-to-evidence map and
 [docs/citation_inventory.md](docs/citation_inventory.md) for the scoped novelty
 and citation boundary.
+For the milestone 2 readiness checklist and evidence index, see
+[docs/milestone2_readiness_checklist.md](docs/milestone2_readiness_checklist.md).
 
 ## Benchmarks
 

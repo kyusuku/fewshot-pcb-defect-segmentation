@@ -93,9 +93,17 @@ def render_method_figure(
     _arrow(draw, (1035, 230), (1035, 380))
     _arrow(draw, (1200, 440), (1280, 440))
     _arrow(draw, (360, 440), (870, 440))
-    draw.text((920, 282), "calibrated proposal", fill="#5a3a00", font=small_font)
-    draw.text((95, 405), "Query image", fill="#243447", font=font)
-    draw.text((1290, 525), "binary mask used for evaluation", fill="#243447", font=small_font)
+    draw.text((1065, 282), "calibrated proposal", fill="#5a3a00", font=small_font)
+    query_label = "Query image"
+    query_bbox = draw.textbbox((0, 0), query_label, font=font)
+    query_y = 440 - (query_bbox[1] + query_bbox[3]) / 2
+    draw.text((95, query_y), query_label, fill="#243447", font=font)
+    evaluation_label = "binary mask used for evaluation"
+    evaluation_bbox = draw.textbbox((0, 0), evaluation_label, font=small_font)
+    final_rect = BLOCKS[-1]["rect"]
+    final_center_x = (final_rect[0] + final_rect[2]) / 2
+    evaluation_x = final_center_x - (evaluation_bbox[0] + evaluation_bbox[2]) / 2
+    draw.text((evaluation_x, 525), evaluation_label, fill="#243447", font=small_font)
     output_png.parent.mkdir(parents=True, exist_ok=True)
     layout_json.parent.mkdir(parents=True, exist_ok=True)
     image.save(output_png)

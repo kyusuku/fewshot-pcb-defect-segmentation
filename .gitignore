@@ -12,6 +12,9 @@ venv/
 /data/
 /datasets/
 /outputs/
+/output/
+/tmp/
+/.superpowers/
 /checkpoints/
 /weights/
 /runs/
