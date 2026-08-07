@@ -1,31 +1,55 @@
-# Few-Shot PCB Defect Segmentation
+# When Does SAM2 Help Few-Shot PCB Defect Segmentation?
 
-Research codebase for **Few-Shot PCB Defect Segmentation via Multi-Scale DINOv2 Anomaly Proposals and SAM2 Mask Refinement**.
+**A Controlled Study of Anomaly-Constrained Refinement**
 
-Repository name: `fewshot-pcb-defect-segmentation`
+Public research artifact for the ECE4880J Computer Vision course project at
+Shanghai Jiao Tong University. This repository contains the implementation,
+frozen experiment configurations, tests, and checksum-bound evidence for a
+training-free few-shot PCB defect-segmentation pipeline. Frozen DINOv2 features
+model normal PCB appearance; calibrated anomaly regions prompt frozen SAM2; and
+the final AC-SAM2 mask retains only pixels supported by both signals.
 
-This project implements a training-free few-shot PCB defect detection and
-segmentation pipeline. It represents normal PCB appearance using frozen features
-from a small set of normal images, detects anomalous regions with DINOv2 patch
-features, combines global and local anomaly evidence, and refines candidate
-regions with frozen SAM2 masks. No model parameters are trained or fine-tuned.
+**Author:** Tampraphon Lorattanasane
 
-Current status: the frozen AutoDL study and compact evidence package are complete.
-The primary checker passed all 364 runs, the ablation checker passed all 48 runs,
-and the completion manifest reports `ready_for_writing: true`. The source runs are
-frozen at commit `ff4c07208278376b27a4954d560c715f51453c5e`; the evidence
-postprocessor is frozen at `45a5f93c556e1c1a7a9e39f535434f9244ea1a7a`.
+![Training-free DINOv2-to-SAM2 pipeline](docs/evidence/generated/method_figure.png)
 
-See [docs/PRD.md](docs/PRD.md) for the staged research plan, exit criteria, and
-publishability gates.
-See [docs/arxiv_readiness_checklist.md](docs/arxiv_readiness_checklist.md) for
-the current arXiv-readiness audit.
-See [docs/evidence/generated/evidence_index.md](docs/evidence/generated/evidence_index.md)
-for the claim-to-evidence map and
-[docs/citation_inventory.md](docs/citation_inventory.md) for the scoped novelty
-and citation boundary.
-For the milestone 2 readiness checklist and evidence index, see
-[docs/milestone2_readiness_checklist.md](docs/milestone2_readiness_checklist.md).
+## Paper Status
+
+The manuscript has been submitted to arXiv and is awaiting moderation as of
+7 August 2026. The public arXiv URL will be added after announcement. This
+repository intentionally excludes the report PDF, raw datasets, pretrained
+weights, checkpoints, and full experiment outputs.
+
+## At a Glance
+
+| Item | Frozen protocol |
+| --- | --- |
+| Training data | Normal images only |
+| Support sizes | `k = 1, 2, 4` with five support seeds |
+| Detector | Frozen DINOv2 ViT-S/14 patch memory |
+| Refiner | Frozen SAM2.1 Hiera Tiny |
+| Primary benchmark | VisA `pcb1`-`pcb4`, official fold 0 |
+| Completed experiments | 364 primary runs and 48 ablation runs |
+| Main paired effect | AC-SAM2 vs. Multi-DINO: `+0.0666` F1 and `+0.0565` IoU |
+| Main boundary | Hard agreement can reduce recall on large defects |
+
+No model parameter is trained or fine-tuned. The supported contribution is a
+controlled empirical result about when anomaly-guided SAM2 refinement helps; it
+is not a new backbone or a state-of-the-art claim.
+
+## Evidence and Reproducibility
+
+The primary checker passed all 364 declared runs, the ablation checker passed
+all 48 runs, and the release manifest checksum-binds the compact evidence
+package. The source runs are frozen at commit
+`ff4c07208278376b27a4954d560c715f51453c5e`; the evidence postprocessor is
+frozen at `45a5f93c556e1c1a7a9e39f535434f9244ea1a7a`.
+
+- [Claim-to-evidence index](docs/evidence/generated/evidence_index.md)
+- [arXiv-readiness audit](docs/arxiv_readiness_checklist.md)
+- [Citation and novelty boundary](docs/citation_inventory.md)
+- [Milestone 2 readiness checklist](docs/milestone2_readiness_checklist.md)
+- [Research plan and publishability gates](docs/PRD.md)
 
 ## Benchmarks
 
